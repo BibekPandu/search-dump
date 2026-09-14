@@ -2,5 +2,8 @@ node_modules
 .env
 .env.*
 dist
-*.db
+*.db*
 .mastra
+.cache
+.agents/
+output/

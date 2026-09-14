@@ -4,10 +4,29 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "mastra dev",
+    "start": "mastra dev",
+    "test": "tsx scripts/test-entity-resolution.ts && tsx scripts/test-candidate-classifier.ts && tsx scripts/test-maps-discovery.ts && tsx scripts/test-website-discovery.ts && tsx scripts/test-business-extractor.ts && tsx scripts/test-verification.ts && tsx scripts/test-deep-extraction-offline.ts && tsx scripts/test-output-structure.ts",
+    "test:e2e": "tsx scripts/test-research-workflow-e2e.ts",
+    "test:e2e:phase2": "tsx scripts/test-phase2-e2e.ts",
+    "test:all": "tsx scripts/test-all-fixes.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "@mastra/core": "^1.64.0",
+    "@mastra/libsql": "^1.22.4",
+    "@mastra/memory": "^1.28.3",
+    "@openrouter/ai-sdk-provider": "^3.0.0",
+    "@types/node": "^26.5.0",
+    "duck-duck-scrape": "^2.2.7",
+    "mastra": "^1.27.3",
+    "typescript": "^7.0.2",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.13"
+  }
 }
