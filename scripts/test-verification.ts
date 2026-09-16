@@ -1,7 +1,5 @@
 import {
   verifyCandidateWebsite,
-  buildVerifiedEvidence,
-  keyOfCandidate,
 } from '../src/services/verification.service';
 import type { ResearchCandidate } from '../src/mastra/agents/research-agent/schema';
 import type { WebsiteEvidence, WebsitePageEvidence } from '../src/mastra/agents/research-agent/verification.schema';

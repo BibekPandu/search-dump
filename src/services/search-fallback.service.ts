@@ -2,6 +2,10 @@ import { z } from 'zod';
 import { searchSerper, type SerperResult } from './serper-search.service';
 import { getCached, setCache } from './cache.service';
 import { search } from 'duck-duck-scrape';
+import {
+  CATEGORY_EXPANSION_POLICIES,
+  CATEGORY_STEM_MAPPINGS,
+} from '../config/category-expansion.config';
 
 // ============================================================================
 // Single Source of Truth Zod Schemas & Inferred Types
@@ -374,4 +378,126 @@ async function tryDuckDuckGo(
       provider: 'duckduckgo',
     })
   );
+}
+
+// ============================================================================
+// Category Intent Normalization & Query Expansion (Phase 4)
+// ============================================================================
+
+export interface CategoryIntent {
+  original: string;
+  normalized: string;
+  isBroad: boolean;
+  discoveryTerms: string[];
+  positiveTerms: string[];
+  distinctiveTerms: string[];
+  businessFormTerms: string[];
+  excludedTerms: string[];
+  maxTotalQueries: number;
+}
+
+export interface ExpandedQuery {
+  query: string;
+  type: 'exact' | 'expanded';
+  source: string;
+}
+
+/**
+ * Normalize a raw user query into a structured CategoryIntent.
+ * Pure and deterministic — no network calls or LLM inferences.
+ */
+export function normalizeCategoryIntent(query: string): CategoryIntent {
+  const trimmed = query.trim();
+  let normalized = trimmed.toLowerCase();
+
+  // Controlled singular -> plural stem normalization (e.g. 'sport' -> 'sports')
+  if (CATEGORY_STEM_MAPPINGS[normalized]) {
+    normalized = CATEGORY_STEM_MAPPINGS[normalized];
+  }
+
+  const policy = CATEGORY_EXPANSION_POLICIES[normalized];
+  if (policy) {
+    return {
+      original: trimmed,
+      normalized: policy.normalized,
+      isBroad: policy.isBroad,
+      discoveryTerms: policy.discoveryTerms,
+      positiveTerms: policy.positiveTerms,
+      distinctiveTerms: policy.distinctiveTerms,
+      businessFormTerms: policy.businessFormTerms,
+      excludedTerms: policy.excludedTerms,
+      maxTotalQueries: policy.maxTotalQueries,
+    };
+  }
+
+  return {
+    original: trimmed,
+    normalized,
+    isBroad: false,
+    discoveryTerms: [trimmed],
+    positiveTerms: [normalized],
+    distinctiveTerms: [],
+    businessFormTerms: [],
+    excludedTerms: [],
+    maxTotalQueries: 1,
+  };
+}
+
+/**
+ * Expand a CategoryIntent into a bounded set of search queries.
+ * Always preserves the original/exact query as the first entry.
+ * Deduplicates by lowercase whitespace-collapsed query string.
+ * Bounded by intent.maxTotalQueries.
+ */
+export function expandCategoryQueries(
+  intent: CategoryIntent,
+  location: string
+): ExpandedQuery[] {
+  const queries: ExpandedQuery[] = [];
+  const seen = new Set<string>();
+
+  const loc = location ? location.trim() : '';
+
+  // Helper to normalize query string for deduplication (lowercase + collapse whitespace)
+  const normalizeKey = (str: string) => str.toLowerCase().replace(/\s+/g, ' ').trim();
+
+  // Helper to append location if provided and not already present
+  const withLocation = (base: string) => {
+    if (!loc) return base.trim();
+    const baseLower = base.toLowerCase();
+    const locLower = loc.toLowerCase();
+    if (baseLower.includes(locLower)) return base.trim();
+    return `${base.trim()} ${loc}`.trim();
+  };
+
+  // Layer 1: Always preserve the exact/original query first
+  const exactQueryStr = withLocation(intent.original);
+  const exactKey = normalizeKey(exactQueryStr);
+  if (!seen.has(exactKey)) {
+    seen.add(exactKey);
+    queries.push({
+      query: exactQueryStr,
+      type: 'exact',
+      source: intent.original,
+    });
+  }
+
+  // Layer 2: Controlled expansion (only for broad queries)
+  if (intent.isBroad && intent.discoveryTerms.length > 0) {
+    for (const term of intent.discoveryTerms) {
+      if (queries.length >= intent.maxTotalQueries) break;
+      const expandedStr = withLocation(term);
+      const key = normalizeKey(expandedStr);
+      if (!seen.has(key)) {
+        seen.add(key);
+        queries.push({
+          query: expandedStr,
+          type: 'expanded',
+          source: term,
+        });
+      }
+    }
+  }
+
+  return queries.slice(0, intent.maxTotalQueries);
 }

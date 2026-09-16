@@ -1,5 +1,13 @@
-import { normalizePhoneDigits } from './entity-resolution.service';
+import { domainFromUrlOrHost } from './entity-resolution.service';
 import type { WebsitePageEvidence, WebsiteEvidence, PhoneEvidenceRecord } from '../mastra/agents/research-agent/verification.schema';
+import { NTA_MOBILE_PREFIXES, NTA_LANDLINE_AREA_CODES } from '../config/nepal-telecom.config';
+import {
+  type ContactRole,
+  type ContactOwner,
+  type ContactChannel,
+  type ClassifiedContact,
+} from '../mastra/agents/research-agent/contact.schema';
+import type { ClassifiedSocialProfile } from '../mastra/agents/research-agent/social.schema';
 
 // ============================================================================
 // Business Extractor — deterministic (0-token) structured fact extraction
@@ -37,14 +45,21 @@ const PLACEHOLDER_EMAIL_PATTERNS = [
   /^email(?:\s*protected)?@/i,
 ];
 
+// Media filenames and display-pixel-ratio (DPR) assets misidentified as emails (Task 5)
+export const MEDIA_FILENAME_PATTERN = /\.(png|jpe?g|gif|svg|webp|bmp|ico|tiff?|avif)$/i;
+export const MEDIA_DPR_PATTERN = /@\d+(?:\.\d+)?x\.(?:png|jpe?g|gif|svg|webp)$/i;
+export const IMAGE_FILE_TLDS = new Set([
+  'png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp', 'ico', 'tiff', 'avif'
+]);
+
 // Phone patterns (Nepal-aware, proven in buildFallbackListing + Phase 1):
 // landline: +977-1-4240520 / 014240520 / 01-4240520
 // mobile:   +977 98XXXXXXXX / 98XXXXXXXX (9[78] prefix)
-const LANDLINE_OR_MOBILE_REGEX =
-  /(?:\+977[-.\s]?)?(?:01[-.\s]?\d{6,8}|9[78]\d[-.\s]?\d{7})|(?:\+977[-.\s]?1[-.\s]?\d{6,8})/g;
-const MOBILE_REGEX = /(?:\+977[-.\s]?)?9[78]\d[-.\s]?\d{7}/g;
-const NEPAL_LANDLINE_REGEX = /(?:\+977[-.\s]?)?0?1[-.\s]?\d{6,7}\b/g;
-const INTERNATIONAL_REGEX = /\+[\d\s()-]{7,15}/g;
+export const LANDLINE_OR_MOBILE_REGEX =
+  /(?<!\d)(?:(?:\+977[-.\s]?)?(?:01[-.\s]?\d{6,8}|9[78]\d[-.\s]?\d{7})|(?:\+977[-.\s]?1[-.\s]?\d{6,8}))(?!\d)/g;
+export const MOBILE_REGEX = /(?<!\d)(?:\+977[-.\s]?)?9[78]\d[-.\s]?\d{7}(?!\d)/g;
+export const NEPAL_LANDLINE_REGEX = /(?<!\d)(?:\+977[-.\s]?)?0?(?:1[-.\s]?\d{6,7}|[2-9]\d[-.\s]?\d{6})(?!\d)/g;
+export const INTERNATIONAL_REGEX = /\+[\d\s()-]{7,15}/g;
 
 // Phone numbers hidden in hrefs that must survive URL/noise stripping:
 //   tel:+977-1-4522833 / callto:+977... (HTML attributes & markdown links)
@@ -56,8 +71,10 @@ const FACEBOOK_REGEX = /https?:\/\/(?:www\.)?(?:m\.)?facebook\.com\/(?:profile\.
 const INSTAGRAM_REGEX = /https?:\/\/(?:www\.)?instagram\.com\/[a-zA-Z0-9._-]+/i;
 const TIKTOK_REGEX = /https?:\/\/(?:www\.)?tiktok\.com\/@[a-zA-Z0-9._-]+/i;
 const X_TWITTER_REGEX = /https?:\/\/(?:www\.)?(?:x|twitter)\.com\/[a-zA-Z0-9_]+/i;
-const YOUTUBE_REGEX = /https?:\/\/(?:www\.)?youtube\.com\/(?:@[\w-]+|c\/[\w-]+|channel\/[\w-]+)/i;
-const LINKEDIN_REGEX = /https?:\/\/(?:www\.)?linkedin\.com\/(?:company|in)\/[\w-]+/i;
+const YOUTUBE_REGEX = /https?:\/\/(?:www\.)?(?:youtube\.com\/(?:channel\/|c\/|user\/|@)?|youtu\.be\/)[a-zA-Z0-9._-]+/i;
+export const LINKEDIN_COMPANY_REGEX = /https?:\/\/(?:www\.)?linkedin\.com\/company\/[\w-]+/i;
+export const LINKEDIN_PERSONAL_REGEX = /https?:\/\/(?:www\.)?linkedin\.com\/in\/[\w-]+/i;
+export const LINKEDIN_REGEX = /https?:\/\/(?:www\.)?linkedin\.com\/(?:company|in)\/[\w-]+/i;
 
 export function cleanTrailingPunctuation(value: string): string {
   if (!value) return '';
@@ -132,105 +149,7 @@ export interface PhoneEvidence {
  *   INCOMPLETE_MOBILE    — starts with 98/97 pattern after 977, but digit count ≠ 10
  *   INCOMPLETE_LANDLINE  — starts with 01 or 1 after 977, but digit count ≠ 8 (normalized)
  *   INVALID_STRUCTURE    — does not match any recognised complete format
- *
- * NOTE: classifyNepalPhone also handles international formats — rename to
- * classifyPhone() in a future cleanup pass.
  */
-export function classifyNepalPhone(raw: string): ClassifiedPhone {
-  const cleaned = sanitizePhoneString(raw);
-  if (!cleaned) return { type: 'invalid', digits: '', normalized: '', reason: 'EMPTY' };
-
-  const digits = cleaned.replace(/\D/g, '');
-  if (!digits) return { type: 'invalid', digits: '', normalized: cleaned, reason: 'NO_DIGITS' };
-
-  // Hard limits: below 7 digits or above 15 digits cannot be any valid phone.
-  if (digits.length > 15) return { type: 'invalid', digits, normalized: cleaned, reason: 'TOO_LONG' };
-
-  const hasPlus = cleaned.startsWith('+');
-  const startsWith977 = digits.startsWith('977');
-
-  // ── PATH A: Nepal country code prefix (977…) ────────────────────────────────
-  if (startsWith977) {
-    const afterCC = digits.slice(3); // digits after the 977 country code
-
-    // Mobile: 977 + exactly 10 digits starting with 98 or 97 (not 977)
-    if ((afterCC.startsWith('98') || afterCC.startsWith('97')) && !afterCC.startsWith('977')) {
-      if (afterCC.length === 10) {
-        return { type: 'mobile', digits: afterCC, normalized: `+977-${afterCC}` };
-      }
-      // Has mobile-looking prefix but wrong length → INCOMPLETE_MOBILE
-      return { type: 'invalid', digits, normalized: cleaned, reason: 'INCOMPLETE_MOBILE' };
-    }
-
-    // Landline: 977 + 01 + 7 digits  (total afterCC length = 9)
-    if (afterCC.startsWith('01')) {
-      if (afterCC.length === 9) {
-        const landlineDigits = afterCC.slice(1); // strip trunk 0
-        return { type: 'landline', digits: landlineDigits, normalized: landlineDigits };
-      }
-      return { type: 'invalid', digits, normalized: cleaned, reason: 'INCOMPLETE_LANDLINE' };
-    }
-
-    // Landline: 977 + 1 + 7 digits  (total afterCC length = 8)
-    if (afterCC.startsWith('1')) {
-      if (afterCC.length === 8) {
-        return { type: 'landline', digits: afterCC, normalized: afterCC };
-      }
-      return { type: 'invalid', digits, normalized: cleaned, reason: 'INCOMPLETE_LANDLINE' };
-    }
-
-    // Has 977 prefix but no recognised afterCC structure → international?
-    if (hasPlus && digits.length >= 8 && digits.length <= 15) {
-      const opens = (cleaned.match(/\(/g) || []).length;
-      const closes = (cleaned.match(/\)/g) || []).length;
-      if (opens === closes) return { type: 'international', digits, normalized: cleaned };
-    }
-
-    return { type: 'invalid', digits, normalized: cleaned, reason: 'INVALID_STRUCTURE' };
-  }
-
-  // ── PATH B: No 977 prefix — domestic or explicit international ───────────────
-
-  // INTERNATIONAL: check FIRST for explicit '+' so numbers like +1 301 322 1427
-  // do not hit the Nepal bare-digit checks below (e.g. startsWith('1') guard).
-  // Must have explicit '+' and 8–15 digits with balanced parens.
-  if (hasPlus && digits.length >= 8 && digits.length <= 15) {
-    const opens = (cleaned.match(/\(/g) || []).length;
-    const closes = (cleaned.match(/\)/g) || []).length;
-    if (opens === closes) return { type: 'international', digits, normalized: cleaned };
-  }
-
-  // Nepal mobile (domestic, 10 digits, 97x/98x, not 977)
-  if (digits.length === 10 && (digits.startsWith('98') || digits.startsWith('97')) && !digits.startsWith('977')) {
-    return { type: 'mobile', digits, normalized: digits };
-  }
-
-  // Nepal mobile prefix present but WRONG length → INCOMPLETE_MOBILE (e.g. +977 (980) 822-2)
-  if ((digits.startsWith('98') || digits.startsWith('97')) && !digits.startsWith('977') && digits.length !== 10) {
-    return { type: 'invalid', digits, normalized: cleaned, reason: 'INCOMPLETE_MOBILE' };
-  }
-
-  // Kathmandu landline: 01 + 7 digits → strip trunk
-  if (digits.length === 9 && digits.startsWith('01')) {
-    return { type: 'landline', digits: digits.slice(1), normalized: digits.slice(1) };
-  }
-  if (digits.startsWith('01') && digits.length !== 9) {
-    return { type: 'invalid', digits, normalized: cleaned, reason: 'INCOMPLETE_LANDLINE' };
-  }
-
-  // Kathmandu landline: 1 + 7 digits (8 digits total)
-  if (digits.length === 8 && digits.startsWith('1')) {
-    return { type: 'landline', digits, normalized: digits };
-  }
-  // Starts with 1 but wrong length (including 7-digit fragments) → INCOMPLETE_LANDLINE
-  if (digits.startsWith('1') && digits.length !== 8) {
-    return { type: 'invalid', digits, normalized: cleaned, reason: 'INCOMPLETE_LANDLINE' };
-  }
-
-
-  return { type: 'invalid', digits, normalized: cleaned, reason: 'INVALID_STRUCTURE' };
-}
-
 /**
  * Formats a phone number for display.
  *
@@ -263,13 +182,161 @@ export function formatPhoneDisplay(
   if (type === 'international') {
     // Preserve source grouping when available (avoids invented format)
     if (raw) {
-      const trimmed = raw.trim();
-      return trimmed.startsWith('+') ? trimmed : `+${trimmed.replace(/^\D+/, '')}`;
+      const sanitized = sanitizePhoneString(raw);
+      return sanitized.startsWith('+') ? sanitized : `+${sanitized.replace(/^\D+/, '')}`;
     }
     return `+${canonicalDigits}`;
   }
   // invalid or unknown: return raw or canonical
   return raw ?? canonicalDigits;
+}
+
+/**
+ * Classifies a phone number string into:
+ *   - mobile: Nepal 10-digit mobile (prefix 97/98, after stripping +977 if present).
+ *             Canonical identity: 10 digits without +977 (e.g. "9808222425").
+ *   - landline: Kathmandu landline (prefix 01 or +977-1 or bare 1 + 7 digits).
+ *             Canonical identity: 8 digits starting with 1 (e.g. "15363501").
+ *   - international: Non-Nepal number with explicit country code prefix.
+ *             Canonical identity: all digits with leading + (e.g. "+13013221427").
+ *   - invalid: Fragment, too short, unbalanced parens, or unrecognizable structure.
+ *
+ * Invariant guarantees:
+ *   - Mobile canonical digits are always exactly 10 digits.
+ *   - Landline canonical digits are always exactly 8 digits starting with 1.
+ *   - Canonical digits never overlap between valid mobiles and valid landlines.
+ *
+ * NOTE: classifyNepalPhone also handles international formats — rename to
+ * classifyPhone() in a future cleanup pass.
+ */
+export function classifyNepalPhone(raw: string): ClassifiedPhone {
+  const cleaned = sanitizePhoneString(raw);
+  if (!cleaned) return { type: 'invalid', digits: '', normalized: '', reason: 'EMPTY' };
+
+  let digits = cleaned.replace(/\D/g, '');
+  if (!digits) return { type: 'invalid', digits: '', normalized: cleaned, reason: 'NO_DIGITS' };
+
+  // Task 4: Duplicate country code (+977 977 9851234567 -> +977 9851234567)
+  if (digits.startsWith('977977')) {
+    digits = digits.slice(3);
+  }
+
+  // Hard limits: below 7 digits or above 15 digits cannot be any valid phone.
+  if (digits.length > 15) return { type: 'invalid', digits, normalized: cleaned, reason: 'TOO_LONG' };
+
+  const hasPlus = cleaned.startsWith('+');
+  const startsWith977 = digits.startsWith('977');
+
+  // ── PATH A: Nepal country code prefix (977…) ────────────────────────────────
+  if (startsWith977) {
+    const afterCC = digits.slice(3); // digits after the 977 country code
+
+    // Mobile: 977 + exactly 10 digits starting with verified NTA mobile prefix
+    const isNtaMobilePrefix = NTA_MOBILE_PREFIXES.some((p) => afterCC.startsWith(p));
+    if (isNtaMobilePrefix) {
+      if (afterCC.length === 10) {
+        return { type: 'mobile', digits: afterCC, normalized: formatPhoneDisplay(afterCC, 'mobile', cleaned) };
+      }
+      return { type: 'invalid', digits, normalized: cleaned, reason: 'INCOMPLETE_MOBILE' };
+    }
+
+    // Landline: 977 + 01 + 7 digits (total afterCC length = 9) -> strip trunk 0 -> 1XXXXXXX (8 digits)
+    if (afterCC.startsWith('01')) {
+      if (afterCC.length === 9) {
+        const landlineDigits = afterCC.slice(1);
+        return { type: 'landline', digits: landlineDigits, normalized: formatPhoneDisplay(landlineDigits, 'landline', cleaned) };
+      }
+      return { type: 'invalid', digits, normalized: cleaned, reason: 'INCOMPLETE_LANDLINE' };
+    }
+
+    // Landline: 977 + 1 + 7 digits (total afterCC length = 8)
+    if (afterCC.startsWith('1')) {
+      if (afterCC.length === 8) {
+        return { type: 'landline', digits: afterCC, normalized: formatPhoneDisplay(afterCC, 'landline', cleaned) };
+      }
+      return { type: 'invalid', digits, normalized: cleaned, reason: 'INCOMPLETE_LANDLINE' };
+    }
+
+    // Regional Landlines in Path A: 977 + 2-digit area code + 6 digits (e.g. +977-61-520123)
+    for (const [code, info] of Object.entries(NTA_LANDLINE_AREA_CODES)) {
+      if (code !== '01' && afterCC.startsWith(info.areaCodeDigits)) {
+        const expectedLen = info.areaCodeDigits.length + info.subscriberLength;
+        if (afterCC.length === expectedLen) {
+          return { type: 'landline', digits: afterCC, normalized: formatPhoneDisplay(afterCC, 'landline', cleaned) };
+        }
+      }
+    }
+
+    // Has 977 prefix but no recognised afterCC structure -> international?
+    if (hasPlus && digits.length >= 8 && digits.length <= 15) {
+      const opens = (cleaned.match(/\(/g) || []).length;
+      const closes = (cleaned.match(/\)/g) || []).length;
+      if (opens === closes) return { type: 'international', digits, normalized: formatPhoneDisplay(digits, 'international', cleaned) };
+    }
+
+    return { type: 'invalid', digits, normalized: cleaned, reason: 'INVALID_STRUCTURE' };
+  }
+
+  // ── PATH B: No 977 prefix — domestic or explicit international ───────────────
+
+  // Nepal mobile: exactly 10 digits starting with verified NTA mobile prefix
+  const isNtaMobilePrefix = NTA_MOBILE_PREFIXES.some((p) => digits.startsWith(p));
+  if (isNtaMobilePrefix) {
+    if (digits.length === 10) {
+      return { type: 'mobile', digits, normalized: formatPhoneDisplay(digits, 'mobile', cleaned) };
+    }
+    return { type: 'invalid', digits, normalized: cleaned, reason: 'INCOMPLETE_MOBILE' };
+  }
+
+  // Kathmandu domestic landline (with or without '+'): 01 + 7 digits (9 digits total) -> strip trunk 0
+  if (digits.length === 9 && digits.startsWith('01')) {
+    const landlineDigits = digits.slice(1);
+    return { type: 'landline', digits: landlineDigits, normalized: formatPhoneDisplay(landlineDigits, 'landline', cleaned) };
+  }
+
+  // Regional domestic landlines (e.g. 061-520123): check NTA_LANDLINE_AREA_CODES
+  for (const [code, info] of Object.entries(NTA_LANDLINE_AREA_CODES)) {
+    if (code !== '01' && digits.startsWith(code)) {
+      const expectedLen = code.length + info.subscriberLength; // e.g. 3 + 6 = 9 digits
+      if (digits.length === expectedLen) {
+        const canonical = digits.slice(1); // strip trunk 0 -> 8 digits
+        return { type: 'landline', digits: canonical, normalized: formatPhoneDisplay(canonical, 'landline', cleaned) };
+      }
+    }
+  }
+
+  // Kathmandu landline bare form: 1 + 7 digits (8 digits total)
+  if (digits.length === 8 && digits.startsWith('1')) {
+    return { type: 'landline', digits, normalized: formatPhoneDisplay(digits, 'landline', cleaned) };
+  }
+
+  // Regional bare landlines (2-digit area code + 6 digits = 8 digits total)
+  for (const [code, info] of Object.entries(NTA_LANDLINE_AREA_CODES)) {
+    if (code !== '01' && digits.startsWith(info.areaCodeDigits)) {
+      const expectedLen = info.areaCodeDigits.length + info.subscriberLength;
+      if (digits.length === expectedLen) {
+        return { type: 'landline', digits, normalized: formatPhoneDisplay(digits, 'landline', cleaned) };
+      }
+    }
+  }
+
+  // INTERNATIONAL: check for explicit '+' and 8–15 digits with balanced parens
+  // Checked AFTER domestic landline so +01-XXXXXXX is recognized as landline, not intl!
+  if (hasPlus && digits.length >= 8 && digits.length <= 15) {
+    const opens = (cleaned.match(/\(/g) || []).length;
+    const closes = (cleaned.match(/\)/g) || []).length;
+    if (opens === closes) return { type: 'international', digits, normalized: formatPhoneDisplay(digits, 'international', cleaned) };
+  }
+
+  if (digits.startsWith('01') && digits.length !== 9) {
+    return { type: 'invalid', digits, normalized: cleaned, reason: 'INCOMPLETE_LANDLINE' };
+  }
+
+  if (digits.startsWith('1') && digits.length !== 8) {
+    return { type: 'invalid', digits, normalized: cleaned, reason: 'INCOMPLETE_LANDLINE' };
+  }
+
+  return { type: 'invalid', digits, normalized: cleaned, reason: 'INVALID_STRUCTURE' };
 }
 
 const FACEBOOK_RESERVED_PATHS = new Set([
@@ -296,6 +363,16 @@ const FACEBOOK_RESERVED_PATHS = new Set([
   'about',
   'terms',
   'privacy',
+  'people',
+  'directory',
+  'marketplace',
+  'gaming',
+  'reels',
+  'saved',
+  'memories',
+  'fundraiser',
+  'crisisresponse',
+  'explore',
 ]);
 
 const TWITTER_RESERVED_PATHS = new Set([
@@ -310,6 +387,9 @@ const TWITTER_RESERVED_PATHS = new Set([
   'i',
   'privacy',
   'tos',
+  'notifications',
+  'messages',
+  'settings',
 ]);
 
 const INSTAGRAM_RESERVED_PATHS = new Set([
@@ -322,6 +402,47 @@ const INSTAGRAM_RESERVED_PATHS = new Set([
   'developer',
   'about',
   'legal',
+  'nametag',
+]);
+
+/**
+ * Note: This list is maintained, not derived. Additions should be reviewed for false-positive risk.
+ */
+export const INDUSTRY_GENERIC_TOKENS = new Set([
+  'dental', 'clinic', 'care', 'hospital', 'health', 'healthcare', 'medical', 'med',
+  'pharma', 'pharmacy', 'diagnostic', 'pathology', 'lab', 'laboratory', 'center',
+  'centre', 'institute', 'poly', 'polyclinic', 'nursing', 'home',
+  'realtors', 'realestate', 'properties', 'property', 'homes', 'builders', 'developers',
+  'construction', 'group', 'pvt', 'ltd', 'inc', 'co', 'corp', 'company',
+  'hotel', 'resort', 'lodge', 'guest', 'house', 'inn', 'stay', 'cafe', 'restaurant',
+  'coffee', 'bakery', 'kitchen', 'food', 'foods', 'travel', 'travels', 'tours',
+  'trekking', 'adventure', 'expedition', 'holidays', 'nepal', 'kathmandu', 'pokhara',
+  'lalitpur', 'bhaktapur', 'services', 'service', 'solutions', 'tech', 'technologies',
+  'auto', 'automobiles', 'motors', 'cleaning', 'clean', 'hygiene', 'express',
+  'international', 'global', 'nepali', 'official', 'hub', 'point', 'mart', 'store',
+]);
+
+export const PLATFORM_OFFICIAL_HANDLES = new Map<string, string[]>([
+  ['facebook',  ['facebook', 'fb', 'meta', 'help', 'support', 'business', 'developers']],
+  ['instagram', ['instagram', 'meta', 'help', 'support', 'creators', 'business']],
+  ['twitter',   ['twitter', 'x', 'support', 'help', 'api', 'verified']],
+  ['linkedin',  ['linkedin', 'help', 'support', 'learning']],
+  ['youtube',   ['youtube', 'google', 'creators']],
+  ['tiktok',    ['tiktok', 'bytedance', 'creators', 'ads']],
+]);
+
+/**
+ * Known third-party site-builder / vendor social handles.
+ * These profiles belong to technology/CMS platforms, not the business entity.
+ */
+export const KNOWN_VENDOR_SOCIAL_HANDLES = new Map<string, string[]>([
+  ['facebook',  ['sitepad', 'softaculous', 'wix', 'wixcom', 'shopify', 'squarespace',
+                 'weebly', 'godaddy', 'longtail', 'longtailemed', 'webflow', 'carrd']],
+  ['twitter',   ['sitepad_editor', 'softaculous', 'wix', 'shopify', 'squarespace',
+                 'weebly', 'godaddy', 'longtail', 'webflow']],
+  ['linkedin',  ['softaculous-ltd-', 'wix', 'shopify-inc', 'squarespace', 'godaddy',
+                 'longtail-e-media', 'webflow']],
+  ['instagram', ['sitepadorcom', 'wix', 'shopify', 'squarespace', 'weebly']],
 ]);
 
 export function isRealSocialProfile(url: string, platform?: string): boolean {
@@ -384,6 +505,523 @@ export function isRealSocialProfile(url: string, platform?: string): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * Classifies a social profile URL into a 3-state ownership decision model:
+ * status: 'accepted' | 'rejected' | 'unknown'
+ * with explicit forensic rejectionReason and profileType.
+ */
+export function classifySocialProfile(
+  url: string,
+  platform?: string,
+  businessName?: string,
+  websiteDomain?: string
+): ClassifiedSocialProfile {
+  if (!url) {
+    return {
+      url: '',
+      platform: 'other',
+      handle: '',
+      profileType: 'unknown',
+      owner: 'unknown',
+      status: 'rejected',
+      confidence: 1.0,
+      rejectionReason: 'NOT_A_REAL_PROFILE',
+      distinctiveTokensFound: [],
+    };
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return {
+      url,
+      platform: 'other',
+      handle: '',
+      profileType: 'unknown',
+      owner: 'unknown',
+      status: 'rejected',
+      confidence: 1.0,
+      rejectionReason: 'NOT_A_REAL_PROFILE',
+      distinctiveTokensFound: [],
+    };
+  }
+
+  const host = parsed.hostname.toLowerCase();
+  let plat: ClassifiedSocialProfile['platform'] = 'other';
+  if (host.includes('facebook.com') || host.includes('fb.com')) plat = 'facebook';
+  else if (host.includes('instagram.com')) plat = 'instagram';
+  else if (host.includes('tiktok.com')) plat = 'tiktok';
+  else if (host.includes('twitter.com') || host.includes('x.com')) plat = 'twitter';
+  else if (host.includes('youtube.com') || host.includes('youtu.be')) plat = 'youtube';
+  else if (host.includes('linkedin.com')) plat = 'linkedin';
+  else if (platform) {
+    const p = platform.toLowerCase();
+    if (['facebook', 'instagram', 'tiktok', 'twitter', 'youtube', 'linkedin'].includes(p)) {
+      plat = p as ClassifiedSocialProfile['platform'];
+    }
+  }
+
+  const pathSegments = parsed.pathname.split('/').filter(Boolean);
+  if (pathSegments.length === 0) {
+    return {
+      url,
+      platform: plat,
+      handle: '',
+      profileType: 'unknown',
+      owner: 'unknown',
+      status: 'rejected',
+      confidence: 1.0,
+      rejectionReason: 'NOT_A_REAL_PROFILE',
+      distinctiveTokensFound: [],
+    };
+  }
+
+  const firstSegment = pathSegments[0].toLowerCase().replace(/^@/, '');
+
+  // 1. Share / intent / reserved endpoints across platforms
+  if (plat === 'facebook') {
+    if (
+      firstSegment === 'sharer.php' ||
+      firstSegment === 'sharer' ||
+      firstSegment === 'dialog' ||
+      firstSegment === 'plugins' ||
+      parsed.pathname.includes('/sharer')
+    ) {
+      return {
+        url,
+        platform: plat,
+        handle: firstSegment,
+        profileType: 'unknown',
+        owner: 'unknown',
+        status: 'rejected',
+        confidence: 1.0,
+        rejectionReason: 'NOT_A_REAL_PROFILE',
+        distinctiveTokensFound: [],
+      };
+    }
+    if (FACEBOOK_RESERVED_PATHS.has(firstSegment)) {
+      return {
+        url,
+        platform: plat,
+        handle: firstSegment,
+        profileType: 'unknown',
+        owner: 'unknown',
+        status: 'rejected',
+        confidence: 1.0,
+        rejectionReason: 'RESERVED_PATH',
+        distinctiveTokensFound: [],
+      };
+    }
+    if (firstSegment === 'profile.php') {
+      const id = parsed.searchParams.get('id');
+      if (id && /^\d+$/.test(id)) {
+        return {
+          url,
+          platform: plat,
+          handle: id,
+          profileType: 'unknown',
+          owner: 'unknown',
+          status: 'unknown',
+          confidence: 0.5,
+          rejectionReason: 'INSUFFICIENT_EVIDENCE',
+          distinctiveTokensFound: [],
+        };
+      }
+      return {
+        url,
+        platform: plat,
+        handle: 'profile.php',
+        profileType: 'unknown',
+        owner: 'unknown',
+        status: 'rejected',
+        confidence: 1.0,
+        rejectionReason: 'NOT_A_REAL_PROFILE',
+        distinctiveTokensFound: [],
+      };
+    }
+    if (firstSegment.length < 3) {
+      return {
+        url,
+        platform: plat,
+        handle: firstSegment,
+        profileType: 'unknown',
+        owner: 'unknown',
+        status: 'rejected',
+        confidence: 1.0,
+        rejectionReason: 'NOT_A_REAL_PROFILE',
+        distinctiveTokensFound: [],
+      };
+    }
+  } else if (plat === 'twitter') {
+    if (
+      firstSegment === 'intent' ||
+      firstSegment === 'share' ||
+      parsed.pathname.includes('/intent') ||
+      parsed.pathname.includes('/share')
+    ) {
+      return {
+        url,
+        platform: plat,
+        handle: firstSegment,
+        profileType: 'unknown',
+        owner: 'unknown',
+        status: 'rejected',
+        confidence: 1.0,
+        rejectionReason: 'NOT_A_REAL_PROFILE',
+        distinctiveTokensFound: [],
+      };
+    }
+    if (TWITTER_RESERVED_PATHS.has(firstSegment)) {
+      return {
+        url,
+        platform: plat,
+        handle: firstSegment,
+        profileType: 'unknown',
+        owner: 'unknown',
+        status: 'rejected',
+        confidence: 1.0,
+        rejectionReason: 'RESERVED_PATH',
+        distinctiveTokensFound: [],
+      };
+    }
+  } else if (plat === 'instagram') {
+    if (INSTAGRAM_RESERVED_PATHS.has(firstSegment)) {
+      return {
+        url,
+        platform: plat,
+        handle: firstSegment,
+        profileType: 'unknown',
+        owner: 'unknown',
+        status: 'rejected',
+        confidence: 1.0,
+        rejectionReason: 'RESERVED_PATH',
+        distinctiveTokensFound: [],
+      };
+    }
+  } else if (plat === 'linkedin') {
+    if (
+      firstSegment === 'sharearticle' ||
+      firstSegment === 'share-offsite' ||
+      firstSegment === 'sharing'
+    ) {
+      return {
+        url,
+        platform: plat,
+        handle: firstSegment,
+        profileType: 'unknown',
+        owner: 'unknown',
+        status: 'rejected',
+        confidence: 1.0,
+        rejectionReason: 'NOT_A_REAL_PROFILE',
+        distinctiveTokensFound: [],
+      };
+    }
+    if (firstSegment === 'in') {
+      const handle = pathSegments[1] || '';
+      return {
+        url,
+        platform: plat,
+        handle,
+        profileType: 'personal_profile',
+        owner: 'person',
+        status: 'rejected',
+        confidence: 1.0,
+        rejectionReason: 'PERSONAL_PROFILE',
+        distinctiveTokensFound: [],
+      };
+    }
+    if (firstSegment !== 'company') {
+      return {
+        url,
+        platform: plat,
+        handle: firstSegment,
+        profileType: 'unknown',
+        owner: 'unknown',
+        status: 'rejected',
+        confidence: 1.0,
+        rejectionReason: 'NOT_A_REAL_PROFILE',
+        distinctiveTokensFound: [],
+      };
+    }
+  }
+
+  // Extract handle
+  let handle = firstSegment;
+  if (plat === 'linkedin' && firstSegment === 'company') {
+    handle = (pathSegments[1] || '').toLowerCase();
+    if (!handle || handle.length < 2 || ['sharearticle', 'share-offsite'].includes(handle)) {
+      return {
+        url,
+        platform: plat,
+        handle: handle || '',
+        profileType: 'unknown',
+        owner: 'unknown',
+        status: 'rejected',
+        confidence: 1.0,
+        rejectionReason: 'NOT_A_REAL_PROFILE',
+        distinctiveTokensFound: [],
+      };
+    }
+  }
+
+  const cleanHandle = handle.toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (cleanHandle.length < 2) {
+    return {
+      url,
+      platform: plat,
+      handle,
+      profileType: 'unknown',
+      owner: 'unknown',
+      status: 'rejected',
+      confidence: 1.0,
+      rejectionReason: 'NOT_A_REAL_PROFILE',
+      distinctiveTokensFound: [],
+    };
+  }
+
+  // 2. Check Platform Official Handles
+  const platformOfficials = PLATFORM_OFFICIAL_HANDLES.get(plat) || [];
+  if (platformOfficials.some((p) => cleanHandle === p.toLowerCase().replace(/[^a-z0-9]/g, ''))) {
+    return {
+      url,
+      platform: plat,
+      handle,
+      profileType: 'business_page',
+      owner: 'platform',
+      status: 'rejected',
+      confidence: 1.0,
+      rejectionReason: 'PLATFORM_PROFILE',
+      distinctiveTokensFound: [],
+    };
+  }
+
+  // 3. Check Vendor Handles
+  const vendorHandles = KNOWN_VENDOR_SOCIAL_HANDLES.get(plat) || [];
+  for (const v of vendorHandles) {
+    const cleanV = v.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (cleanHandle === cleanV || cleanHandle.includes(cleanV) || cleanV.includes(cleanHandle)) {
+      return {
+        url,
+        platform: plat,
+        handle,
+        profileType: 'business_page',
+        owner: 'vendor',
+        status: 'rejected',
+        confidence: 1.0,
+        rejectionReason: 'VENDOR_PROFILE',
+        distinctiveTokensFound: [],
+      };
+    }
+  }
+
+  // 4. Token Alignment & Ownership Classification
+  if (!businessName && !websiteDomain) {
+    return {
+      url,
+      platform: plat,
+      handle,
+      profileType: 'business_page',
+      owner: 'unknown',
+      status: 'unknown',
+      confidence: 0.5,
+      rejectionReason: 'INSUFFICIENT_EVIDENCE',
+      distinctiveTokensFound: [],
+    };
+  }
+
+  // Decompose cleanHandle by removing generic tokens to isolate distinctive brand parts
+  // Sort generic tokens descending by length so longer terms match first
+  const sortedGenericTokens = Array.from(INDUSTRY_GENERIC_TOKENS).sort((a, b) => b.length - a.length);
+  let strippedHandle = cleanHandle;
+  for (const gen of sortedGenericTokens) {
+    if (strippedHandle.includes(gen)) {
+      strippedHandle = strippedHandle.split(gen).join(' ');
+    }
+  }
+  const handleWordsFromSeparators = handle.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+  const handleWordsFromStripped = strippedHandle.split(/\s+/).filter(Boolean);
+  const allHandleWords = Array.from(new Set([...handleWordsFromSeparators, ...handleWordsFromStripped]));
+  const distinctiveHandleTokens = handleWordsFromStripped.filter(
+    (w) => w.length >= 3 && !INDUSTRY_GENERIC_TOKENS.has(w)
+  );
+
+  // Derive business tokens (full and distinctive)
+  const fullBusinessTokens = (businessName || '')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((t) => t.length >= 2);
+
+  // Clarification 1: The acronym rule derives from full business-name tokens (pre-generic-filter)
+  const businessAcronym = fullBusinessTokens.map((t) => t[0]).join('');
+
+  // Distinctive business tokens (generic terms filtered out)
+  const distinctiveBusinessTokens: string[] = (businessName || '')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((t) => t.length >= 3 && !INDUSTRY_GENERIC_TOKENS.has(t));
+
+  if (websiteDomain) {
+    let domainLabel = domainFromUrlOrHost(websiteDomain);
+    domainLabel = domainLabel.split('.')[0]?.toLowerCase() || '';
+    if (domainLabel.length >= 3 && !INDUSTRY_GENERIC_TOKENS.has(domainLabel)) {
+      distinctiveBusinessTokens.push(domainLabel);
+    }
+    const domainWords = domainLabel
+      .split(/[^a-z0-9]+/)
+      .filter((w) => w.length >= 3 && !INDUSTRY_GENERIC_TOKENS.has(w));
+    distinctiveBusinessTokens.push(...domainWords);
+  }
+
+  const uniqueDistinctiveBusinessTokens = Array.from(new Set(distinctiveBusinessTokens));
+
+  // Check Acronym Match (>= 3 chars)
+  // Must match the business acronym either exactly or as the distinctive portion before/after generic tokens
+  const isAcronymMatch =
+    businessAcronym.length >= 3 &&
+    (cleanHandle === businessAcronym ||
+      allHandleWords.includes(businessAcronym) ||
+      (cleanHandle.startsWith(businessAcronym) &&
+        (cleanHandle === businessAcronym ||
+          sortedGenericTokens.some((g) => cleanHandle === businessAcronym + g || cleanHandle === g + businessAcronym))));
+
+  if (isAcronymMatch) {
+    return {
+      url,
+      platform: plat,
+      handle,
+      profileType: 'business_page',
+      owner: 'business',
+      status: 'accepted',
+      confidence: 0.9,
+      rejectionReason: 'NONE',
+      distinctiveTokensFound: [businessAcronym],
+    };
+  }
+
+  // Check Distinctive Token Overlap
+  const matchingDistinctive = uniqueDistinctiveBusinessTokens.filter(
+    (token) =>
+      cleanHandle.includes(token) ||
+      allHandleWords.includes(token) ||
+      distinctiveHandleTokens.some((dh) => dh === token || (dh.length >= 4 && token.length >= 4 && (dh.includes(token) || token.includes(dh))))
+  );
+
+  if (matchingDistinctive.length >= 1) {
+    return {
+      url,
+      platform: plat,
+      handle,
+      profileType: 'business_page',
+      owner: 'business',
+      status: 'accepted',
+      confidence: 1.0,
+      rejectionReason: 'NONE',
+      distinctiveTokensFound: matchingDistinctive,
+    };
+  }
+
+  // If distinctive overlap is 0:
+  // If handle contains distinctive non-generic brand tokens that do not match the business name:
+  if (distinctiveHandleTokens.length >= 1) {
+    return {
+      url,
+      platform: plat,
+      handle,
+      profileType: 'business_page',
+      owner: 'unknown',
+      status: 'rejected',
+      confidence: 0.9,
+      rejectionReason: 'BUSINESS_NAME_MISMATCH',
+      distinctiveTokensFound: [],
+    };
+  }
+
+  // Generic-only tokens, short acronym (<3 chars), or ambiguous without matching distinctive tokens:
+  return {
+    url,
+    platform: plat,
+    handle,
+    profileType: 'business_page',
+    owner: 'unknown',
+    status: 'unknown',
+    confidence: 0.5,
+    rejectionReason: 'INSUFFICIENT_EVIDENCE',
+    distinctiveTokensFound: [],
+  };
+}
+
+/**
+ * Validates social ownership using classifySocialProfile:
+ * Returns true if status === 'accepted' when context is provided, or status !== 'rejected' when unconstrained.
+ */
+export function isBusinessOwnedSocialProfile(
+  url: string,
+  platform?: string,
+  businessName?: string,
+  websiteDomain?: string
+): boolean {
+  const result = classifySocialProfile(url, platform, businessName, websiteDomain);
+  if (businessName || websiteDomain) {
+    return result.status === 'accepted';
+  }
+  return result.status !== 'rejected';
+}
+
+/**
+ * Classifies all candidate social URLs from raw page content into structured ClassifiedSocialProfile records.
+ */
+export function classifyAllSocialProfiles(
+  content: string,
+  context?: { businessName?: string; websiteDomain?: string }
+): ClassifiedSocialProfile[] {
+  if (!content) return [];
+  const structuredUrls = [
+    ...extractUrlsFromMarkdown(content),
+    ...extractUrlsFromHtml(content),
+    ...liftBareHandles(content),
+  ];
+  const rawUrls = content.match(/https?:\/\/[^\s<>")\]]+/gi) || [];
+  const combinedUrls = [...new Set([...structuredUrls, ...rawUrls].map(cleanTrailingPunctuation))];
+
+  const seenUrls = new Set<string>();
+  const classifiedProfiles: ClassifiedSocialProfile[] = [];
+
+  for (const url of combinedUrls) {
+    if (!url || seenUrls.has(url)) continue;
+    const isSocial = /https?:\/\/(?:www\.)?(?:m\.)?(?:facebook\.com|instagram\.com|tiktok\.com|(?:x|twitter)\.com|youtube\.com|linkedin\.com)/i.test(url);
+    if (!isSocial) continue;
+
+    seenUrls.add(url);
+    const classified = classifySocialProfile(url, undefined, context?.businessName, context?.websiteDomain);
+    classifiedProfiles.push(classified);
+  }
+
+  return classifiedProfiles;
+}
+
+/**
+ * Strips explicit developer/technology attribution from page content.
+ * Conservative: preserves generic phrases like "Contact us by email" and "By appointment only".
+ */
+export function stripVendorAttribution(content: string): string {
+  if (!content) return '';
+  let cleaned = content;
+
+  // 1. HTML comments & Meta tags FIRST:
+  cleaned = cleaned.replace(/<!--\s*(?:powered|built|designed|developed)\s+by[^>]{0,60}-->/gi, ' ');
+  cleaned = cleaned.replace(/<meta\s[^>]*name=["']author["'][^>]*>/gi, ' ');
+
+  // 2. Explicit developer/technology attribution phrases with uppercase proper-noun:
+  cleaned = cleaned.replace(/(?:[Ww]ebsite\s+)?(?:[Dd]eveloped|[Dd]esigned(?:\s+&\s+[Dd]eveloped)?)\s+by\s+[A-Z][A-Za-z0-9\s.&'-]{1,40}(?=\.|\n|$|<)/g, ' ');
+  cleaned = cleaned.replace(/\b[Bb]uilt\s+by\s+[A-Z][A-Za-z0-9\s.&'-]{1,40}(?=\.|\n|$|<)/g, ' ');
+  cleaned = cleaned.replace(/\b[Pp]owered\s+by\s+[A-Z][A-Za-z0-9\s.&'-]{1,40}(?=\.|\n|$|<)/g, ' ');
+  cleaned = cleaned.replace(/\b[Bb]uilt\s+with\s+[A-Z][A-Za-z0-9\s.&'-]{1,40}(?=\.|\n|$|<)/g, ' ');
+  cleaned = cleaned.replace(/\b[Cc]reated\s+with\s+[A-Z][A-Za-z0-9\s.&'-]{1,40}(?=\.|\n|$|<)/g, ' ');
+
+  return cleaned.replace(/\s+/g, ' ').replace(/\s+\./g, '.').trim();
 }
 
 function stripHtmlTags(content: string): string {
@@ -516,11 +1154,170 @@ export function extractEmails(content: string): string[] {
     email = sanitizeEmailString(email);
     if (!email) continue;
     if (PLACEHOLDER_EMAIL_PATTERNS.some((pattern) => pattern.test(email))) continue;
+    // Task 5: Reject media filenames and DPR retina assets misparsed as emails
+    if (MEDIA_FILENAME_PATTERN.test(email) || MEDIA_DPR_PATTERN.test(email)) continue;
     if (email.includes(' ') || !email.includes('@')) continue;
     if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email)) continue;
+
+    // Task 5: Reject emails whose domain ends with an image/media file extension
+    const emailDomain = email.split('@')[1]?.toLowerCase() ?? '';
+    const tld = emailDomain.split('.').pop() ?? '';
+    if (IMAGE_FILE_TLDS.has(tld)) continue;
+
     unique.add(email);
   }
   return [...unique];
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Contact Ownership, Multi-Dimensional Channels & Semantic Classifiers (Task 3)
+// ══════════════════════════════════════════════════════════════════════════════
+
+export const PLATFORM_DOMAINS = new Set([
+  'noshnepal.com', 'foodmandu.com', 'pathao.com', 'indrive.com',
+  'daraz.com', 'daraz.com.np', 'tripadvisor.com', 'booking.com',
+  'airbnb.com', 'wixpress.com', 'wordpress.com', 'blogspot.com',
+]);
+
+export const BUSINESS_EMAIL_PREFIXES = new Set([
+  'info', 'contact', 'office', 'admin', 'support', 'sales', 'hello',
+  'enquiry', 'inquiry', 'reception', 'booking', 'legal', 'hr', 'accounts',
+  'billing', 'marketing', 'admission', 'frontdesk', 'reservation', 'help',
+  'service', 'careers', 'jobs', 'press', 'pr', 'partners', 'media',
+  'investors', 'security',
+]);
+
+export const CONSUMER_EMAIL_DOMAINS = new Set([
+  'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com',
+  'live.com', 'protonmail.com', 'aol.com',
+]);
+
+/**
+ * Extracts surrounding text context around a match in content.
+ * Prioritizes the enclosing line/tag block, with a bounded window fallback (+-100 chars).
+ */
+export function extractContextAroundMatch(content: string, matchStr: string): string {
+  if (!content || !matchStr) return '';
+  const idx = content.indexOf(matchStr);
+  if (idx === -1) return '';
+
+  // Find enclosing line boundaries
+  const prevNewline = content.lastIndexOf('\n', idx);
+  const nextNewline = content.indexOf('\n', idx + matchStr.length);
+
+  const lineStart = prevNewline === -1 ? 0 : prevNewline + 1;
+  const lineEnd = nextNewline === -1 ? content.length : nextNewline;
+  const line = content.slice(lineStart, lineEnd).trim();
+
+  if (line.length >= matchStr.length + 10 && line.length <= 300) {
+    return stripHtmlTags(line).replace(/\s+/g, ' ').trim();
+  }
+
+  const start = Math.max(0, idx - 100);
+  const end = Math.min(content.length, idx + matchStr.length + 100);
+  const snippet = content.slice(start, end);
+
+  return stripHtmlTags(snippet).replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Classifies an email address into functional role and ownership entity.
+ */
+export function classifyEmailRole(
+  email: string,
+  context: string = '',
+  businessName?: string,
+  websiteDomain?: string
+): { role: ContactRole; owner: ContactOwner } {
+  if (!email || !email.includes('@')) {
+    return { role: 'unknown', owner: 'unknown' };
+  }
+
+  const parts = email.toLowerCase().trim().split('@');
+  const prefix = parts[0];
+  const domain = parts[1] || '';
+
+  // 1. Platform domain check (allowlist + suffix match e.g. daraz.com, foodmandu.com)
+  for (const plat of PLATFORM_DOMAINS) {
+    if (domain === plat || domain.endsWith('.' + plat)) {
+      return { role: 'unknown', owner: 'platform' };
+    }
+  }
+
+  // 2. Known business prefixes -> primary_business, business
+  if (BUSINESS_EMAIL_PREFIXES.has(prefix)) {
+    return { role: 'primary_business', owner: 'business' };
+  }
+
+  // 3. Consumer provider personal signal: domain is consumer provider AND (prefix contains digits, dots, or underscores)
+  if (CONSUMER_EMAIL_DOMAINS.has(domain)) {
+    if (/\d/.test(prefix) || prefix.includes('.') || prefix.includes('_')) {
+      return { role: 'staff_person', owner: 'person' };
+    }
+  }
+
+  // 4. Personal honorifics / markers in context: "Dr.", "Mr.", "Mrs.", "Director", etc.
+  const lowerContext = context.toLowerCase();
+  if (/\b(dr\.|dr\s|mr\.|mrs\.|ms\.|prof\.|director|founder|doctor|owner:)/i.test(lowerContext)) {
+    return { role: 'staff_person', owner: 'person' };
+  }
+
+  // 5. Personal name pattern in prefix: e.g. "first.last" on business domain
+  if (prefix.includes('.') || prefix.includes('_')) {
+    return { role: 'staff_person', owner: 'person' };
+  }
+
+  // Conservative fallback: unknown, unknown (never guess staff_person)
+  return { role: 'unknown', owner: 'unknown' };
+}
+
+/**
+ * Classifies a phone number into functional role, ownership entity, and communication channels.
+ */
+export function classifyPhoneRole(
+  phone: string,
+  context: string = '',
+  businessName?: string,
+  classifiedPhone?: ClassifiedPhone
+): { role: ContactRole; owner: ContactOwner; channels: ContactChannel[] } {
+  const lowerContext = context.toLowerCase();
+  const channels: ContactChannel[] = ['call'];
+
+  // Channels detection
+  if (lowerContext.includes('whatsapp') || lowerContext.includes('wa.me') || lowerContext.includes('wa/')) {
+    channels.push('whatsapp');
+  }
+  if (lowerContext.includes('viber')) {
+    channels.push('viber');
+  }
+
+  // Head / Main / Central office override -> primary business
+  if (/\b(head office|main office|central office|headquarters|corporate office|main clinic|main hospital)\b/i.test(lowerContext)) {
+    return { role: 'primary_business', owner: 'business', channels };
+  }
+
+  // Tier 1: Explicit branch keywords
+  const hasBranchKeyword = /\b(branch|branches|outlet|outlets|our branches)\b/i.test(lowerContext);
+  if (hasBranchKeyword) {
+    return { role: 'branch_contact', owner: 'branch', channels };
+  }
+
+  // Tier 2: Location/Address block with district/locality + structure cues
+  const hasLocationCues = /\b(clinic|center|centre|office|outlet)\b/i.test(lowerContext);
+  const hasLocalities = /\b(chabahil|naikap|bardibas|banasthali|chapagaun|jawalakhel|koteshwor|kumaripati|pokhara|biratnagar|birgunj|dharan|hetauda|nepalgunj|butwal)\b/i.test(lowerContext);
+  const hasAddressCues = /\b(chowk|marga|street|road|ward|tole)\b/i.test(lowerContext);
+
+  if ((hasLocationCues && hasLocalities) || (hasLocalities && hasAddressCues)) {
+    return { role: 'branch_contact', owner: 'branch', channels };
+  }
+
+  // Personal honorifics in context
+  if (/\b(dr\.|dr\s|mr\.|mrs\.|ms\.|prof\.|director)\b/i.test(lowerContext)) {
+    return { role: 'staff_person', owner: 'person', channels };
+  }
+
+  // Default: primary business contact
+  return { role: 'primary_business', owner: 'business', channels };
 }
 
 /**
@@ -581,16 +1378,6 @@ function stripNoiseContexts(content: string): string {
   return `${cleaned}${safeguarded}`;
 }
 
-/**
- * Extracts Nepal landline/mobile phone numbers (display form preserved) with
- * deduplication by normalized digits.
- *
- * Enforces strict mathematical invariants via classifyNepalPhone:
- * - Nepal mobiles (98/97 x10, not 977)
- * - Nepal landlines (exact 8 normalized digits starting with 1)
- * - International numbers (starts with '+', balanced parentheses, 8-15 digits)
- * - All fragments (including 7-digit runs like 977 1532074) are strictly discarded as invalid.
- */
 /**
  * Expands slash-delimited EPABX hunting-line extensions:
  *   e.g. "01-5363501/511/560" -> ["01-5363501", "01-5363511", "01-5363560"]
@@ -874,9 +1661,12 @@ export interface ExtractedSocialLinks {
 /**
  * Extracts social profile URLs found directly on the official website content.
  * Handles markdown links, HTML href attributes, bare contextual handles, and plain http(s) URLs.
- * (Social-platform scraping / profile enrichment is explicitly OUT OF SCOPE.)
+ * Validates social ownership using isBusinessOwnedSocialProfile.
  */
-export function extractSocialLinks(content: string): ExtractedSocialLinks {
+export function extractSocialLinks(
+  content: string,
+  context?: { businessName?: string; websiteDomain?: string }
+): ExtractedSocialLinks {
   const empty = { facebook: '', instagram: '', tiktok: '', other: {} };
   if (!content) return empty;
 
@@ -895,14 +1685,17 @@ export function extractSocialLinks(content: string): ExtractedSocialLinks {
   const ytMatches = combinedContent.match(new RegExp(YOUTUBE_REGEX.source, 'gi')) || [];
   const liMatches = combinedContent.match(new RegExp(LINKEDIN_REGEX.source, 'gi')) || [];
 
-  const rawFacebook = fbMatches.map(cleanTrailingPunctuation).find((u) => isRealSocialProfile(u, 'facebook')) || '';
-  const rawInstagram = igMatches.map(cleanTrailingPunctuation).find((u) => isRealSocialProfile(u, 'instagram')) || '';
-  const rawTiktok = ttMatches.map(cleanTrailingPunctuation).find((u) => isRealSocialProfile(u, 'tiktok')) || '';
+  const bName = context?.businessName;
+  const wDomain = context?.websiteDomain;
+
+  const rawFacebook = fbMatches.map(cleanTrailingPunctuation).find((u) => isBusinessOwnedSocialProfile(u, 'facebook', bName, wDomain)) || '';
+  const rawInstagram = igMatches.map(cleanTrailingPunctuation).find((u) => isBusinessOwnedSocialProfile(u, 'instagram', bName, wDomain)) || '';
+  const rawTiktok = ttMatches.map(cleanTrailingPunctuation).find((u) => isBusinessOwnedSocialProfile(u, 'tiktok', bName, wDomain)) || '';
 
   const other: Record<string, string> = {};
-  const xTwitter = xMatches.map(cleanTrailingPunctuation).find((u) => isRealSocialProfile(u, 'twitter'));
-  const youtube = ytMatches.map(cleanTrailingPunctuation).find((u) => isRealSocialProfile(u, 'youtube'));
-  const linkedin = liMatches.map(cleanTrailingPunctuation).find((u) => isRealSocialProfile(u, 'linkedin'));
+  const xTwitter = xMatches.map(cleanTrailingPunctuation).find((u) => isBusinessOwnedSocialProfile(u, 'twitter', bName, wDomain));
+  const youtube = ytMatches.map(cleanTrailingPunctuation).find((u) => isBusinessOwnedSocialProfile(u, 'youtube', bName, wDomain));
+  const linkedin = liMatches.map(cleanTrailingPunctuation).find((u) => isBusinessOwnedSocialProfile(u, 'linkedin', bName, wDomain));
   if (xTwitter) other.x = xTwitter;
   if (youtube) other.youtube = youtube;
   if (linkedin) other.linkedin = linkedin;
@@ -983,47 +1776,51 @@ export function extractBusinessInfo(content: string): {
  * Runs ALL deterministic extractors over a set of successfully-extracted pages
  * and produces a lean WebsiteEvidence payload (minus url/domain/pages which the
  * caller supplies).
- *
- * Architecture (v1.5 with PhoneEvidence tracing):
- *   Tavily Markdown + Raw HTML -> field-specific extractors
- *   - Emails: plain text + obfuscated + mailto: hrefs across markdown & raw HTML
- *   - Phones/Mobiles: per-page per-candidate PhoneEvidence[] with full provenance;
- *     valid phones in extractedPhones/extractedMobiles (strict separation),
- *     invalid candidates only in extractedPhoneEvidence (never in public arrays)
- *   - Socials: markdown links + HTML href attributes
- *   - Services/Hours: extracted ONLY from clean markdown (never raw HTML)
- *   - rawContentSummary: small context-only excerpt from clean markdown (never raw HTML)
  */
 export function extractAllFromPages(
-  pages: WebsitePageEvidence[]
+  pages: WebsitePageEvidence[],
+  businessName?: string,
+  websiteUrl?: string
 ): Omit<WebsiteEvidence, 'url' | 'domain' | 'pages'> {
-  const successful = pages.filter((p) => p.success && (p.content || p.rawHtml));
+  const successful = pages.filter((p) => p.success && (p.content || p.rawHtml)).map((p) => ({
+    ...p,
+    content: stripVendorAttribution(p.content || ''),
+    rawHtml: stripVendorAttribution(p.rawHtml || ''),
+  }));
+
   const combinedMarkdown = successful.map((p) => p.content).filter(Boolean).join('\n\n');
+  const websiteDomain = websiteUrl ? domainFromUrlOrHost(websiteUrl) : undefined;
 
   // 1. Emails: extracted from both clean markdown and rawHtml safety net
   const emailSet = new Set<string>();
-  for (const e of extractEmails(combinedMarkdown)) emailSet.add(e);
-  for (const p of successful) {
-    if (p.rawHtml) {
-      for (const e of extractEmails(p.rawHtml)) emailSet.add(e);
-    }
-  }
-
-  // 2. Phones & Mobiles: per-page evidence tracing (v1.5)
-  //    - Valid candidates   -> extractedPhones / extractedMobiles AND extractedPhoneEvidence
-  //    - Invalid candidates -> extractedPhoneEvidence ONLY (never in public arrays)
-  //    Invariant enforced: phones ∩ mobiles = ∅
   const phoneSet = new Set<string>();        // display strings (landlines + intl)
   const mobileSet = new Set<string>();       // display strings (mobiles)
   const phoneDigitsSeen = new Set<string>(); // canonical dedup for phones
   const mobileDigitsSeen = new Set<string>(); // canonical dedup for mobiles
   const allPhoneEvidence: PhoneEvidenceRecord[] = [];
+  const allClassifiedContacts: ClassifiedContact[] = [];
 
-  /**
-   * Processes a single raw phone candidate from a given page and source type.
-   * Builds a PhoneEvidence entry and, if valid, routes into the correct public set.
-   */
-  const processCandidate = (raw: string, source: PhoneEvidenceRecord['source'], pageUrl: string) => {
+  // Classify extracted emails with context
+  for (const page of successful) {
+    const pageUrl = page.url;
+    const pageText = (page.content || '') + '\n' + (page.rawHtml || '');
+    for (const email of extractEmails(pageText)) {
+      emailSet.add(email);
+      const ctx = extractContextAroundMatch(pageText, email);
+      const role = classifyEmailRole(email, ctx, businessName, websiteDomain);
+      allClassifiedContacts.push({
+        value: email,
+        type: 'email',
+        role: role.role,
+        owner: role.owner,
+        channels: [],
+        context: ctx || undefined,
+        pageUrl,
+      });
+    }
+  }
+
+  const processCandidate = (raw: string, source: PhoneEvidenceRecord['source'], pageUrl: string, pageText?: string) => {
     const classified = classifyNepalPhone(raw);
     const display = formatPhoneDisplay(classified.digits, classified.type, raw);
     const evidence: PhoneEvidenceRecord = {
@@ -1037,6 +1834,23 @@ export function extractAllFromPages(
     };
     allPhoneEvidence.push(evidence);
 
+    const context = pageText ? extractContextAroundMatch(pageText, raw) : '';
+    const phoneRole = classifyPhoneRole(raw, context, businessName, classified);
+
+    if (classified.type !== 'invalid') {
+      allClassifiedContacts.push({
+        value: display,
+        canonicalDigits: classified.digits,
+        type: 'phone',
+        phoneType: classified.type,
+        role: phoneRole.role,
+        owner: phoneRole.owner,
+        channels: phoneRole.channels,
+        context: context || undefined,
+        pageUrl,
+      });
+    }
+
     if (classified.type === 'mobile') {
       if (!mobileDigitsSeen.has(classified.digits)) {
         mobileDigitsSeen.add(classified.digits);
@@ -1048,23 +1862,19 @@ export function extractAllFromPages(
         phoneSet.add(display);
       }
     }
-    // invalid -> evidence only, never in public arrays
   };
 
-  // Process per-page so each evidence entry carries its pageUrl
   for (const page of successful) {
     const pageUrl = page.url;
 
-    // Extract from Tavily markdown content
     if (page.content) {
-      for (const raw of extractLandlinesAndIntl(page.content)) processCandidate(raw, 'markdown', pageUrl);
-      for (const raw of extractMobiles(page.content)) processCandidate(raw, 'markdown', pageUrl);
+      for (const raw of extractLandlinesAndIntl(page.content)) processCandidate(raw, 'markdown', pageUrl, page.content);
+      for (const raw of extractMobiles(page.content)) processCandidate(raw, 'markdown', pageUrl, page.content);
     }
 
-    // Extract from raw HTML safety net
     if (page.rawHtml) {
-      for (const raw of extractLandlinesAndIntl(page.rawHtml)) processCandidate(raw, 'rawHtml', pageUrl);
-      for (const raw of extractMobiles(page.rawHtml)) processCandidate(raw, 'rawHtml', pageUrl);
+      for (const raw of extractLandlinesAndIntl(page.rawHtml)) processCandidate(raw, 'rawHtml', pageUrl, page.rawHtml);
+      for (const raw of extractMobiles(page.rawHtml)) processCandidate(raw, 'rawHtml', pageUrl, page.rawHtml);
     }
   }
 
@@ -1073,7 +1883,7 @@ export function extractAllFromPages(
     combinedMarkdown,
     ...successful.map((p) => p.rawHtml).filter(Boolean) as string[],
   ].join('\n');
-  const socialLinks = extractSocialLinks(allSocialSources);
+  const socialLinks = extractSocialLinks(allSocialSources, { businessName, websiteDomain });
 
   // 4. Services and Hours: ONLY from markdown prose (clean text, no HTML tags)
   const info = extractBusinessInfo(combinedMarkdown);
@@ -1104,6 +1914,7 @@ export function extractAllFromPages(
     extractedPhones: [...phoneSet],
     extractedMobiles: [...mobileSet],
     extractedPhoneEvidence: allPhoneEvidence.length > 0 ? allPhoneEvidence : undefined,
+    extractedClassifiedContacts: allClassifiedContacts.length > 0 ? allClassifiedContacts : undefined,
     extractedSocialLinks: socialLinks,
     extractedServices: info.services,
     extractedHours: info.hours,

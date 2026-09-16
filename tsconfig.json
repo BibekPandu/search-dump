@@ -9,6 +9,7 @@
     "skipLibCheck": true,
     "noEmit": true,
     "allowImportingTsExtensions": true,
+    "noUnusedLocals": true,
     "types": ["node"]
   },
   "include": ["src/**/*", "scripts/**/*"]

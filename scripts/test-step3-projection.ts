@@ -1,5 +1,5 @@
 import { sanitizeListingWithEvidence, type BusinessListing } from '../src/mastra/workflows/research-workflow';
-import { expandSlashExtensions, extractLandlinesAndIntl, extractMobiles, isRealSocialProfile } from '../src/services/business-extractor.service';
+import { expandSlashExtensions, isRealSocialProfile } from '../src/services/business-extractor.service';
 import type { VerifiedBusinessEvidence } from '../src/mastra/agents/research-agent/verification.schema';
 
 function assert(condition: boolean, message: string) {
@@ -63,6 +63,8 @@ const mockEvidence: VerifiedBusinessEvidence = {
     },
     notes: ['Verified test'],
   },
+  websiteRelationship: 'first_party',
+  websiteLifecycle: 'first_party_owned',
 };
 
 const baseListing: BusinessListing = {

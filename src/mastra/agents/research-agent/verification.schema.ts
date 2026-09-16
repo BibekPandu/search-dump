@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { researchCandidateSchema } from './schema';
+import { classifiedContactSchema } from './contact.schema';
 
 // ============================================================================
 // Tier 2.5 — Verified Business Evidence Schemas (additive)
@@ -68,6 +69,8 @@ export const websiteEvidenceSchema = z.object({
    * Optional — absent from older serialized records.
    */
   extractedPhoneEvidence: z.array(phoneEvidenceSchema).optional(),
+  /** Full semantic role and ownership classification for extracted contacts. */
+  extractedClassifiedContacts: z.array(classifiedContactSchema).optional(),
   extractedSocialLinks: z
     .object({
       facebook: z.string().default(''),
@@ -131,17 +134,112 @@ export const verificationResultSchema = z.object({
 });
 
 /**
+ * Multi-dimensional confidence breakdown for a business listing.
+ *
+ * Computed deterministically from Maps signals, website evidence,
+ * contact verification, and entity conflict data.
+ *
+ * Each dimension is grounded in observable signals — no LLM guessing.
+ *
+ * IMPORTANT: `metadata.confidence` must always equal
+ * `confidenceBreakdown.overallConfidence`. This invariant is
+ * enforced by validateConfidenceIntegrity() at the end of Phase 4.
+ */
+export const confidenceBreakdownSchema = z.object({
+  mapsIdentityConfidence: z.number().min(0).max(1).default(0),
+
+  /**
+   * Website evidence confidence: how well the website supports the
+   * candidate's identity (name, phone, address, email alignment).
+   *
+   * NOT a pure "ownership" signal — that comes from relationship
+   * classification. This measures verification quality of the website
+   * content, adjusted by relationship type.
+   */
+  websiteEvidenceConfidence: z.number().min(0).max(1).default(0),
+
+  contactConfidence: z.number().min(0).max(1).default(0),
+
+  /**
+   * Final grounded confidence after conflict penalty.
+   * MUST equal metadata.confidence — always.
+   */
+  overallConfidence: z.number().min(0).max(1).default(0),
+
+  /**
+   * Multiplicative penalty from entity conflict detection.
+   *
+   * IMPORTANT: This penalty represents confidence in this listing as an
+   * independently resolved business entity — NOT business quality.
+   * A DUPLICATE_MAPS_LISTING (0.65) penalty means "our entity resolution
+   * has serious ambiguity about whether this is a distinct entity",
+   * not "this business is bad".
+   */
+  conflictPenalty: z.number().min(0).max(1).default(1.0),
+  conflictType: z.string().optional(),
+
+  evidenceSummary: z
+    .object({
+      mapsVerified: z.boolean().default(false),
+      websiteVerified: z.boolean().default(false),
+      phoneVerified: z.boolean().default(false),
+      emailVerified: z.boolean().default(false),
+      ratingCount: z.number().optional(),
+      relationshipType: z.string().optional(),
+    })
+    .optional(),
+});
+
+export type ConfidenceBreakdownSchema = z.infer<typeof confidenceBreakdownSchema>;
+
+/**
+ * Relationship classification between business candidate identity and website domain.
+ */
+export const websiteRelationshipEnum = z.enum([
+  'first_party',        // Domain & name align — enriches contacts
+  'corporate_parent',   // Corporate group domain — enriches cautiously
+  'related_entity',     // Shared brand — preserved, NOT merged
+  'directory',          // Directory/listing — NEVER contacts
+  'marketplace',        // Marketplace — NEVER contacts
+  'service_platform',   // Platform (Wix, GoDaddy) — NEVER contacts
+  'unrelated',          // Different company — rejected
+  'unverified',         // Insufficient evidence — preserves Maps identity
+]);
+
+export type WebsiteRelationship = z.infer<typeof websiteRelationshipEnum>;
+
+/**
+ * Lifecycle stages for website processing:
+ * - 'discovered': Candidate website URL found (initial unextracted state)
+ * - 'usable': Extracted and passed structural / domain validity checks
+ * - 'identity_confirmed': Verified to corroborate candidate business identity
+ * - 'first_party_owned': Identity confirmed AND strictly first_party relationship
+ */
+export const websiteLifecycleEnum = z.enum([
+  'discovered',
+  'usable',
+  'identity_confirmed',
+  'first_party_owned',
+]);
+
+export type WebsiteLifecycle = z.infer<typeof websiteLifecycleEnum>;
+
+/**
  * The VerifiedBusinessEvidence record: the ResearchCandidate identity paired
  * with the verified website evidence and the verification outcome.
  * - candidate   = identity source (phase 1)
  * - websiteEvidence = evidence source (phase 2) — absent for no-website /
  *   cap-skipped candidates
  * - verification = how strongly the website corroborates the candidate
+ * - websiteRelationship = relationship classification between candidate & domain
+ * - websiteLifecycle = processing lifecycle stage of the website
  */
 export const verifiedBusinessEvidenceSchema = z.object({
   candidate: researchCandidateSchema,
   websiteEvidence: websiteEvidenceSchema.optional(),
   verification: verificationResultSchema,
+  websiteRelationship: websiteRelationshipEnum.optional().default('unverified'),
+  websiteLifecycle: websiteLifecycleEnum.optional().default('discovered'),
 });
 
 export type WebsitePageEvidence = z.infer<typeof websitePageEvidenceSchema>;

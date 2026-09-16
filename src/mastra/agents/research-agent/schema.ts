@@ -91,6 +91,20 @@ export const researchCandidateSchema = z.object({
     .optional(),
 });
 
+export const discoveryMetricsSchema = z.object({
+  categoryIntent: z.string(),
+  isBroadQuery: z.boolean(),
+  queriesGenerated: z.number(),
+  expandedQueriesGenerated: z.number(),
+  rawCandidates: z.number(),
+  exactQueryCandidates: z.number(),
+  expandedQueryCandidates: z.number(),
+  relevantCandidates: z.number(),
+  irrelevantCandidates: z.number(),
+  ambiguousCandidates: z.number(),
+  uniqueEntities: z.number(),
+});
+
 export const researchReportSchema = z.object({
   query: z.string(),
   location: z.string().optional(),
@@ -108,6 +122,7 @@ export const researchReportSchema = z.object({
   uniqueBusinessesFound: z.number().optional(),
   matchesMerged: z.number().optional(),
   researchCandidates: z.array(researchCandidateSchema).optional(),
+  discoveryMetrics: discoveryMetricsSchema.optional(),
 });
 
 export type CandidateType = z.infer<typeof candidateTypeEnum>;
@@ -115,4 +130,5 @@ export type StoppedReason = z.infer<typeof stoppedReasonEnum>;
 export type ResearchDecision = z.infer<typeof researchDecisionSchema>;
 export type ExcludedSummaryItem = z.infer<typeof excludedSummaryItemSchema>;
 export type ResearchCandidate = z.infer<typeof researchCandidateSchema>;
+export type DiscoveryMetrics = z.infer<typeof discoveryMetricsSchema>;
 export type ResearchReport = z.infer<typeof researchReportSchema>;
