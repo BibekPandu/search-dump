@@ -34,7 +34,11 @@ export function getOutputDir(): string {
  * Initializes a new Run Session context so that all stages of this search
  * execution are co-located in one single history directory (e.g. output/history/2026-09-11T...-slug/).
  */
-export function startRunSession(query: string, location?: string): string {
+export function startRunSession(
+  query: string,
+  location?: string,
+  options?: { outputRoot?: string }
+): string {
   const ts = new Date().toISOString().replace(/[:.]/g, '-');
   const slug = slugify(query) || 'search';
   const runId = `${ts}-${slug}`;
@@ -46,7 +50,7 @@ export function startRunSession(query: string, location?: string): string {
     startedAt: new Date().toISOString(),
   };
 
-  const outputDir = getOutputDir();
+  const outputDir = options?.outputRoot || getOutputDir();
   const runDir = path.join(outputDir, 'history', runId);
   if (!fs.existsSync(runDir)) {
     fs.mkdirSync(runDir, { recursive: true });
@@ -84,6 +88,7 @@ export interface SaveStageOutputOptions {
   skipLatest?: boolean;
   skipHistory?: boolean;
   skipRootMirror?: boolean;
+  outputRoot?: string;
 }
 
 /**
@@ -100,8 +105,16 @@ export function saveStageOutput(
   options?: SaveStageOutputOptions
 ): void {
   try {
-    const outputDir = getOutputDir();
+    const outputDir = options?.outputRoot || getOutputDir();
     const runId = options?.runId || (activeSession?.runId ?? (query ? getRunSessionId(query) : undefined));
+
+    if (options?.outputRoot) {
+      if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
+      const latestDir = path.join(outputDir, 'latest');
+      if (!fs.existsSync(latestDir)) fs.mkdirSync(latestDir, { recursive: true });
+      const historyDir = path.join(outputDir, 'history');
+      if (!fs.existsSync(historyDir)) fs.mkdirSync(historyDir, { recursive: true });
+    }
 
     // 1. Root mirror (backward compatibility)
     if (!options?.skipRootMirror) {
@@ -124,6 +137,9 @@ export function saveStageOutput(
       if (filename === '3-final-listings.json' || filename === 'results.json') {
         fs.writeFileSync(path.join(latestDir, 'businesses.json'), JSON.stringify(data, null, 2), 'utf-8');
         console.log(`[Storage] Copied ${filename} to output/latest/businesses.json`);
+      } else if (filename === 'entity-conflicts.json') {
+        fs.writeFileSync(path.join(latestDir, 'entity-conflicts.json'), JSON.stringify(data, null, 2), 'utf-8');
+        console.log(`[Storage] Copied ${filename} to output/latest/entity-conflicts.json`);
       }
     }
   } catch (err) {
@@ -136,6 +152,7 @@ export interface RunSummaryData {
   location?: string;
   timestamp?: string;
   totalBusinesses: number;
+  conflictsDetected?: number;
   executionTimeMs?: number;
   sources?: {
     googleMaps?: number;
@@ -158,20 +175,32 @@ export interface RunSummaryData {
  * - output/latest/summary-report.json
  * - output/history/${runId}/summary-report.json
  */
-export function saveSummaryReport(summary: RunSummaryData, runId?: string): void {
+export function saveSummaryReport(
+  summary: RunSummaryData,
+  runId?: string,
+  options?: { outputRoot?: string }
+): void {
   try {
-    const outputDir = getOutputDir();
+    const outputDir = options?.outputRoot || getOutputDir();
     const activeRunId = runId || getRunSessionId(summary.query, summary.location);
     const latestDir = path.join(outputDir, 'latest');
     const historyDir = path.join(outputDir, 'history', activeRunId);
 
+    if (options?.outputRoot) {
+      if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
+      if (!fs.existsSync(latestDir)) fs.mkdirSync(latestDir, { recursive: true });
+      if (!fs.existsSync(historyDir)) fs.mkdirSync(historyDir, { recursive: true });
+    }
+
     const fullSummary = {
       ...summary,
+      // Summary timestamp represents the write-event time when the report is finalized to disk
       timestamp: summary.timestamp || new Date().toISOString(),
       files: {
         businesses: 'output/latest/businesses.json',
         summaryReport: 'output/latest/summary-report.json',
         historyRunArchive: `output/history/${activeRunId}/`,
+        entityConflicts: 'output/latest/entity-conflicts.json',
       },
     };
 
