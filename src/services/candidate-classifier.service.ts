@@ -1,4 +1,4 @@
-import { type UnifiedSearchResult } from './search-fallback.service';
+import { type UnifiedSearchResult, type CategoryIntent } from './search-fallback.service';
 import {
   type CandidateType,
   type ResearchDecision,
@@ -53,6 +53,7 @@ export const DIRECTORY_DOMAINS = new Set([
   'foursquare.com',
   'mapquest.com',
   'nepalyp.com',
+  'yellowpages.com.np',
   'dnb.com',
   'kompass.com',
   'indiamart.com',
@@ -289,3 +290,109 @@ export function filterSearchResults(candidates: UnifiedSearchResult[]): {
 
   return { usable, excluded, ambiguous };
 }
+
+// ============================================================================
+// Strict Tri-State Category Relevance Classifier (Phase 4)
+// ============================================================================
+
+export type RelevanceStatus = 'relevant' | 'irrelevant' | 'ambiguous';
+
+export interface RelevanceResult {
+  status: RelevanceStatus;
+  reason: string;
+  confidence: number;
+}
+
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Checks if a candidate is relevant to the CategoryIntent.
+ *
+ * Rules:
+ * 1. Empty/null candidate name -> status: 'ambiguous', reason: 'EMPTY_CANDIDATE_NAME', confidence: 0.00
+ * 2. Narrow query (!intent.isBroad) -> status: 'relevant', reason: 'NARROW_QUERY_NO_FILTER', confidence: 1.00
+ * 3. Excluded terms matching (declaration order, word boundary) -> status: 'irrelevant', reason: `EXCLUDED_TERM_MATCH:${term}`, confidence: 0.95
+ * 4. Tier 1: Category positive term AND business form noun -> status: 'relevant', reason: 'CATEGORY_AND_FORM_MATCH', confidence: 0.90
+ * 5. Tier 2: Distinctive sport token -> status: 'relevant', reason: 'CATEGORY_TOKEN_MATCH', confidence: 0.85
+ * 6. Ambiguous default (generic sports alone without form noun, or insufficient signals) -> status: 'ambiguous', reason: 'INSUFFICIENT_CATEGORY_EVIDENCE', confidence: 0.30
+ */
+export function checkCategoryRelevance(
+  candidateName: string | undefined | null,
+  candidateCategory: string | undefined | null,
+  intent: CategoryIntent
+): RelevanceResult {
+  // 1. Empty or null candidate name guard (fires first)
+  if (!candidateName || !candidateName.trim()) {
+    return {
+      status: 'ambiguous',
+      reason: 'EMPTY_CANDIDATE_NAME',
+      confidence: 0.0,
+    };
+  }
+
+  // 2. Narrow query bypass: no expansion was performed, so no broad filtering is applied
+  if (!intent.isBroad) {
+    return {
+      status: 'relevant',
+      reason: 'NARROW_QUERY_NO_FILTER',
+      confidence: 1.0,
+    };
+  }
+
+  const combinedText = `${candidateName.trim()} ${candidateCategory ? candidateCategory.trim() : ''}`.toLowerCase();
+
+  // 3. Excluded terms matching in declaration order with word boundaries
+  for (const excluded of intent.excludedTerms) {
+    const pattern = new RegExp(`\\b${escapeRegex(excluded.toLowerCase())}\\b`, 'i');
+    if (pattern.test(combinedText)) {
+      return {
+        status: 'irrelevant',
+        reason: `EXCLUDED_TERM_MATCH:${excluded}`,
+        confidence: 0.95,
+      };
+    }
+  }
+
+  // 4. Tier 1: Category positive term AND business form noun
+  const hasPositiveTerm = intent.positiveTerms.some((term) => {
+    const pattern = new RegExp(`\\b${escapeRegex(term.toLowerCase())}\\b`, 'i');
+    return pattern.test(combinedText);
+  });
+
+  const hasBusinessForm = intent.businessFormTerms.some((term) => {
+    const pattern = new RegExp(`\\b${escapeRegex(term.toLowerCase())}\\b`, 'i');
+    return pattern.test(combinedText);
+  });
+
+  if (hasPositiveTerm && hasBusinessForm) {
+    return {
+      status: 'relevant',
+      reason: 'CATEGORY_AND_FORM_MATCH',
+      confidence: 0.90,
+    };
+  }
+
+  // 5. Tier 2: Distinctive sport token (e.g. futsal, taekwondo, badminton) without requiring form noun
+  const hasDistinctiveSport = intent.distinctiveTerms.some((term) => {
+    const pattern = new RegExp(`\\b${escapeRegex(term.toLowerCase())}\\b`, 'i');
+    return pattern.test(combinedText);
+  });
+
+  if (hasDistinctiveSport) {
+    return {
+      status: 'relevant',
+      reason: 'CATEGORY_TOKEN_MATCH',
+      confidence: 0.85,
+    };
+  }
+
+  // 6. Strict ambiguous default (generic 'sports' alone without form noun, or missing category evidence)
+  return {
+    status: 'ambiguous',
+    reason: 'INSUFFICIENT_CATEGORY_EVIDENCE',
+    confidence: 0.30,
+  };
+}
+
