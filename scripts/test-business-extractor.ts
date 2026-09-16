@@ -3,7 +3,6 @@ import {
   extractPhones,
   extractMobiles,
   extractLandlines,
-  extractLandlinesAndIntl,
   expandSlashExtensions,
   extractSocialLinks,
   extractFavicon,
@@ -491,7 +490,7 @@ function runTests() {
       <a href="tel:+13013221427">+1 301 322 1427</a>
       <a href="https://www.facebook.com/gorkha123"><i class="fa fa-facebook"></i></a>
       <a href="https://www.instagram.com/gorkhatreks"><i class="fa fa-instagram"></i></a>
-      <a href="https://www.linkedin.com/in/susil-pant-86b62150"><i class="fa fa-linkedin"></i></a>
+      <a href="https://www.linkedin.com/company/gorkhatravel"><i class="fa fa-linkedin"></i></a>
     </footer>
   `;
   const gorkhaPages: WebsitePageEvidence[] = [
@@ -532,7 +531,7 @@ function runTests() {
     'Gorkha: Instagram icon-only anchor recovered via raw HTML'
   );
   assert(
-    (gorkhaEvidence.extractedSocialLinks.other.linkedin || '').includes('susil-pant-86b62150'),
+    (gorkhaEvidence.extractedSocialLinks.other.linkedin || '').includes('gorkhatravel'),
     'Gorkha: LinkedIn icon-only anchor recovered via raw HTML'
   );
 
@@ -543,7 +542,7 @@ function runTests() {
   assert(gorkhaDirectSocials.facebook.includes('gorkha123'), 'Gorkha direct: Facebook from raw HTML');
   assert(gorkhaDirectSocials.instagram.includes('gorkhatreks'), 'Gorkha direct: Instagram from raw HTML');
   assert(
-    (gorkhaDirectSocials.other.linkedin || '').includes('susil-pant-86b62150'),
+    (gorkhaDirectSocials.other.linkedin || '').includes('gorkhatravel'),
     'Gorkha direct: LinkedIn from raw HTML'
   );
   const gorkhaDirectEmails = extractEmails(gorkhaFooterHtml);
