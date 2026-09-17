@@ -97,6 +97,10 @@ export function buildResearchCandidates(
       location: place.address || defaultLocation || '',
       website: cleanWebsite,
       phone: place.phoneNumber || '',
+      // Phase 7a Task 3: carry the explicit discovery outcome into the candidate.
+      discoveryState: place.discoveryState,
+      // Phase 7b Task 9: carry the discovery provenance into the candidate.
+      discoveryProvenance: place.discoveryProvenance,
       // Structural GPS guarantee: coordinates ONLY ever populated from Maps place
       coordinates:
         place.latitude !== undefined && place.longitude !== undefined
@@ -292,6 +296,8 @@ export function toUnifiedCandidates(
         ratingCount: c.ratingCount,
         placeId: c.sources.googleMaps?.placeId,
         businessType: c.category,
+        discoveryState: c.discoveryState,
+        discoveryProvenance: c.discoveryProvenance,
       };
     }
 
@@ -318,6 +324,8 @@ export function toUnifiedCandidates(
       ratingCount: c.ratingCount,
       placeId: undefined,
       businessType: c.category,
+      discoveryState: c.discoveryState,
+      discoveryProvenance: c.discoveryProvenance,
     };
   });
 }

@@ -6,6 +6,10 @@ import {
   CATEGORY_EXPANSION_POLICIES,
   CATEGORY_STEM_MAPPINGS,
 } from '../config/category-expansion.config';
+import {
+  discoveryStateEnum,
+  discoveryProvenanceSchema,
+} from './discovery-state.service';
 
 // ============================================================================
 // Single Source of Truth Zod Schemas & Inferred Types
@@ -35,6 +39,8 @@ export const unifiedSearchResultSchema = z.object({
   placeId: z.string().optional(),
   source: z.string().optional(),
   businessType: z.string().optional(),
+  discoveryState: discoveryStateEnum.optional(),
+  discoveryProvenance: discoveryProvenanceSchema.optional(),
 });
 
 export const searchMetadataSchema = z.object({
