@@ -12,6 +12,21 @@ import {
   type CategoryIntent,
   type ExpandedQuery,
 } from '../../services/search-fallback.service';
+import {
+  resolveWebsiteDiscoveryBudget,
+  formatWebsiteDiscoveryBudgetLog,
+  type WebsiteDiscoveryBudget,
+} from '../../config/website-discovery.config';
+import {
+  runWebsiteDiscoveryGate,
+  selectPhoneFromOwnDomain,
+  buildSecondChanceQuery,
+  discoveryStateEnum,
+  getDiscoveryTelemetryCounters,
+  type DiscoveryLookupResult,
+  type WebsiteDiscoveryArtifact,
+} from '../../services/website-discovery-gate.service';
+import { selectFirstPartyWebsiteUrl } from '../../services/website-search-ranker.service';
 import { type SerperPlaceResult } from '../../services/serper-places.service';
 import { tavilyExtract } from '../../services/tavily-extract.service';
 import { filterCandidateUrls } from '../../services/url-filter.service';
@@ -27,9 +42,11 @@ import {
   filterSearchResults,
   checkCategoryRelevance,
 } from '../../services/candidate-classifier.service';
+import { evaluateGeographicLocality } from '../../services/geographic-evaluator.service';
 import {
   researchReportSchema,
   researchCandidateSchema,
+  discoveryProvenanceSchema,
   type ResearchReport,
   type ResearchCandidate,
   type ResearchDecision,
@@ -57,6 +74,7 @@ import {
   classifyEmailRole,
   classifyPhoneRole,
   classifyAllSocialProfiles,
+  deduplicateClassifiedContacts,
 } from '../../services/business-extractor.service';
 import {
   branchRecordSchema,
@@ -126,6 +144,9 @@ export const businessListingSchema = z.object({
       branches: z.array(branchRecordSchema).optional(),
       classifiedContacts: z.array(classifiedContactSchema).optional(),
       websiteRelationship: z.string().optional(),
+      discoveryState: discoveryStateEnum.optional(),
+      reconciliationReason: z.string().optional(),
+      discoveryProvenance: discoveryProvenanceSchema.optional(),
     })
     .passthrough()
     .default({}),
@@ -162,6 +183,19 @@ export interface RunResearchDiscoveryInput {
   targetCandidates?: number;
   maxPages?: number;
   maxMapsPages?: number;
+  /**
+   * Phase 7a Task 2: website discovery budget mode.
+   * 'benchmark' = every eligible candidate (hard-capped per run),
+   * 'production' = default 10 lookups per run.
+   * Precedence: this input > env DISCOVERY_MODE > 'production'.
+   */
+  websiteDiscoveryMode?: string;
+  /**
+   * Phase 7a Task 2: explicit per-run lookup budget override.
+   * Still clamped by the hard ceiling and by the eligible candidate count.
+   * Independent of targetCandidates.
+   */
+  maxWebsiteDiscoveryLookups?: number;
 }
 
 export async function runResearchDiscovery(
@@ -184,6 +218,8 @@ export async function runResearchDiscovery(
     targetCandidates = 10,
     maxPages = 5,
     maxMapsPages = 5,
+    websiteDiscoveryMode,
+    maxWebsiteDiscoveryLookups,
   } = inputData;
 
   console.log(
@@ -216,6 +252,8 @@ export async function runResearchDiscovery(
   let relevantCandidates = 0;
   let irrelevantCandidates = 0;
   let ambiguousCandidates = 0;
+  let geographyOutsideCandidates = 0;
+  let geographyAmbiguousCandidates = 0;
 
   // ========================================================================
   // Phase 0: Google Maps First (Multi-Page Bounded Discovery with Safeguards)
@@ -249,8 +287,45 @@ export async function runResearchDiscovery(
         );
 
         if (relevance.status === 'relevant') {
-          relevantCandidates++;
-          rawPlaces.push(place);
+          // Phase 8a Task 8a.3: Layered Geographic Precision Evaluation
+          const geoDecision = location
+            ? evaluateGeographicLocality(
+                {
+                  title: place.title,
+                  address: place.address,
+                  latitude: place.latitude,
+                  longitude: place.longitude,
+                },
+                location
+              )
+            : { status: 'inside' as const, reason: 'No location filter provided', matchedRequestedLocality: true, evidence: { requestedLocation: '' } };
+
+          if (geoDecision.status === 'outside') {
+            geographyOutsideCandidates++;
+            excludedCount++;
+            excludedSummary.push({
+              title: place.title,
+              url: place.website || (place.placeId ? `https://maps.google.com/?cid=${place.placeId}` : `google_maps:${encodeURIComponent(place.title)}`),
+              domain: place.website ? extractDomain(place.website) : 'maps.google.com',
+              classification: 'irrelevant',
+              reason: `Geographic Exclusion: ${geoDecision.reason}`,
+            });
+            allDecisions.push({
+              url: place.website || (place.placeId ? `https://maps.google.com/?cid=${place.placeId}` : `google_maps:${encodeURIComponent(place.title)}`),
+              domain: place.website ? extractDomain(place.website) : 'maps.google.com',
+              title: place.title,
+              classification: 'irrelevant',
+              confidence: 1.0,
+              reason: `Geographic Exclusion: ${geoDecision.reason}`,
+              source: 'deterministic',
+            });
+          } else {
+            if (geoDecision.status === 'ambiguous') {
+              geographyAmbiguousCandidates++;
+            }
+            relevantCandidates++;
+            rawPlaces.push(place);
+          }
         } else if (relevance.status === 'irrelevant') {
           irrelevantCandidates++;
           excludedCount++;
@@ -308,66 +383,163 @@ export async function runResearchDiscovery(
     );
 
     // Targeted Website & Phone Lookups for evidence-ranked places lacking websites or phones
+    // Phase 7a Task 2: the lookup budget is an explicit, mode-driven, PER-RUN policy
+    // (previously derived from targetCandidates as Math.max(targetCandidates, 10)).
+    // Phase 7a Task 3: EVERY eligible candidate is evaluated and receives an explicit
+    // discovery state — the budget decides only who gets a lookup. This closes the
+    // Task 1 finding that budget-skipped candidates vanished without any signal.
     const placesNeedingEnrichment = rawPlaces.filter(
-      (p) => !p.website || p.website.trim().length === 0 || !p.phoneNumber || p.phoneNumber.trim().length === 0
+      (p) =>
+        !p.website ||
+        p.website.trim().length === 0 ||
+        !isUsableOfficialWebsite(p.website, p.title) ||
+        !p.phoneNumber ||
+        p.phoneNumber.trim().length === 0
     );
-    const lookupLimit = Math.min(
-      placesNeedingEnrichment.length,
-      targetCandidates ? Math.max(targetCandidates, 10) : 10
+    const websiteDiscoveryBudget: WebsiteDiscoveryBudget = resolveWebsiteDiscoveryBudget({
+      eligibleCount: placesNeedingEnrichment.length,
+      explicitCap: maxWebsiteDiscoveryLookups,
+      mode: websiteDiscoveryMode,
+    });
+    console.log(
+      `[Workflow:Step1] ${formatWebsiteDiscoveryBudgetLog(websiteDiscoveryBudget, placesNeedingEnrichment.length)}`
     );
-    const targetedLookups = rankWebsiteLookupTargets(placesNeedingEnrichment, lookupLimit);
-    if (targetedLookups.length > 0) {
-      console.log(
-        `[Workflow:Step1] Phase 0: Running targeted web lookup for ${targetedLookups.length} evidence-ranked places needing enrichment...`
-      );
-      for (const place of targetedLookups) {
-        try {
-          const lookupQuery = `${place.title} ${location || place.address || ''}`.trim();
-          const lookupRes = await searchWithFallback(lookupQuery, undefined, 5, 1);
-          if (lookupRes.results && lookupRes.results.length > 0) {
-            // 1. Discover Official Website
-            if (!place.website || place.website.trim().length === 0) {
-              const candidateSite = lookupRes.results.find((r) =>
-                isUsableOfficialWebsite(r.url, place.title, place.category || place.type, r.title)
-              );
-              if (candidateSite && candidateSite.url) {
-                console.log(
-                  `[Workflow:Step1] Phase 0: Discovered verified official website for "${place.title}": ${candidateSite.url}`
-                );
-                place.website = candidateSite.url;
-              }
-            }
 
-            // 2. Extract Phone Number from SERP Snippets
-            if (!place.phoneNumber || place.phoneNumber.trim().length === 0) {
-              const snippetText = lookupRes.results
-                .map((r) => `${r.title || ''} ${r.description || ''} ${(r.extraSnippets || []).join(' ')}`)
-                .join('\n');
-              const phones = extractPhones(snippetText);
-              const mobiles = extractMobiles(snippetText);
-              const allSnippetPhones = [...phones, ...mobiles];
-              if (allSnippetPhones.length > 0) {
-                place.phoneNumber = allSnippetPhones[0];
-                console.log(
-                  `[Workflow:Step1] Phase 0: Discovered phone for "${place.title}" from search snippet: ${place.phoneNumber}`
-                );
-              }
-            }
-          }
-        } catch (lookupErr) {
-          console.warn(`[Workflow:Step1] Phase 0: Targeted lookup failed for "${place.title}":`, lookupErr);
-        }
+    // Shared search+projection for Pass 1 and Task 5 refined queries. Phone
+    // attribution (Task 4.5) happens AFTER selection in selectPhone — search
+    // itself is a pure projection.
+    const searchAndProject = async (
+      place: SerperPlaceResult,
+      query: string
+    ): Promise<DiscoveryLookupResult> => {
+      const lookupRes = await searchWithFallback(query, undefined, 5, 1);
+      if (!lookupRes.results || lookupRes.results.length === 0) {
+        return { queries: [query], results: [] };
       }
+      return {
+        queries: [query],
+        results: lookupRes.results.map((r) => ({
+          url: r.url,
+          title: r.title,
+          description: r.description,
+          extraSnippets: r.extraSnippets,
+        })),
+      };
+    };
 
-      // Rebuild with newly-discovered official websites & phones
-      const rebuilt = buildResearchCandidates({
-        places: rawPlaces,
-        webUsable: [],
-        defaultLocation: location,
-      });
-      currentResearchCandidates = rebuilt.candidates;
-      usableCount = currentResearchCandidates.length;
-    }
+    const discoveryGate = await runWebsiteDiscoveryGate({
+      places: placesNeedingEnrichment,
+      lookupBudget: websiteDiscoveryBudget.lookupBudget,
+      rank: (rankTargets) => rankWebsiteLookupTargets(rankTargets),
+      // Phase 7a Task 4: deterministic zero-HTTP ranking replaces the legacy
+      // first-pick (`results.find(...)`). isUsableOfficialWebsite is injected as the
+      // hard gate, so ranking can never resurrect a URL the safeguards reject.
+      selectFirstPartyUrl: (place, results) => {
+        const selection = selectFirstPartyWebsiteUrl({
+          results,
+          businessName: place.title,
+          location: location || place.address,
+          isUsable: (candidate) =>
+            isUsableOfficialWebsite(
+              candidate.url,
+              place.title,
+              place.category || place.type,
+              candidate.title
+            ),
+        });
+        if (selection.ranked.length > 0) {
+          console.log(`[Workflow:Step1] Phase 0 ranker: ${place.title} → ${selection.reason}`);
+        }
+        return { url: selection.url, reason: selection.reason };
+      },
+      // Phase 7a Task 4.5 — Snippet Phone Attribution Guard: a snippet may
+      // contribute a phone ONLY from the business's own domain (the ranked
+      // first-party selection, or the Maps website when no discovery was needed).
+      // The attribution target must itself be an acceptable official domain, so a
+      // Maps-provided social/directory URL can never become a phone source.
+      selectPhone: ({ place, results, businessDomain }) => {
+        if (!businessDomain) return undefined;
+        if (
+          !isUsableOfficialWebsite(
+            `https://${businessDomain}`,
+            place.title,
+            place.category || place.type
+          )
+        ) {
+          return undefined;
+        }
+        const attributedPhone = selectPhoneFromOwnDomain(results, businessDomain);
+        if (attributedPhone) {
+          console.log(
+            `[Workflow:Step1] Phase 0: Attributed phone for "${place.title}" from its own domain (${businessDomain}): ${attributedPhone}`
+          );
+        }
+        return attributedPhone;
+      },
+      lookup: (place) =>
+        searchAndProject(place, `${place.title} ${location || place.address || ''}`.trim()),
+      // Task 5: bounded second chance — at most ONE refined query per candidate,
+      // fired by the gate ONLY when Pass 1 yields no first-party URL.
+      refinedLookup: (place, query) => searchAndProject(place, query),
+      secondChanceQuery: (candidate) =>
+        buildSecondChanceQuery(candidate, {
+          runCategory: categoryIntent.normalized,
+          location: location || candidate.address,
+        }),
+      onGroupEvaluated: (record) => {
+        if (record.state === 'DISCOVERY_FOUND_FIRST_PARTY') {
+          console.log(
+            `[Workflow:Step1] Phase 0: Discovered verified official website for "${record.title}": ${record.selectedUrl}`
+          );
+        } else if (record.state === 'DISCOVERY_FOUND_ONLY_THIRD_PARTY') {
+          console.log(
+            `[Workflow:Step1] Phase 0: "${record.title}" — ${record.resultsReviewed} results reviewed, all third-party; no first-party website attached.`
+          );
+        } else if (record.error) {
+          console.warn(
+            `[Workflow:Step1] Phase 0: Targeted lookup failed for "${record.title}": ${record.error}`
+          );
+        }
+      },
+    });
+
+    console.log(
+      `[Workflow:Step1] Phase 0 discovery states: ${discoveryGate.groupsEvaluated} evaluated, ` +
+        `${discoveryGate.groupsLookedUp} looked up, ${discoveryGate.groupsNotAttempted} not attempted ` +
+        `(${discoveryGate.notAttemptedPhoneOnly} phone-only skipped, ${discoveryGate.duplicatesMerged} duplicates merged) — ` +
+        `first-party: ${discoveryGate.statesApplied.DISCOVERY_FOUND_FIRST_PARTY}, ` +
+        `third-party-only: ${discoveryGate.statesApplied.DISCOVERY_FOUND_ONLY_THIRD_PARTY}, ` +
+        `exhausted: ${discoveryGate.statesApplied.DISCOVERY_EXHAUSTED_NO_FIRST_PARTY}, ` +
+        `not-attempted: ${discoveryGate.statesApplied.DISCOVERY_NOT_ATTEMPTED_BUDGET}`
+    );
+
+    // Phase 7b Task 13: Stage 0 Website Discovery Audit Envelope
+    const counters = getDiscoveryTelemetryCounters(discoveryGate);
+    const discoveryArtifact: WebsiteDiscoveryArtifact = {
+      runId: getActiveRunSession()?.runId ?? getRunSessionId(query, location),
+      generatedAt: new Date().toISOString(),
+      counters,
+      statesApplied: discoveryGate.statesApplied,
+      records: discoveryGate.records,
+      gateConfig: {
+        mode: websiteDiscoveryBudget.mode,
+        maxLookups: websiteDiscoveryBudget.lookupBudget,
+        currentLookupCount: discoveryGate.groupsLookedUp,
+        resolvedAtRuntime: true,
+      },
+      _provisional: true,
+    };
+    saveStageOutput('website-discovery', '0-website-discovery.json', discoveryArtifact, query);
+
+    // Rebuild with newly-discovered official websites & phones. This now always runs:
+    // every candidate carries an explicit discovery state, including budget skips.
+    const rebuilt = buildResearchCandidates({
+      places: rawPlaces,
+      webUsable: [],
+      defaultLocation: location,
+    });
+    currentResearchCandidates = rebuilt.candidates;
+    usableCount = currentResearchCandidates.length;
 
     for (const candidate of currentResearchCandidates) {
       const url =
@@ -722,6 +894,8 @@ Respond with a JSON array of classifications matching this exact schema:
     relevantCandidates,
     irrelevantCandidates,
     ambiguousCandidates,
+    geographyOutsideCandidates,
+    geographyAmbiguousCandidates,
     uniqueEntities: currentResearchCandidates.length,
   };
 
@@ -1483,6 +1657,8 @@ export const supervisorSynthesisStep = createStep({
             ratingCount: m.ratingCount,
             businessType: m.businessType,
             source: 'google_maps',
+            discoveryState: m.discoveryState,
+            discoveryProvenance: m.discoveryProvenance,
           },
           gpsCoordinates:
             m.latitude !== undefined && m.longitude !== undefined
@@ -1820,7 +1996,7 @@ export function sanitizeListingWithEvidence(
   if (candidate.phone) {
     const candidateClassified = classifyNepalPhone(candidate.phone);
     if (candidateClassified.type !== 'invalid') {
-      const candidateRole = classifyPhoneRole(candidate.phone, candidate.name, candidate.name, candidateClassified);
+      const candidateRole = classifyPhoneRole(candidate.phone, candidate.name, candidate.name, candidateClassified, undefined, true);
       const isAlreadyClassified = allClassifiedContacts.some((c) => c.canonicalDigits === candidateClassified.digits);
       if (!isAlreadyClassified) {
         allClassifiedContacts.push({
@@ -1837,8 +2013,47 @@ export function sanitizeListingWithEvidence(
     }
   }
 
+  // If no classified phone contacts exist from deep extractor, classify from extractedMobiles/extractedPhones
+  if ((!web?.extractedClassifiedContacts || web.extractedClassifiedContacts.length === 0) && isFirstParty) {
+    for (const m of web?.extractedMobiles || []) {
+      const classified = classifyNepalPhone(m);
+      if (classified.type !== 'invalid' && !allClassifiedContacts.some((c) => c.canonicalDigits === classified.digits)) {
+        const role = classifyPhoneRole(m, candidate.name, candidate.name, classified, web?.url || '');
+        allClassifiedContacts.push({
+          value: classified.normalized || m,
+          canonicalDigits: classified.digits,
+          type: 'phone',
+          phoneType: classified.type,
+          role: role.role,
+          owner: role.owner,
+          channels: role.channels,
+          pageUrl: web?.url,
+        });
+      }
+    }
+    for (const p of web?.extractedPhones || []) {
+      const classified = classifyNepalPhone(p);
+      if (classified.type !== 'invalid' && !allClassifiedContacts.some((c) => c.canonicalDigits === classified.digits)) {
+        const role = classifyPhoneRole(p, candidate.name, candidate.name, classified, web?.url || '');
+        allClassifiedContacts.push({
+          value: classified.normalized || p,
+          canonicalDigits: classified.digits,
+          type: 'phone',
+          phoneType: classified.type,
+          role: role.role,
+          owner: role.owner,
+          channels: role.channels,
+          pageUrl: web?.url,
+        });
+      }
+    }
+  }
+
+  // Deduplicate and aggregate cross-page signals across all collected contacts
+  const deduplicatedContacts = deduplicateClassifiedContacts(allClassifiedContacts);
+
   // Branch separation and aggregation
-  for (const c of allClassifiedContacts) {
+  for (const c of deduplicatedContacts) {
     if (c.role === 'branch_contact') {
       let branchName = 'Branch';
       const locMatch = c.context?.match(/\b(chabahil|naikap|bardibas|banasthali|chapagaun|jawalakhel|koteshwor|kumaripati|pokhara|biratnagar|birgunj|dharan|hetauda|nepalgunj|butwal)\b/i);
@@ -1846,14 +2061,14 @@ export function sanitizeListingWithEvidence(
         const cap = locMatch[1].charAt(0).toUpperCase() + locMatch[1].slice(1).toLowerCase();
         branchName = `${cap} Branch`;
       } else if (c.context) {
-        branchName = c.context.slice(0, 30).trim();
+        branchName = `${c.context.slice(0, 30)} Branch`;
       }
       const existing = branchesMap.get(branchName) || {
         name: branchName,
+        address: c.context,
         phones: [],
         mobiles: [],
         emails: [],
-        sourceUrl: c.pageUrl,
       };
       if (c.type === 'phone') {
         if (c.phoneType === 'mobile') {
@@ -1869,20 +2084,45 @@ export function sanitizeListingWithEvidence(
   }
   const branches = [...branchesMap.values()];
 
+  const mapsPhoneDigits = [candidate.phone]
+    .filter(Boolean)
+    .map((p) => classifyNepalPhone(p as string).digits)
+    .filter(Boolean);
+
   const routePhone = (p?: string) => {
     if (!p) return;
     const classified = classifyNepalPhone(p);
     if (classified.type === 'invalid') return;
     if (seenDigits.has(classified.digits)) return;
 
-    // Check if this number is a branch contact -> do not promote to primary top-level
-    const isBranch = allClassifiedContacts.some(
-      (c) => c.canonicalDigits === classified.digits && c.role === 'branch_contact'
+    // 1. Maps phones are the absolute identity authority — promote unconditionally (Matrix rows 1, 2)
+    if (mapsPhoneDigits.includes(classified.digits)) {
+      seenDigits.add(classified.digits);
+      const display = classified.normalized || p.trim();
+      if (classified.type === 'mobile') {
+        mergedMobiles.push(display);
+      } else {
+        mergedPhones.push(display);
+      }
+      return;
+    }
+
+    // 2. Non-Maps phones: consult accumulated multi-signal evidence from deduplicatedContacts
+    const contactEvidence = deduplicatedContacts.find(
+      (c) => c.canonicalDigits === classified.digits
     );
-    if (isBranch) return;
+
+    if (contactEvidence) {
+      // Only promote if verified as primary business owned by the business entity
+      if (contactEvidence.role !== 'primary_business' || contactEvidence.owner !== 'business') {
+        return;
+      }
+    } else if (allClassifiedContacts.length > 0) {
+      // No evidence found among classified contacts — do not promote bare/unverified numbers (Matrix row 9)
+      return;
+    }
 
     seenDigits.add(classified.digits);
-
     const display = classified.normalized || p.trim();
     if (classified.type === 'mobile') {
       mergedMobiles.push(display);
@@ -1916,8 +2156,14 @@ export function sanitizeListingWithEvidence(
 
   // Websites: ONLY the candidate's official website.
   const websites: string[] = [];
-  if (candidate.website) websites.push(candidate.website);
-  else if (isContactEnrichable && web?.url && isUsableOfficialWebsite(web.url, candidate.name)) {
+  const isCandidateUrlRejected =
+    relationship === 'unverified' &&
+    (candidate.discoveryState === 'DISCOVERY_FOUND_FIRST_PARTY' ||
+      listing.otherDetails?.discoveryState === 'DISCOVERY_FOUND_FIRST_PARTY');
+
+  if (candidate.website && !isCandidateUrlRejected) {
+    websites.push(candidate.website);
+  } else if (isContactEnrichable && web?.url && isUsableOfficialWebsite(web.url, candidate.name)) {
     websites.push(web.url);
   } else if (listing.websites && listing.websites.length > 0) {
     for (const w of listing.websites) {
@@ -1991,13 +2237,25 @@ export function sanitizeListingWithEvidence(
     ? classifiedSocialProfiles.filter((p: any) => p.status === 'rejected' || p.status === 'unknown')
     : listing.otherDetails?.socialLinksRejected;
 
+  let reconciledDiscoveryState = candidate.discoveryState || listing.otherDetails?.discoveryState;
+  let reconciliationReason: string | undefined;
+  if (relationship === 'unverified' && reconciledDiscoveryState === 'DISCOVERY_FOUND_FIRST_PARTY') {
+    reconciledDiscoveryState = 'DISCOVERY_FOUND_ONLY_THIRD_PARTY';
+    reconciliationReason = 'Provisional discovery URL rejected by downstream verification (unverified)';
+  }
+
+  const finalClassifiedContacts = deduplicateClassifiedContacts(allClassifiedContacts);
+
   const otherDetails = {
     ...listing.otherDetails,
     websiteRelationship: relationship,
     branches: branches.length > 0 ? branches : listing.otherDetails?.branches,
-    classifiedContacts: allClassifiedContacts.length > 0 ? allClassifiedContacts : listing.otherDetails?.classifiedContacts,
+    classifiedContacts: finalClassifiedContacts.length > 0 ? finalClassifiedContacts : listing.otherDetails?.classifiedContacts,
     classifiedSocialProfiles: classifiedSocialProfiles && classifiedSocialProfiles.length > 0 ? classifiedSocialProfiles : undefined,
     socialLinksRejected: socialLinksRejected && socialLinksRejected.length > 0 ? socialLinksRejected : undefined,
+    discoveryState: reconciledDiscoveryState,
+    reconciliationReason,
+    discoveryProvenance: candidate.discoveryProvenance || listing.otherDetails?.discoveryProvenance,
   };
 
   return {
@@ -2043,8 +2301,9 @@ export function normalizeListingPhones(listing: z.infer<typeof businessListingSc
   for (const raw of allRawPhones) {
     const classified = classifyNepalPhone(raw);
     if (classified.type === 'invalid') continue; // Drop invalid
-    if (seenDigits.has(classified.digits)) continue; // Cross-array dedup by canonical identity
-    seenDigits.add(classified.digits);
+    const canonicalKey = normalizePhoneDigits(classified.digits || raw);
+    if (!canonicalKey || seenDigits.has(canonicalKey)) continue; // Cross-array dedup by canonical identity
+    seenDigits.add(canonicalKey);
 
     const display = classified.normalized || raw.trim();
     if (classified.type === 'mobile') {
@@ -2346,6 +2605,8 @@ function buildFallbackListing(
       hours: webEvidence?.extractedHours || '',
       classifiedSocialProfiles: fallbackSocialProfiles.length > 0 ? fallbackSocialProfiles : undefined,
       socialLinksRejected: fallbackSocialsRejected.length > 0 ? fallbackSocialsRejected : undefined,
+      discoveryState: matchingEvidence?.candidate.discoveryState || candidate.discoveryState,
+      discoveryProvenance: matchingEvidence?.candidate.discoveryProvenance || candidate.discoveryProvenance,
     },
     gpsCoordinates:
       candidate.latitude !== undefined && candidate.longitude !== undefined
@@ -2387,6 +2648,14 @@ export const researchWorkflow = createWorkflow({
     targetCandidates: z.number().optional().describe('Target number of usable candidates'),
     maxMapsPages: z.number().optional().describe('Maximum Google Maps pages to query (default 5)'),
     maxPages: z.number().optional().describe('Maximum search pages to query'),
+    websiteDiscoveryMode: z
+      .enum(['production', 'benchmark'])
+      .optional()
+      .describe('Website discovery budget mode: benchmark = all eligible (hard-capped per run), production = 10 per run (default)'),
+    maxWebsiteDiscoveryLookups: z
+      .number()
+      .optional()
+      .describe('Explicit per-run website discovery lookup budget (clamped by the hard ceiling; independent of targetCandidates)'),
     maxDeepVerifyCandidates: z
       .number()
       .optional()
