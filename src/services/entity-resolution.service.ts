@@ -380,7 +380,7 @@ const BUSINESS_CATEGORY_KEYWORDS: Record<string, { primary: string[]; conflicts:
     conflicts: ['hotel', 'restaurant', 'travel'],
   },
   education: {
-    primary: ['school', 'college', 'university', 'academy', 'institute', 'education'],
+    primary: ['school', 'college', 'university', 'academy', 'institute', 'education', 'educational'],
     conflicts: ['hotel', 'restaurant', 'travel'],
   },
 };
@@ -512,10 +512,17 @@ export function isUsableOfficialWebsite(
 /**
  * Deterministically ranks Google Maps places lacking a website to prioritize targeted web lookups.
  * Higher evidence weight (phone + address + rating + review count) gets lookup first.
+ *
+ * Phase 7a Task 2 (de-trap): `limit` previously defaulted to 3, a latent silent
+ * truncation for any caller that omitted it. The Task 1 forensic trace proved the
+ * default was never exercised in production (the workflow always passed an
+ * explicit limit), but it remained a trap for future callers. Omitting `limit`
+ * now returns ALL ranked places; the budget is decided by the caller via
+ * `resolveWebsiteDiscoveryBudget` (src/config/website-discovery.config.ts).
  */
 export function rankWebsiteLookupTargets(
   places: SerperPlaceResult[],
-  limit = 3
+  limit?: number
 ): SerperPlaceResult[] {
   const scored = places.map((place, originalIndex) => {
     const phoneScore = place.phoneNumber ? 1 : 0;
@@ -531,7 +538,10 @@ export function rankWebsiteLookupTargets(
     return a.originalIndex - b.originalIndex;
   });
 
-  return scored.slice(0, limit).map((s) => s.place);
+  const effectiveLimit =
+    limit === undefined || !Number.isFinite(limit) ? places.length : Math.max(0, Math.floor(limit));
+
+  return scored.slice(0, effectiveLimit).map((s) => s.place);
 }
 
 // ============================================================================

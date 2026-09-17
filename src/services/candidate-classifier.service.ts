@@ -64,6 +64,12 @@ export const DIRECTORY_DOMAINS = new Set([
   'bbb.org',
   'trustpilot.com',
   'sitejabber.com',
+  'edusanjal.com',
+  'collegesnepal.com',
+  'noshnepal.com',
+  'mapcarta.com',
+  'wikimapia.org',
+  'openstreetmap.org',
 ]);
 
 export const SOCIAL_DOMAINS = new Set([

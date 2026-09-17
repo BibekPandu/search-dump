@@ -1,4 +1,4 @@
-import { domainFromUrlOrHost } from './entity-resolution.service';
+import { extractDomain } from './search-fallback.service';
 import type { WebsitePageEvidence, WebsiteEvidence, PhoneEvidenceRecord } from '../mastra/agents/research-agent/verification.schema';
 import { NTA_MOBILE_PREFIXES, NTA_LANDLINE_AREA_CODES } from '../config/nepal-telecom.config';
 import {
@@ -9,6 +9,20 @@ import {
 } from '../mastra/agents/research-agent/contact.schema';
 import type { ClassifiedSocialProfile } from '../mastra/agents/research-agent/social.schema';
 
+function domainFromUrlOrHost(value: string): string {
+  if (!value) return '';
+  const trimmed = value.trim();
+  const fromUrl = extractDomain(trimmed);
+  if (fromUrl) return fromUrl;
+
+  return trimmed
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/^www\./, '')
+    .split('/')[0]
+    .split(':')[0];
+}
+
 // ============================================================================
 // Business Extractor — deterministic (0-token) structured fact extraction
 // ============================================================================
@@ -16,7 +30,7 @@ import type { ClassifiedSocialProfile } from '../mastra/agents/research-agent/so
 // facts (emails, phones, mobiles, socials, favicon, services, hours) are
 // extracted via regex/rules and used as EVIDENCE-BACKED authority downstream.
 
-const EMAIL_REGEX = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+const EMAIL_REGEX = /\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:\.[a-zA-Z]{2,})?\b(?!\.[a-zA-Z])/g;
 
 // Placeholder / throwaway addresses that must never be treated as real evidence.
 const PLACEHOLDER_EMAIL_PATTERNS = [
@@ -1146,7 +1160,7 @@ export function extractEmails(content: string): string[] {
     if (!email) continue;
     // Detach glued words from markdown before lowercasing (e.g. gmail.comOpening -> gmail.com)
     const gluedMatch = email.match(
-      /^([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.(?:com\.np|org\.np|com|org|net|edu|gov|io|co|np|biz|info))([A-Z].*)$/
+      /^([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.(?:edu\.np|com\.np|org\.np|gov\.np|net\.np|mil\.np|com|org|net|edu|gov|io|co|np|biz|info))([A-Z].*)$/
     );
     if (gluedMatch) {
       email = gluedMatch[1];
@@ -1157,11 +1171,14 @@ export function extractEmails(content: string): string[] {
     // Task 5: Reject media filenames and DPR retina assets misparsed as emails
     if (MEDIA_FILENAME_PATTERN.test(email) || MEDIA_DPR_PATTERN.test(email)) continue;
     if (email.includes(' ') || !email.includes('@')) continue;
-    if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email)) continue;
+    if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:\.[a-zA-Z]{2,})?$/.test(email)) continue;
 
-    // Task 5: Reject emails whose domain ends with an image/media file extension
+    // Reject emails whose final domain segment is a single character (e.g. .n)
     const emailDomain = email.split('@')[1]?.toLowerCase() ?? '';
     const tld = emailDomain.split('.').pop() ?? '';
+    if (tld.length < 2) continue;
+
+    // Task 5: Reject emails whose domain ends with an image/media file extension
     if (IMAGE_FILE_TLDS.has(tld)) continue;
 
     unique.add(email);
@@ -1271,15 +1288,180 @@ export function classifyEmailRole(
   return { role: 'unknown', owner: 'unknown' };
 }
 
+export type PageType = 'homepage' | 'contact' | 'about' | 'team' | 'services' | 'other';
+
 /**
- * Classifies a phone number into functional role, ownership entity, and communication channels.
+ * Classifies a URL into a page type based on pathname heuristics.
+ */
+export function classifyPageType(url?: string, pageTitle?: string): PageType {
+  if (!url) return 'other';
+  try {
+    const raw = url.startsWith('http') ? url : `https://${url}`;
+    const parsed = new URL(raw);
+    const path = parsed.pathname.toLowerCase().replace(/\/+$/, '');
+
+    // Homepage: root, index.html, index.php, /home
+    if (path === '' || path === '/' || path === '/index.html' || path === '/index.php' || path === '/home') {
+      return 'homepage';
+    }
+
+    // Contact: contact, contact-us, reach-us, get-in-touch, get-a-quote, location
+    if (/\b(contact|contact-us|reach-us|get-in-touch|get-a-quote|contactus|location|branches)\b/i.test(path)) {
+      return 'contact';
+    }
+
+    // Team: team, our-team, leadership, board, management, staff, members
+    if (/\b(team|our-team|leadership|board|management|staff|members)\b/i.test(path)) {
+      return 'team';
+    }
+
+    // About: about, about-us, who-we-are, company, profile
+    if (/\b(about|about-us|who-we-are|company|profile)\b/i.test(path)) {
+      return 'about';
+    }
+
+    // Services: service, services, our-services
+    if (/\b(service|services|our-services)\b/i.test(path)) {
+      return 'services';
+    }
+
+    return 'other';
+  } catch {
+    return 'other';
+  }
+}
+
+export const OWNER_LEADERSHIP_TITLES = [
+  'owner',
+  'founder',
+  'co-founder',
+  'proprietor',
+  'managing director',
+  'ceo',
+  'chairman',
+  'chairperson',
+  'president',
+  'principal',
+];
+
+export const STAFF_TITLES = [
+  'supervisor',
+  'housekeeping supervisor',
+  'manager',
+  'executive',
+  'field marketing executive',
+  'officer',
+  'coordinator',
+  'accountant',
+  'front desk',
+  'receptionist',
+  'maid',
+  'cleaner',
+  'designer',
+  'graphic designer',
+  'graphic design',
+  'web design',
+  'design',
+  'developer',
+  'technician',
+  'operator',
+  'sales head',
+  'head',
+];
+
+export interface ContactSignalSnapshot {
+  hasMapsSignal: boolean;
+  hasPageCtaSignal: boolean;
+  hasGeneralContactSignal: boolean;
+  hasOwnerLeadershipSignal: boolean;
+  hasStaffSignal: boolean;
+  hasBranchSignal: boolean;
+  hasPlatformSignal: boolean;
+  pageTypesSeen: Set<PageType>;
+}
+
+/**
+ * Evaluates the 9-Row Role Decision Matrix against accumulated contact signals.
+ */
+export function evaluateContactRoleMatrix(s: ContactSignalSnapshot): {
+  role: ContactRole;
+  owner: ContactOwner;
+} {
+  // Row 1 & 2: Maps phone is the absolute identity authority -> primary_business
+  if (s.hasMapsSignal) {
+    return { role: 'primary_business', owner: 'business' };
+  }
+
+  // Row 8: Branch signal -> branch_contact
+  if (s.hasBranchSignal) {
+    return { role: 'branch_contact', owner: 'branch' };
+  }
+
+  // Platform number -> unknown, platform
+  if (s.hasPlatformSignal) {
+    return { role: 'unknown', owner: 'platform' };
+  }
+
+  const isHomepageOrContact = s.pageTypesSeen.has('homepage') || s.pageTypesSeen.has('contact');
+  const isAboutOrTeam = s.pageTypesSeen.has('about') || s.pageTypesSeen.has('team');
+
+  // Row 3: Prominent Business CTA on Homepage / Contact page -> primary_business
+  // (Homepage CTA elevates the number to primary_business even if it also appears as staff on team page)
+  if (isHomepageOrContact && s.hasPageCtaSignal) {
+    return { role: 'primary_business', owner: 'business' };
+  }
+
+  // Standalone CTA with no team page association
+  if (s.hasPageCtaSignal && !s.hasStaffSignal && !isAboutOrTeam) {
+    return { role: 'primary_business', owner: 'business' };
+  }
+
+  // Row 5: Homepage or Contact page sighting without staff signals -> primary_business
+  if (isHomepageOrContact && !s.hasStaffSignal) {
+    return { role: 'primary_business', owner: 'business' };
+  }
+
+  // Row 6 & 7: About or team page profiles without Homepage CTA -> staff_person
+  if (isAboutOrTeam && (s.hasOwnerLeadershipSignal || s.hasStaffSignal)) {
+    return { role: 'staff_person', owner: 'person' };
+  }
+
+  // Row 4: Staff title without Homepage CTA -> staff_person
+  if (s.hasStaffSignal) {
+    return { role: 'staff_person', owner: 'person' };
+  }
+
+  // Row 9: No CTA / bare text / blog -> unknown, unknown
+  return { role: 'unknown', owner: 'unknown' };
+}
+
+export interface PhoneRoleClassificationResult {
+  role: ContactRole;
+  owner: ContactOwner;
+  channels: ContactChannel[];
+  associatedPerson?: string;
+  associatedJobTitle?: string;
+  hasMapsSignal?: boolean;
+  hasPageCtaSignal?: boolean;
+  hasGeneralContactSignal?: boolean;
+  hasOwnerLeadershipSignal?: boolean;
+  hasStaffSignal?: boolean;
+  hasBranchSignal?: boolean;
+  hasPlatformSignal?: boolean;
+}
+
+/**
+ * Classifies a phone number into functional role, ownership entity, communication channels,
+ * and associated person metadata based on context, URL, and signal aggregation.
  */
 export function classifyPhoneRole(
   phone: string,
   context: string = '',
   businessName?: string,
-  classifiedPhone?: ClassifiedPhone
-): { role: ContactRole; owner: ContactOwner; channels: ContactChannel[] } {
+  classifiedPhone?: ClassifiedPhone,
+  pageUrl?: string,
+  isMapsPhone?: boolean
+): PhoneRoleClassificationResult {
   const lowerContext = context.toLowerCase();
   const channels: ContactChannel[] = ['call'];
 
@@ -1291,33 +1473,85 @@ export function classifyPhoneRole(
     channels.push('viber');
   }
 
-  // Head / Main / Central office override -> primary business
-  if (/\b(head office|main office|central office|headquarters|corporate office|main clinic|main hospital)\b/i.test(lowerContext)) {
-    return { role: 'primary_business', owner: 'business', channels };
-  }
+  const pageType = classifyPageType(pageUrl);
 
-  // Tier 1: Explicit branch keywords
+  // 1. Channel / CTA Signals
+  const hasPageCtaSignal =
+    /\b(call now|call us|emergency service|fast service|toll free|customer care|hotline|get a quote|need clean|book now|talk to us|phone:|chat with us|whatsapp|viber|call|order|orders|delivery)\b/i.test(
+      lowerContext
+    ) || /\[(?:call|phone|tel|emergency|hotline|now|quote)[^\]]*\]\(tel:/i.test(context);
+
+  const hasGeneralContactSignal =
+    pageType === 'contact' ||
+    /\b(head office|main office|central office|contact us|email us)\b/i.test(lowerContext);
+
+  // 2. Branch Signals
   const hasBranchKeyword = /\b(branch|branches|outlet|outlets|our branches)\b/i.test(lowerContext);
-  if (hasBranchKeyword) {
-    return { role: 'branch_contact', owner: 'branch', channels };
-  }
-
-  // Tier 2: Location/Address block with district/locality + structure cues
   const hasLocationCues = /\b(clinic|center|centre|office|outlet)\b/i.test(lowerContext);
   const hasLocalities = /\b(chabahil|naikap|bardibas|banasthali|chapagaun|jawalakhel|koteshwor|kumaripati|pokhara|biratnagar|birgunj|dharan|hetauda|nepalgunj|butwal)\b/i.test(lowerContext);
   const hasAddressCues = /\b(chowk|marga|street|road|ward|tole)\b/i.test(lowerContext);
+  const hasBranchSignal = hasBranchKeyword || (hasLocationCues && hasLocalities) || (hasLocalities && hasAddressCues);
 
-  if ((hasLocationCues && hasLocalities) || (hasLocalities && hasAddressCues)) {
-    return { role: 'branch_contact', owner: 'branch', channels };
+  // 3. Person / Title Signals
+  let hasOwnerLeadershipSignal = false;
+  let hasStaffSignal = false;
+  let associatedPerson: string | undefined;
+  let associatedJobTitle: string | undefined;
+
+  for (const title of OWNER_LEADERSHIP_TITLES) {
+    if (new RegExp(`\\b${title}\\b`, 'i').test(lowerContext)) {
+      hasOwnerLeadershipSignal = true;
+      associatedJobTitle = title;
+      break;
+    }
   }
 
-  // Personal honorifics in context
-  if (/\b(dr\.|dr\s|mr\.|mrs\.|ms\.|prof\.|director)\b/i.test(lowerContext)) {
-    return { role: 'staff_person', owner: 'person', channels };
+  for (const title of STAFF_TITLES) {
+    if (new RegExp(`\\b${title}\\b`, 'i').test(lowerContext)) {
+      hasStaffSignal = true;
+      if (!associatedJobTitle) associatedJobTitle = title;
+      break;
+    }
   }
 
-  // Default: primary business contact
-  return { role: 'primary_business', owner: 'business', channels };
+  if (/\b(dr\.|dr\s|mr\.|mrs\.|ms\.|prof\.)\b/i.test(lowerContext)) {
+    hasStaffSignal = true;
+  }
+
+  // Extract person name if present in markdown team cues
+  const personMatch = context.match(/(?:###|\*\*|##)?\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})\s+(?:Chairman|Managing Director|Director|Supervisor|Marketing|Front Desk|Design|Executive|Head|Manager|Cleaner|Maid|Technician|Owner|Founder)/i);
+  if (personMatch) {
+    associatedPerson = personMatch[1].trim();
+  }
+
+  const hasMapsSignal = Boolean(isMapsPhone);
+  const hasPlatformSignal = false;
+
+  const decision = evaluateContactRoleMatrix({
+    hasMapsSignal,
+    hasPageCtaSignal,
+    hasGeneralContactSignal,
+    hasOwnerLeadershipSignal,
+    hasStaffSignal,
+    hasBranchSignal,
+    hasPlatformSignal,
+    pageTypesSeen: new Set([pageType]),
+  });
+
+  return {
+    role: decision.role,
+    owner: decision.owner,
+    channels,
+    associatedPerson,
+    associatedJobTitle,
+    hasMapsSignal,
+    hasPageCtaSignal,
+    hasGeneralContactSignal,
+    hasOwnerLeadershipSignal,
+    hasStaffSignal,
+    hasBranchSignal,
+    hasPlatformSignal,
+  };
 }
 
 /**
@@ -1835,7 +2069,7 @@ export function extractAllFromPages(
     allPhoneEvidence.push(evidence);
 
     const context = pageText ? extractContextAroundMatch(pageText, raw) : '';
-    const phoneRole = classifyPhoneRole(raw, context, businessName, classified);
+    const phoneRole = classifyPhoneRole(raw, context, businessName, classified, pageUrl);
 
     if (classified.type !== 'invalid') {
       allClassifiedContacts.push({
@@ -1846,6 +2080,8 @@ export function extractAllFromPages(
         role: phoneRole.role,
         owner: phoneRole.owner,
         channels: phoneRole.channels,
+        associatedPerson: phoneRole.associatedPerson,
+        associatedJobTitle: phoneRole.associatedJobTitle,
         context: context || undefined,
         pageUrl,
       });
@@ -1909,16 +2145,194 @@ export function extractAllFromPages(
     .map((p) => p.content.replace(/\s+/g, ' ').slice(0, 200));
   const rawContentSummary = summaryParts.join(' ... ').slice(0, 600);
 
+  const deduplicatedContacts = deduplicateClassifiedContacts(allClassifiedContacts);
+
   return {
     extractedEmails: [...emailSet],
     extractedPhones: [...phoneSet],
     extractedMobiles: [...mobileSet],
     extractedPhoneEvidence: allPhoneEvidence.length > 0 ? allPhoneEvidence : undefined,
-    extractedClassifiedContacts: allClassifiedContacts.length > 0 ? allClassifiedContacts : undefined,
+    extractedClassifiedContacts: deduplicatedContacts.length > 0 ? deduplicatedContacts : undefined,
     extractedSocialLinks: socialLinks,
     extractedServices: info.services,
     extractedHours: info.hours,
     favicon,
     rawContentSummary: rawContentSummary || undefined,
   };
+}
+
+/**
+ * Deduplicates ClassifiedContact records deterministically using Rule (A): "First-seen wins"
+ * and Rule (B): "Signal OR-Combination" across all page sightings.
+ * Keyed by canonical identity (canonicalDigits for phones, lowercase value for emails).
+ * pagesSeenOn aggregates all normalized unique URLs where the contact was witnessed.
+ */
+export function deduplicateClassifiedContacts(contacts: ClassifiedContact[]): ClassifiedContact[] {
+  const map = new Map<
+    string,
+    {
+      contact: ClassifiedContact;
+      pages: Set<string>;
+      pageTypesSeen: Set<PageType>;
+      hasMapsSignal: boolean;
+      hasPageCtaSignal: boolean;
+      hasGeneralContactSignal: boolean;
+      hasOwnerLeadershipSignal: boolean;
+      hasStaffSignal: boolean;
+      hasBranchSignal: boolean;
+      hasPlatformSignal: boolean;
+    }
+  >();
+
+  for (const c of contacts) {
+    const key = c.type === 'phone'
+      ? (c.canonicalDigits || c.value.replace(/\D/g, ''))
+      : c.value.toLowerCase().trim();
+
+    if (!key) continue;
+
+    const normalizedPageUrl = c.pageUrl ? c.pageUrl.replace(/\/+$/, '') : undefined;
+    const pType = classifyPageType(c.pageUrl);
+
+    const ctx = (c.context || '').toLowerCase();
+    const ctaSignal =
+      /\b(call now|call us|emergency service|fast service|toll free|customer care|hotline|get a quote|need clean|book now|talk to us|phone:)\b/i.test(
+        ctx
+      ) || /\[(?:call|phone|tel|emergency|hotline|now|quote)[^\]]*\]\(tel:/i.test(c.context || '');
+    const generalSignal =
+      pType === 'contact' ||
+      /\b(head office|main office|central office|contact us|email us)\b/i.test(ctx);
+    const branchSignal =
+      c.role === 'branch_contact' ||
+      c.owner === 'branch' ||
+      /\b(branch|branches|outlet|outlets)\b/i.test(ctx);
+    const platformSignal = c.owner === 'platform';
+
+    let ownerSignal = Boolean(
+      c.associatedJobTitle &&
+        OWNER_LEADERSHIP_TITLES.some((t) => c.associatedJobTitle?.toLowerCase().includes(t))
+    );
+    let staffSignal =
+      Boolean(c.owner === 'person' || c.role === 'staff_person') ||
+      Boolean(
+        c.associatedJobTitle &&
+          STAFF_TITLES.some((t) => c.associatedJobTitle?.toLowerCase().includes(t))
+      );
+
+    if (!ownerSignal) {
+      for (const t of OWNER_LEADERSHIP_TITLES) {
+        if (new RegExp(`\\b${t}\\b`, 'i').test(ctx)) {
+          ownerSignal = true;
+          break;
+        }
+      }
+    }
+
+    if (!staffSignal) {
+      for (const t of STAFF_TITLES) {
+        if (new RegExp(`\\b${t}\\b`, 'i').test(ctx)) {
+          staffSignal = true;
+          break;
+        }
+      }
+      if (/\b(dr\.|dr\s|mr\.|mrs\.|ms\.|prof\.)\b/i.test(ctx)) {
+        staffSignal = true;
+      }
+    }
+
+    const existing = map.get(key);
+    if (!existing) {
+      const pages = new Set<string>();
+      if (normalizedPageUrl) pages.add(normalizedPageUrl);
+      if (c.pagesSeenOn) {
+        for (const p of c.pagesSeenOn) {
+          const norm = p.replace(/\/+$/, '');
+          if (norm) pages.add(norm);
+        }
+      }
+      const pageTypesSeen = new Set<PageType>([pType]);
+
+      map.set(key, {
+        contact: { ...c },
+        pages,
+        pageTypesSeen,
+        hasMapsSignal: c.role === 'primary_business' && c.owner === 'business' && !c.context, // raw Maps seed
+        hasPageCtaSignal: ctaSignal,
+        hasGeneralContactSignal: generalSignal,
+        hasOwnerLeadershipSignal: ownerSignal,
+        hasStaffSignal: staffSignal,
+        hasBranchSignal: branchSignal,
+        hasPlatformSignal: platformSignal,
+      });
+    } else {
+      if (normalizedPageUrl) existing.pages.add(normalizedPageUrl);
+      if (c.pagesSeenOn) {
+        for (const p of c.pagesSeenOn) {
+          const norm = p.replace(/\/+$/, '');
+          if (norm) existing.pages.add(norm);
+        }
+      }
+      existing.pageTypesSeen.add(pType);
+      existing.hasPageCtaSignal = existing.hasPageCtaSignal || ctaSignal;
+      existing.hasGeneralContactSignal = existing.hasGeneralContactSignal || generalSignal;
+      existing.hasOwnerLeadershipSignal = existing.hasOwnerLeadershipSignal || ownerSignal;
+      existing.hasStaffSignal = existing.hasStaffSignal || staffSignal;
+      existing.hasBranchSignal = existing.hasBranchSignal || branchSignal;
+      existing.hasPlatformSignal = existing.hasPlatformSignal || platformSignal;
+
+      for (const ch of c.channels || []) {
+        if (!existing.contact.channels.includes(ch)) {
+          existing.contact.channels.push(ch);
+        }
+      }
+
+      if (!existing.contact.associatedPerson && c.associatedPerson) {
+        existing.contact.associatedPerson = c.associatedPerson;
+      }
+      if (!existing.contact.associatedJobTitle && c.associatedJobTitle) {
+        existing.contact.associatedJobTitle = c.associatedJobTitle;
+      }
+    }
+  }
+
+  return Array.from(map.values()).map(
+    ({
+      contact,
+      pages,
+      pageTypesSeen,
+      hasMapsSignal,
+      hasPageCtaSignal,
+      hasGeneralContactSignal,
+      hasOwnerLeadershipSignal,
+      hasStaffSignal,
+      hasBranchSignal,
+      hasPlatformSignal,
+    }) => {
+      // Re-evaluate 9-row decision matrix on the OR-combined signal vector for phones
+      if (contact.type === 'phone') {
+        const reevaluated = evaluateContactRoleMatrix({
+          hasMapsSignal,
+          hasPageCtaSignal,
+          hasGeneralContactSignal,
+          hasOwnerLeadershipSignal,
+          hasStaffSignal,
+          hasBranchSignal,
+          hasPlatformSignal,
+          pageTypesSeen,
+        });
+        contact.role = reevaluated.role;
+        contact.owner = reevaluated.owner;
+      }
+
+      return {
+        ...contact,
+        pagesSeenOn:
+          pages.size > 0
+            ? Array.from(pages)
+            : contact.pageUrl
+            ? [contact.pageUrl.replace(/\/+$/, '')]
+            : undefined,
+      };
+    }
+  );
 }
