@@ -1,5 +1,10 @@
 import { z } from 'zod';
 import { unifiedSearchResultSchema } from '../../../services/search-fallback.service';
+import {
+  discoveryStateEnum,
+  discoveryProvenanceSchema,
+  type DiscoveryProvenance,
+} from '../../../services/discovery-state.service';
 
 export const candidateTypeEnum = z.enum([
   'business',
@@ -36,6 +41,8 @@ export const excludedSummaryItemSchema = z.object({
   reason: z.string(),
 });
 
+export { discoveryProvenanceSchema, type DiscoveryProvenance };
+
 export const researchCandidateSchema = z.object({
   name: z.string(),
   location: z.string().default(''),
@@ -50,6 +57,15 @@ export const researchCandidateSchema = z.object({
   rating: z.number().optional(),
   ratingCount: z.number().optional(),
   category: z.string().optional(),
+  /**
+   * Phase 7a Task 3 / Phase 7b Task 10: website discovery state propagated from the Maps place
+   * (MAPS_HAS_WEBSITE / DISCOVERY_* ).
+   */
+  discoveryState: discoveryStateEnum.optional(),
+  /**
+   * Phase 7b Task 9: discovery provenance propagated from the discovery gate.
+   */
+  discoveryProvenance: discoveryProvenanceSchema.optional(),
   // Safeguard 1: Lean source provenance only, no raw provider blobs
   sources: z.object({
     googleMaps: z
@@ -102,6 +118,8 @@ export const discoveryMetricsSchema = z.object({
   relevantCandidates: z.number(),
   irrelevantCandidates: z.number(),
   ambiguousCandidates: z.number(),
+  geographyOutsideCandidates: z.number().optional(),
+  geographyAmbiguousCandidates: z.number().optional(),
   uniqueEntities: z.number(),
 });
 
