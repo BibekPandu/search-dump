@@ -55,6 +55,11 @@ export const DIRECTORY_DOMAINS = new Set<string>([
   'nepalyp.com',
   'yellowpages.com.np',
   'realestateinnepal.com',
+  'edusanjal.com',
+  'collegesnepal.com',
+  'mapcarta.com',
+  'wikimapia.org',
+  'openstreetmap.org',
 ]);
 
 /** Backward-compatible export combining all third-party platforms */

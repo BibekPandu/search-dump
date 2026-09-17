@@ -261,8 +261,9 @@ export function buildVerifiedEvidence(
     if (successfulPages.length > 0) {
       const evidence = buildWebsiteEvidence(candidate, pages);
       const verification = verifyCandidateWebsite(candidate, evidence);
+      const finalRel = verification.status === 'failed' ? 'unverified' : relClassification.relationship;
       const lifecycle = determineWebsiteLifecycle(
-        relClassification.relationship,
+        finalRel,
         verification.status,
         true
       );
@@ -270,8 +271,8 @@ export function buildVerifiedEvidence(
         candidate,
         websiteEvidence: evidence,
         verification,
-        websiteRelationship: relClassification.relationship,
-        websiteLifecycle: validateLifecycleRelationshipInvariant(lifecycle, relClassification.relationship),
+        websiteRelationship: finalRel,
+        websiteLifecycle: validateLifecycleRelationshipInvariant(lifecycle, finalRel),
       });
       continue;
     }
@@ -281,7 +282,7 @@ export function buildVerifiedEvidence(
     options.skippedCandidate?.(candidate.name);
     const allFailed = pages.length > 0 && pages.every((p) => !p.success);
     const lifecycle = determineWebsiteLifecycle(
-      relClassification.relationship,
+      'unverified',
       allFailed ? 'failed' : 'weak',
       pages.length > 0
     );
@@ -304,8 +305,8 @@ export function buildVerifiedEvidence(
           ? ['Website extraction failed — no page evidence available.']
           : ['Candidate not deep-verified (maxDeepVerifyCandidates cap).'],
       },
-      websiteRelationship: relClassification.relationship,
-      websiteLifecycle: validateLifecycleRelationshipInvariant(lifecycle, relClassification.relationship),
+      websiteRelationship: 'unverified',
+      websiteLifecycle: validateLifecycleRelationshipInvariant(lifecycle, 'unverified'),
     });
   }
 

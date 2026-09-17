@@ -1,4 +1,5 @@
 import { getCached, setCache } from './cache.service';
+import type { DiscoveryState, DiscoveryProvenance } from './discovery-state.service';
 
 export interface SerperPlaceResult {
   position: number;
@@ -14,6 +15,15 @@ export interface SerperPlaceResult {
   website?: string;
   cid?: string;
   placeId?: string;
+  /**
+   * Phase 7a Task 3 / Phase 7b Task 10: explicit website discovery outcome for this Maps candidate.
+   * See src/services/website-discovery-gate.service.ts.
+   */
+  discoveryState?: DiscoveryState;
+  /**
+   * Phase 7b Task 9: full discovery provenance propagated from the discovery gate.
+   */
+  discoveryProvenance?: DiscoveryProvenance;
 }
 
 const CACHE_PROVIDER = 'serper-places';
