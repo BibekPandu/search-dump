@@ -7,3 +7,12 @@ dist
 .cache
 .agents/
 output/
+
+# Tests & Scripts
+scripts/
+tests/
+test/
+__tests__/
+*.test.*
+*.spec.*
+fixtures/
