@@ -27,7 +27,7 @@ import {
   type WebsiteDiscoveryArtifact,
 } from '../../services/website-discovery-gate.service';
 import { selectFirstPartyWebsiteUrl } from '../../services/website-search-ranker.service';
-import { type SerperPlaceResult } from '../../services/serper-places.service';
+import { type SerperPlaceResult, backfillMissingMapsPhones } from '../../services/serper-places.service';
 import { tavilyExtract } from '../../services/tavily-extract.service';
 import { filterCandidateUrls } from '../../services/url-filter.service';
 import {
@@ -43,6 +43,16 @@ import {
   checkCategoryRelevance,
 } from '../../services/candidate-classifier.service';
 import { evaluateGeographicLocality } from '../../services/geographic-evaluator.service';
+import { geocodeLocality } from '../../services/geocoding.service';
+import {
+  validateCandidate,
+  revalidateExtractedCandidateAddress,
+} from '../../services/candidate-validation.service';
+import {
+  getLlmMultiBusinessCallCount,
+  resetLlmMultiBusinessCallCount,
+} from '../../services/business-extractor.service';
+import { mergeDuplicateDomainEntities } from '../../services/entity-resolution.service';
 import {
   researchReportSchema,
   researchCandidateSchema,
@@ -71,6 +81,7 @@ import {
   sanitizeEmailString,
   classifyNepalPhone,
   isRealSocialProfile,
+  classifySocialProfile,
   classifyEmailRole,
   classifyPhoneRole,
   classifyAllSocialProfiles,
@@ -106,7 +117,6 @@ import {
   validateConfidenceIntegrity,
   type ConfidenceInputs,
 } from '../../services/confidence.service';
-import { generateWithUnoTribunal } from '../../services/unorouter.service';
 
 const candidateSchema = unifiedSearchResultSchema;
 
@@ -147,6 +157,12 @@ export const businessListingSchema = z.object({
       discoveryState: discoveryStateEnum.optional(),
       reconciliationReason: z.string().optional(),
       discoveryProvenance: discoveryProvenanceSchema.optional(),
+      categories: z.array(z.string()).optional(),
+      hours: z.string().optional(),
+      priceRange: z.string().optional(),
+      businessDescription: z.string().optional(),
+      thumbnailUrl: z.string().optional(),
+      bookingLinks: z.any().optional(),
     })
     .passthrough()
     .default({}),
@@ -215,15 +231,22 @@ export async function runResearchDiscovery(
     location,
     autoApprove = true,
     agentId,
-    targetCandidates = 10,
+    targetCandidates: inputTargetCandidates,
     maxPages = 5,
     maxMapsPages = 5,
     websiteDiscoveryMode,
     maxWebsiteDiscoveryLookups,
   } = inputData;
 
+  const explicitTarget = inputTargetCandidates;
+  const targetCandidates = explicitTarget !== undefined ? explicitTarget : 10;
+  const overfetchCap =
+    explicitTarget !== undefined
+      ? Math.max(Math.ceil(explicitTarget * 2.0), explicitTarget + 5)
+      : undefined;
+
   console.log(
-    `[Workflow:Step1] Research Agent initiating hybrid discovery for "${query}" (target: ${targetCandidates}, maxMapsPages: ${maxMapsPages}, maxPages: ${maxPages})`
+    `[Workflow:Step1] Research Agent initiating hybrid discovery for "${query}" (target: ${explicitTarget ?? 'unbounded (default 10)'}, overfetchCap: ${overfetchCap ?? 'none'}, maxMapsPages: ${maxMapsPages}, maxPages: ${maxPages})`
   );
 
   // Initialize unified run session context for co-located history archiving
@@ -255,20 +278,29 @@ export async function runResearchDiscovery(
   let geographyOutsideCandidates = 0;
   let geographyAmbiguousCandidates = 0;
 
+  resetLlmMultiBusinessCallCount();
+  const dynamicCluster = location ? await geocodeLocality(location) : null;
+
   // ========================================================================
   // Phase 0: Google Maps First (Multi-Page Bounded Discovery with Safeguards)
   // ========================================================================
   console.log(
-    `[Workflow:Step1] Phase 0: Initiating Maps-first bounded discovery for "${query}" (${expandedQueries.length} query variations, target: ${targetCandidates}, maxMapsPages: ${maxMapsPages})...`
+    `[Workflow:Step1] Phase 0: Initiating Maps-first bounded discovery for "${query}" (${expandedQueries.length} query variations, target: ${explicitTarget ?? 10}, overfetchCap: ${overfetchCap ?? 'none'}, maxMapsPages: ${maxMapsPages})...`
   );
   try {
     for (const eq of expandedQueries) {
-      if (currentResearchCandidates.length >= targetCandidates) break;
+      if (overfetchCap !== undefined && rawPlaces.length >= overfetchCap) break;
+      if (overfetchCap === undefined && currentResearchCandidates.length >= targetCandidates) break;
+
+      const paginationRemaining =
+        overfetchCap !== undefined
+          ? Math.max(overfetchCap - rawPlaces.length, 1)
+          : Math.max(targetCandidates - currentResearchCandidates.length, 1);
 
       const mapsDiscovery = await paginateMapsDiscovery({
         query: eq.query,
         location: undefined,
-        targetCandidates: targetCandidates - currentResearchCandidates.length,
+        targetCandidates: paginationRemaining,
         maxMapsPages,
       });
 
@@ -287,7 +319,7 @@ export async function runResearchDiscovery(
         );
 
         if (relevance.status === 'relevant') {
-          // Phase 8a Task 8a.3: Layered Geographic Precision Evaluation
+          // Phase 8a Task 8a.3 & Phase 8h: Layered Geographic Precision with Dynamic Geocoding
           const geoDecision = location
             ? evaluateGeographicLocality(
                 {
@@ -296,7 +328,8 @@ export async function runResearchDiscovery(
                   latitude: place.latitude,
                   longitude: place.longitude,
                 },
-                location
+                location,
+                dynamicCluster
               )
             : { status: 'inside' as const, reason: 'No location filter provided', matchedRequestedLocality: true, evidence: { requestedLocation: '' } };
 
@@ -381,6 +414,33 @@ export async function runResearchDiscovery(
     console.log(
       `[Workflow:Step1] Phase 0 Maps discovery complete across ${expandedQueries.length} queries: ${rawPlaces.length} relevant raw places, ${currentResearchCandidates.length} unique candidates`
     );
+
+    // Phase 8h (W2-08): Bounded pre-enrichment places buffer
+    if (overfetchCap !== undefined && rawPlaces.length > overfetchCap) {
+      console.log(
+        `[Workflow:Step1] Enforcing W2-08 overfetch buffer: bounding ${rawPlaces.length} geo-filtered places to ${overfetchCap} (target: ${explicitTarget}, buffer: 2x)`
+      );
+      rawPlaces = rawPlaces.slice(0, overfetchCap);
+      const boundedBuild = buildResearchCandidates({
+        places: rawPlaces,
+        webUsable: [],
+        defaultLocation: location,
+      });
+      currentResearchCandidates = boundedBuild.candidates;
+      usableCount = currentResearchCandidates.length;
+    }
+
+    // Phase 8e: Bounded Maps phone backfill for places lacking phone numbers
+    const phonesRecovered = await backfillMissingMapsPhones(rawPlaces, location, 20);
+    if (phonesRecovered > 0) {
+      const updatedBuild = buildResearchCandidates({
+        places: rawPlaces,
+        webUsable: [],
+        defaultLocation: location,
+      });
+      currentResearchCandidates = updatedBuild.candidates;
+      usableCount = currentResearchCandidates.length;
+    }
 
     // Targeted Website & Phone Lookups for evidence-ranked places lacking websites or phones
     // Phase 7a Task 2: the lookup budget is an explicit, mode-driven, PER-RUN policy
@@ -620,6 +680,48 @@ export async function runResearchDiscovery(
 
           const relevance = checkCategoryRelevance(r.title, r.description, categoryIntent);
           if (relevance.status === 'relevant') {
+            const validation = validateCandidate(
+              {
+                name: r.title,
+                location: r.address || r.description || '',
+                website: r.url,
+                url: r.url,
+                title: r.title,
+              } as any,
+              {
+                targetQuery: query,
+                targetLocation: location,
+                categoryIntent,
+                dynamicCluster,
+              }
+            );
+
+            if (validation.status === 'excluded') {
+              geographyOutsideCandidates++;
+              excludedCount++;
+              excludedSummary.push({
+                title: r.title,
+                url: r.url,
+                domain: r.domain,
+                classification: 'irrelevant',
+                reason: validation.reason,
+              });
+              allDecisions.push({
+                url: r.url,
+                domain: r.domain,
+                title: r.title,
+                classification: 'irrelevant',
+                confidence: 1.0,
+                reason: validation.reason,
+                source: 'deterministic',
+              });
+              continue;
+            }
+
+            if (validation.status === 'ambiguous') {
+              geographyAmbiguousCandidates++;
+            }
+
             relevantCandidates++;
             relevantWebResults.push(r);
           } else if (relevance.status === 'irrelevant') {
@@ -903,7 +1005,7 @@ Respond with a JSON array of classifications matching this exact schema:
     query,
     location,
     pagesSearched,
-    targetCandidates,
+    targetCandidates: explicitTarget,
     candidatesFound: rankedCandidates.length,
     usableCount,
     excludedCount,
@@ -955,6 +1057,8 @@ export const researchAgentStep = createStep({
     targetCandidates: z.number().optional(),
     maxMapsPages: z.number().optional(),
     maxPages: z.number().optional(),
+    websiteDiscoveryMode: z.enum(['production', 'benchmark']).optional(),
+    maxWebsiteDiscoveryLookups: z.number().optional(),
     // Phase 2 passthrough: Tavily deep-verification cap (consumed by Step 2).
     maxDeepVerifyCandidates: z.number().optional(),
   }),
@@ -1344,7 +1448,33 @@ async function fetchRawPageHtml(url: string, timeoutMs = 8000, maxRetries = 1): 
         }
       }
 
+      const dynamicCluster = location ? await geocodeLocality(location) : null;
       const verifiedEvidence = buildVerifiedEvidence(researchCandidates, extractionsByCandidate);
+
+      // Phase 8h (W2-03): Step 2 extracted address revalidation against dynamic geocoder
+      if (location) {
+        for (const ev of verifiedEvidence) {
+          const c = ev.candidate;
+          const candidateAddress = c.location || '';
+          if (candidateAddress) {
+            const recheck = revalidateExtractedCandidateAddress(
+              c,
+              candidateAddress,
+              location,
+              dynamicCluster
+            );
+            if (!recheck.isValid) {
+              console.log(
+                `[Workflow:Step2] W2-03 Address Re-check Exclusion: Candidate "${c.name}" address "${candidateAddress}" is outside target "${location}": ${recheck.reason}`
+              );
+              ev.verification.checks.addressOrLocationFoundOnWebsite = false;
+              if (ev.verification.status === 'verified') {
+                ev.verification.status = 'partial';
+              }
+            }
+          }
+        }
+      }
 
       saveStageOutput('deep-extract', '2-deep-extractions.json', flattenedExtractions, query);
       saveStageOutput(
@@ -1472,24 +1602,11 @@ export const supervisorSynthesisStep = createStep({
       return [];
     };
 
-    // --- LAYER 1: UnoRouter AI Consensus Tribunal ---
-    if (process.env.UNOROUTER_API_KEY) {
-      try {
-        console.log('[Workflow:Step3] Invoking Layer 1: UnoRouter AI Consensus Tribunal...');
-        const tribunalRes = await generateWithUnoTribunal(prompt);
-        const parsed = parseListingsFromJson(tribunalRes.text);
-        if (parsed.length > 0) {
-          console.log(
-            `[Workflow:Step3] Synthesis succeeded via UnoRouter Tribunal (${tribunalRes.modelUsed}, consensus: ${tribunalRes.consensus}, ${parsed.length} listings)`
-          );
-          rawListings = parsed;
-        } else {
-          console.warn('[Workflow:Step3] UnoRouter Tribunal produced unparseable listings. Cascading to Layer 2...');
-        }
-      } catch (unoErr) {
-        console.warn(`[Workflow:Step3] UnoRouter Tribunal failed: ${(unoErr as Error).message}. Cascading to Layer 2...`);
-      }
-    }
+    // --- SYNTHESIS ARCHITECTURE ---
+    // Note: Layer 1 (UnoRouter Tribunal with free-tier models) has been removed to eliminate
+    // rate-limit timeout cascades and latency overhead. Paid consensus evaluation (e.g. NVIDIA Nemotron)
+    // is formally deferred to Phase 8i.
+    // Synthesis executes Layer 2 (Supervisor Agent) directly, falling back to Layer 3 (Deterministic Fallback).
 
     // --- LAYER 2: OpenRouter Supervisor Agent ---
     if (rawListings.length === 0) {
@@ -1704,11 +1821,13 @@ export const supervisorSynthesisStep = createStep({
       console.log(`[Workflow:Step3] Sanitized ${sanitizedCount}/${verifiedEvidence.length} evidence records onto listings`);
     }
 
-    // Ensure location is never empty if a default location exists
-    for (const listing of listings) {
-      if (!listing.location || listing.location.trim().length === 0) {
-        listing.location = location || 'Kathmandu, Nepal';
-      }
+    // Auto-merge duplicate domain entities (POSSIBLY_SAME_ENTITY + shared domain)
+    const { mergedListings, autoMergedCount } = mergeDuplicateDomainEntities(listings);
+    if (autoMergedCount > 0) {
+      console.log(
+        `[Workflow:Step3] Auto-merged ${autoMergedCount} duplicate domain listings using 4-tier deterministic resolution`
+      );
+      listings = mergedListings;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -1864,6 +1983,45 @@ export const supervisorSynthesisStep = createStep({
       `[Workflow:Step3] Phase 4 computed confidence for ${listings.length} listings`
     );
 
+    // Phase 8h (W2-05): Zero-actionable candidate filter
+    // Drops any listing where all contact channels (phones, mobiles, emails, websites) are completely empty
+    const actionableListings = listings.filter((l) => {
+      const hasPhone = (l.phones && l.phones.length > 0) || (l.mobiles && l.mobiles.length > 0);
+      const hasEmail = l.emails && l.emails.length > 0;
+      const hasWebsite = l.websites && l.websites.length > 0;
+      const isActionable = hasPhone || hasEmail || hasWebsite;
+      if (!isActionable) {
+        console.log(
+          `[Workflow:Step3] W2-05 Filter: Dropping zero-actionable listing "${l.name}" (0 phones, 0 mobiles, 0 emails, 0 websites)`
+        );
+      }
+      return isActionable;
+    });
+    listings = actionableListings;
+
+    // Phase 8h (W2-08): Quality-sorted final output cap
+    const explicitTarget = researchReport?.targetCandidates;
+    if (explicitTarget !== undefined && listings.length > explicitTarget) {
+      console.log(
+        `[Workflow:Step3] Enforcing W2-08 output cap: sorting ${listings.length} listings by quality and capping to target ${explicitTarget}`
+      );
+      listings = applyTargetCandidatesCap(listings, explicitTarget);
+    }
+
+    const totalCascadeSocials = listings.reduce(
+      (acc, l) => acc + (Number((l.otherDetails as any)?.socialsCascadeRejected) || 0),
+      0
+    );
+    const totalCascadeContacts = listings.reduce(
+      (acc, l) => acc + (Number((l.otherDetails as any)?.contactsCascadeRejected) || 0),
+      0
+    );
+    if (totalCascadeSocials > 0 || totalCascadeContacts > 0) {
+      console.log(
+        `[Workflow:Step3] Cascade rejection summary: dropped ${totalCascadeSocials} unverified social profile(s) and ${totalCascadeContacts} contact(s) from non-first-party domains`
+      );
+    }
+
     // Save final artifacts AFTER post-synthesis sanitization and location backfill
     saveStageOutput('final-listings', '3-final-listings.json', listings, query);
     saveStageOutput('results', 'results.json', listings, query);
@@ -1890,8 +2048,13 @@ export const supervisorSynthesisStep = createStep({
           return Boolean(s && (s.facebook || s.tiktok || s.instagram || (s.other && Object.keys(s.other).length > 0)));
         }).length,
       },
+      telemetry: {
+        llmMultiBusinessCallsUsed: getLlmMultiBusinessCallCount(),
+        socialsCascadeRejected: totalCascadeSocials,
+        contactsCascadeRejected: totalCascadeContacts,
+      },
       status: listings.length > 0 ? 'success' : 'failed',
-      synthesisMethod: 'UnoRouter AI Consensus Tribunal / Fallback',
+      synthesisMethod: 'OpenRouter Supervisor Agent / Deterministic Fallback',
     });
 
     endRunSession();
@@ -1903,6 +2066,45 @@ export const supervisorSynthesisStep = createStep({
     return { listings, researchReport, verifiedEvidence };
   },
 });
+
+/**
+ * Phase 8h (W2-08): Quality-Sorted Hard Cap for Final Business Listings.
+ *
+ * When targetCandidates is explicitly provided, sorts listings descending by confidence
+ * (with contact completeness tie-breaking: phone/mobile, website, email, ratingCount),
+ * and slices to the requested target.
+ *
+ * When targetCandidates is undefined/unset, preserves all listings without capping.
+ */
+export function applyTargetCandidatesCap(
+  listings: Array<z.infer<typeof businessListingSchema>>,
+  targetCandidates?: number
+): Array<z.infer<typeof businessListingSchema>> {
+  if (targetCandidates === undefined || listings.length <= targetCandidates) {
+    return listings;
+  }
+  const sorted = [...listings].sort((a, b) => {
+    const confA = a.metadata?.confidence ?? 0;
+    const confB = b.metadata?.confidence ?? 0;
+    if (confB !== confA) {
+      return confB - confA;
+    }
+    const completenessA =
+      (a.phones?.length || 0) +
+      (a.mobiles?.length || 0) +
+      (a.websites?.length ? 2 : 0) +
+      (a.emails?.length ? 1 : 0) +
+      (a.ratingCount ? 1 : 0);
+    const completenessB =
+      (b.phones?.length || 0) +
+      (b.mobiles?.length || 0) +
+      (b.websites?.length ? 2 : 0) +
+      (b.emails?.length ? 1 : 0) +
+      (b.ratingCount ? 1 : 0);
+    return completenessB - completenessA;
+  });
+  return sorted.slice(0, targetCandidates);
+}
 
 // ============================================================================
 // Phase 2: Post-Synthesis Evidence Sanitizer (Correction 3)
@@ -1990,7 +2192,16 @@ export function sanitizeListingWithEvidence(
   const mergedMobiles: string[] = [];
   const seenDigits = new Set<string>();
   const branchesMap = new Map<string, BranchRecord>();
-  const allClassifiedContacts: ClassifiedContact[] = [...(web?.extractedClassifiedContacts || [])];
+
+  // Strict Cascade Rejection: Only inherit web contacts if isFirstParty.
+  // Corporate parent and unverified websites do NOT inherit raw web contacts.
+  let contactsCascadeRejected = 0;
+  const allClassifiedContacts: ClassifiedContact[] = [];
+  if (isFirstParty) {
+    allClassifiedContacts.push(...(web?.extractedClassifiedContacts || []));
+  } else if (web?.extractedClassifiedContacts && web.extractedClassifiedContacts.length > 0) {
+    contactsCascadeRejected += web.extractedClassifiedContacts.length;
+  }
 
   // Process candidate.phone into allClassifiedContacts if not already present
   if (candidate.phone) {
@@ -2092,7 +2303,7 @@ export function sanitizeListingWithEvidence(
   const routePhone = (p?: string) => {
     if (!p) return;
     const classified = classifyNepalPhone(p);
-    if (classified.type === 'invalid') return;
+    if (classified.type === 'invalid' || classified.type === 'international') return;
     if (seenDigits.has(classified.digits)) return;
 
     // 1. Maps phones are the absolute identity authority — promote unconditionally (Matrix rows 1, 2)
@@ -2148,27 +2359,24 @@ export function sanitizeListingWithEvidence(
     }
   }
 
-  // 3. Fallback: only if both are empty (no phones found anywhere in evidence)
-  if (mergedPhones.length === 0 && mergedMobiles.length === 0) {
+  // 3. Fallback: only if both are empty (no phones found anywhere in evidence) AND website is enrichable
+  if (mergedPhones.length === 0 && mergedMobiles.length === 0 && isContactEnrichable) {
     for (const m of listing.mobiles || []) routePhone(m);
     for (const p of listing.phones || []) routePhone(p);
   }
 
-  // Websites: ONLY the candidate's official website.
+  // Websites: ONLY the candidate's verified official website.
   const websites: string[] = [];
-  const isCandidateUrlRejected =
-    relationship === 'unverified' &&
-    (candidate.discoveryState === 'DISCOVERY_FOUND_FIRST_PARTY' ||
-      listing.otherDetails?.discoveryState === 'DISCOVERY_FOUND_FIRST_PARTY');
-
-  if (candidate.website && !isCandidateUrlRejected) {
-    websites.push(candidate.website);
-  } else if (isContactEnrichable && web?.url && isUsableOfficialWebsite(web.url, candidate.name)) {
-    websites.push(web.url);
-  } else if (listing.websites && listing.websites.length > 0) {
-    for (const w of listing.websites) {
-      if (isUsableOfficialWebsite(w, candidate.name) && !websites.includes(w)) {
-        websites.push(w);
+  if (isFirstParty || isCorporateParent) {
+    if (candidate.website && isUsableOfficialWebsite(candidate.website, candidate.name)) {
+      websites.push(candidate.website);
+    } else if (web?.url && isUsableOfficialWebsite(web.url, candidate.name)) {
+      websites.push(web.url);
+    } else if (listing.websites && listing.websites.length > 0) {
+      for (const w of listing.websites) {
+        if (isUsableOfficialWebsite(w, candidate.name) && !websites.includes(w)) {
+          websites.push(w);
+        }
       }
     }
   }
@@ -2199,64 +2407,282 @@ export function sanitizeListingWithEvidence(
     }
   }
 
-  if (rawEmails.length === 0 && listing.emails && listing.emails.length > 0) {
-    for (const e of listing.emails) {
-      const classified = classifyEmailRole(e, '', candidate.name, websiteDomain);
-      if (classified.owner === 'business' && classified.role === 'primary_business') {
-        rawEmails.push(e);
+  const emails = [...new Set(rawEmails.map(sanitizeEmailString).filter((e) => /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(e)))];
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SOCIAL LINK INDEPENDENCE & STRICT VALIDATION (W2-07)
+  // ═══════════════════════════════════════════════════════════════════════════
+  const discoveredSocials =
+    (candidate as any).discoveredSocials ||
+    (candidate.discoveryProvenance as any)?.discoveredSocials;
+
+  const candidateUrlsReviewed: string[] =
+    (candidate.discoveryProvenance as any)?.candidateUrlsReviewed || [];
+
+  const rejectedProfiles: Array<{ url: string; platform: string; reason: string }> = [];
+
+  const validateSocialCandidate = (
+    url: string,
+    plat?: 'facebook' | 'instagram' | 'tiktok' | 'linkedin' | 'other'
+  ): boolean => {
+    if (!url || !isRealSocialProfile(url, plat)) return false;
+    const classified = classifySocialProfile(url, plat, candidate.name, isFirstParty ? websiteDomain : undefined);
+    if (classified.status === 'accepted' && (classified.owner === 'business' || classified.owner === 'person')) {
+      return true;
+    }
+    rejectedProfiles.push({
+      url,
+      platform: plat || 'other',
+      reason: classified.rejectionReason || 'BUSINESS_NAME_MISMATCH',
+    });
+    return false;
+  };
+
+  // If the website is unverified or third-party, record its scraped socials as cascade rejected
+  if (!isFirstParty && web?.extractedSocialLinks) {
+    if (web.extractedSocialLinks.facebook) {
+      rejectedProfiles.push({
+        url: web.extractedSocialLinks.facebook,
+        platform: 'facebook',
+        reason: 'CASCADE_REJECTED_UNVERIFIED_SOURCE',
+      });
+    }
+    if (web.extractedSocialLinks.instagram) {
+      rejectedProfiles.push({
+        url: web.extractedSocialLinks.instagram,
+        platform: 'instagram',
+        reason: 'CASCADE_REJECTED_UNVERIFIED_SOURCE',
+      });
+    }
+    if (web.extractedSocialLinks.tiktok) {
+      rejectedProfiles.push({
+        url: web.extractedSocialLinks.tiktok,
+        platform: 'tiktok',
+        reason: 'CASCADE_REJECTED_UNVERIFIED_SOURCE',
+      });
+    }
+    if (web.extractedSocialLinks.other) {
+      for (const [k, u] of Object.entries(web.extractedSocialLinks.other)) {
+        if (typeof u === 'string' && u) {
+          rejectedProfiles.push({
+            url: u,
+            platform: k,
+            reason: 'CASCADE_REJECTED_UNVERIFIED_SOURCE',
+          });
+        }
       }
     }
   }
-  const emails = [...new Set(rawEmails.map(sanitizeEmailString).filter((e) => /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(e)))];
 
-  // Social Links: first_party ONLY (corporate_parent socials BLOCKED)
-  const rawFb = (isFirstParty ? web?.extractedSocialLinks.facebook : '') || listing.socialLinks?.facebook || '';
-  const rawTt = (isFirstParty ? web?.extractedSocialLinks.tiktok : '') || listing.socialLinks?.tiktok || '';
-  const rawIg = (isFirstParty ? web?.extractedSocialLinks.instagram : '') || listing.socialLinks?.instagram || '';
+  // 1. Resolve Facebook
+  let finalFb = '';
+  if (discoveredSocials?.facebook && validateSocialCandidate(discoveredSocials.facebook, 'facebook')) {
+    finalFb = discoveredSocials.facebook;
+  }
+  if (!finalFb) {
+    for (const u of candidateUrlsReviewed) {
+      if (/facebook\.com/i.test(u) && validateSocialCandidate(u, 'facebook')) {
+        finalFb = u;
+        break;
+      }
+    }
+  }
+  if (!finalFb && isFirstParty && web?.extractedSocialLinks?.facebook) {
+    if (validateSocialCandidate(web.extractedSocialLinks.facebook, 'facebook')) {
+      finalFb = web.extractedSocialLinks.facebook;
+    }
+  }
+  if (!finalFb && listing.socialLinks?.facebook) {
+    if (!isFirstParty && web?.extractedSocialLinks?.facebook === listing.socialLinks.facebook) {
+      // already recorded in rejectedProfiles
+    } else if (validateSocialCandidate(listing.socialLinks.facebook, 'facebook')) {
+      finalFb = listing.socialLinks.facebook;
+    }
+  }
 
-  const otherSources = {
-    ...(listing.socialLinks?.other || {}),
-    ...(isFirstParty ? web?.extractedSocialLinks.other || {} : {}),
+  // 2. Resolve Instagram
+  let finalIg = '';
+  if (discoveredSocials?.instagram && validateSocialCandidate(discoveredSocials.instagram, 'instagram')) {
+    finalIg = discoveredSocials.instagram;
+  }
+  if (!finalIg) {
+    for (const u of candidateUrlsReviewed) {
+      if (/instagram\.com/i.test(u) && validateSocialCandidate(u, 'instagram')) {
+        finalIg = u;
+        break;
+      }
+    }
+  }
+  if (!finalIg && isFirstParty && web?.extractedSocialLinks?.instagram) {
+    if (validateSocialCandidate(web.extractedSocialLinks.instagram, 'instagram')) {
+      finalIg = web.extractedSocialLinks.instagram;
+    }
+  }
+  if (!finalIg && listing.socialLinks?.instagram) {
+    if (!isFirstParty && web?.extractedSocialLinks?.instagram === listing.socialLinks.instagram) {
+      // already recorded in rejectedProfiles
+    } else if (validateSocialCandidate(listing.socialLinks.instagram, 'instagram')) {
+      finalIg = listing.socialLinks.instagram;
+    }
+  }
+
+  // 3. Resolve TikTok
+  let finalTt = '';
+  if (discoveredSocials?.tiktok && validateSocialCandidate(discoveredSocials.tiktok, 'tiktok')) {
+    finalTt = discoveredSocials.tiktok;
+  }
+  if (!finalTt) {
+    for (const u of candidateUrlsReviewed) {
+      if (/tiktok\.com/i.test(u) && validateSocialCandidate(u, 'tiktok')) {
+        finalTt = u;
+        break;
+      }
+    }
+  }
+  if (!finalTt && isFirstParty && web?.extractedSocialLinks?.tiktok) {
+    if (validateSocialCandidate(web.extractedSocialLinks.tiktok, 'tiktok')) {
+      finalTt = web.extractedSocialLinks.tiktok;
+    }
+  }
+  if (!finalTt && listing.socialLinks?.tiktok) {
+    if (!isFirstParty && web?.extractedSocialLinks?.tiktok === listing.socialLinks.tiktok) {
+      // already recorded in rejectedProfiles
+    } else if (validateSocialCandidate(listing.socialLinks.tiktok, 'tiktok')) {
+      finalTt = listing.socialLinks.tiktok;
+    }
+  }
+
+  // 4. Resolve Other Socials
+  const candidateOther: Record<string, string> = {
+    ...(discoveredSocials?.other || {}),
+    ...(discoveredSocials?.linkedin ? { linkedin: discoveredSocials.linkedin } : {}),
   };
+  if (isFirstParty && web?.extractedSocialLinks?.other) {
+    Object.assign(candidateOther, web.extractedSocialLinks.other);
+  }
+  if (listing.socialLinks?.other) {
+    for (const [k, u] of Object.entries(listing.socialLinks.other)) {
+      if (typeof u === 'string' && u) {
+        if (!isFirstParty && web?.extractedSocialLinks?.other?.[k] === u) {
+          // ignore unverified website other
+        } else if (!candidateOther[k]) {
+          candidateOther[k] = u;
+        }
+      }
+    }
+  }
+
   const validatedOther: Record<string, string> = {};
-  for (const [k, v] of Object.entries(otherSources)) {
-    if (v && isRealSocialProfile(v, k)) {
-      validatedOther[k] = v;
+  for (const [k, u] of Object.entries(candidateOther)) {
+    if (typeof u === 'string' && validateSocialCandidate(u, k as any)) {
+      validatedOther[k] = u;
     }
   }
 
   const socialLinks = {
-    facebook: isRealSocialProfile(rawFb, 'facebook') ? rawFb : '',
-    tiktok: isRealSocialProfile(rawTt, 'tiktok') ? rawTt : '',
-    instagram: isRealSocialProfile(rawIg, 'instagram') ? rawIg : '',
+    facebook: finalFb,
+    tiktok: finalTt,
+    instagram: finalIg,
     other: validatedOther,
   };
 
+  const socialsCascadeRejected = rejectedProfiles.length;
+
   const classifiedSocialProfiles = (web as any)?.extractedSocialProfiles || listing.otherDetails?.classifiedSocialProfiles;
-  const socialLinksRejected = classifiedSocialProfiles
+  const originalRejectedSocials = classifiedSocialProfiles
     ? classifiedSocialProfiles.filter((p: any) => p.status === 'rejected' || p.status === 'unknown')
     : listing.otherDetails?.socialLinksRejected;
 
+  const combinedRejectedSocials = [
+    ...(Array.isArray(originalRejectedSocials) ? originalRejectedSocials : []),
+    ...rejectedProfiles,
+  ];
+
   let reconciledDiscoveryState = candidate.discoveryState || listing.otherDetails?.discoveryState;
   let reconciliationReason: string | undefined;
-  if (relationship === 'unverified' && reconciledDiscoveryState === 'DISCOVERY_FOUND_FIRST_PARTY') {
-    reconciledDiscoveryState = 'DISCOVERY_FOUND_ONLY_THIRD_PARTY';
-    reconciliationReason = 'Provisional discovery URL rejected by downstream verification (unverified)';
+  if (relationship === 'unverified' || (!isFirstParty && !isCorporateParent)) {
+    if (reconciledDiscoveryState === 'DISCOVERY_FOUND_FIRST_PARTY') {
+      reconciledDiscoveryState = 'DISCOVERY_FOUND_ONLY_THIRD_PARTY';
+      reconciliationReason = 'Provisional discovery URL rejected by downstream verification (unverified)';
+    }
   }
 
   const finalClassifiedContacts = deduplicateClassifiedContacts(allClassifiedContacts);
 
+  // Phase 8f: Rich Maps Metadata Resolution
+  const rawCandidateHours = candidate.hours || listing.otherDetails?.hours;
+  const resolvedHours =
+    web?.extractedHours ||
+    (typeof rawCandidateHours === 'string'
+      ? rawCandidateHours
+      : rawCandidateHours && typeof rawCandidateHours === 'object'
+      ? Object.entries(rawCandidateHours).map(([day, time]) => `${day}: ${time}`).join(', ')
+      : listing.otherDetails?.hours || '');
+
+  const resolvedPriceRange =
+    candidate.priceRange ||
+    (candidate as any).priceLevel ||
+    listing.otherDetails?.priceRange ||
+    '';
+
+  const resolvedCategories: string[] = [
+    ...new Set([
+      ...(candidate.categories || []),
+      ...(listing.otherDetails?.categories || []),
+      ...(candidate.category ? [candidate.category] : []),
+      ...(listing.businessType ? [listing.businessType] : []),
+    ]),
+  ].filter(Boolean);
+
+  const resolvedBusinessDesc =
+    candidate.description ||
+    listing.otherDetails?.businessDescription ||
+    undefined;
+
+  const resolvedThumbnail =
+    candidate.thumbnailUrl ||
+    listing.otherDetails?.thumbnailUrl ||
+    undefined;
+
+  const resolvedBookingLinks =
+    candidate.bookingLinks ||
+    listing.otherDetails?.bookingLinks ||
+    undefined;
+
+  const resolvedServices =
+    isFirstParty && web?.extractedServices?.length
+      ? web.extractedServices
+      : ((listing.otherDetails as any)?.services?.length
+          ? (listing.otherDetails as any).services
+          : (resolvedCategories.length > 0 ? resolvedCategories : []));
+
   const otherDetails = {
     ...listing.otherDetails,
+    mapsPhone: candidate.phone || listing.otherDetails?.mapsPhone || 'N/A',
     websiteRelationship: relationship,
     branches: branches.length > 0 ? branches : listing.otherDetails?.branches,
-    classifiedContacts: finalClassifiedContacts.length > 0 ? finalClassifiedContacts : listing.otherDetails?.classifiedContacts,
+    classifiedContacts: finalClassifiedContacts.length > 0
+      ? finalClassifiedContacts
+      : isContactEnrichable
+      ? listing.otherDetails?.classifiedContacts
+      : undefined,
     classifiedSocialProfiles: classifiedSocialProfiles && classifiedSocialProfiles.length > 0 ? classifiedSocialProfiles : undefined,
-    socialLinksRejected: socialLinksRejected && socialLinksRejected.length > 0 ? socialLinksRejected : undefined,
+    socialLinksRejected: combinedRejectedSocials.length > 0 ? combinedRejectedSocials : undefined,
+    socialsCascadeRejected: socialsCascadeRejected > 0 ? socialsCascadeRejected : undefined,
+    contactsCascadeRejected: contactsCascadeRejected > 0 ? contactsCascadeRejected : undefined,
     discoveryState: reconciledDiscoveryState,
     reconciliationReason,
     discoveryProvenance: candidate.discoveryProvenance || listing.otherDetails?.discoveryProvenance,
+    categories: resolvedCategories.length > 0 ? resolvedCategories : undefined,
+    services: resolvedServices,
+    hours: resolvedHours || undefined,
+    priceRange: resolvedPriceRange || undefined,
+    businessDescription: resolvedBusinessDesc,
+    thumbnailUrl: resolvedThumbnail,
+    bookingLinks: resolvedBookingLinks,
   };
+
+  const finalIcon = (isFirstParty || isCorporateParent) ? (web?.favicon || listing.icon || '') : '';
 
   return {
     ...listing,
@@ -2264,7 +2690,7 @@ export function sanitizeListingWithEvidence(
     phones: mergedPhones,
     mobiles: mergedMobiles,
     websites,
-    icon: isFirstParty ? web?.favicon || listing.icon : listing.icon,
+    icon: finalIcon,
     socialLinks,
     otherDetails,
     metadata: {
@@ -2465,8 +2891,8 @@ function buildFallbackListing(
       candidate.domain && !candidate.domain.includes('google.com')
         ? domainFromUrlOrHost(candidate.url)
         : '';
-    const candidatePhone = candidate.phoneNumber ? normalizePhoneDigits(candidate.phoneNumber) : '';
-    const candidateNormName = normalizeNameKey(candidate.title || '');
+    const candidatePhone = (candidate.phoneNumber || (candidate as any).phone) ? normalizePhoneDigits(candidate.phoneNumber || (candidate as any).phone) : '';
+    const candidateNormName = normalizeNameKey(candidate.title || (candidate as any).name || '');
 
     matchingEvidence = verifiedEvidence.find((ev) => {
       const c = ev.candidate;
@@ -2482,7 +2908,7 @@ function buildFallbackListing(
 
   const relationship = matchingEvidence?.websiteRelationship || 'unverified';
   const candidateNameKey = matchingEvidence ? normalizeNameKey(matchingEvidence.candidate.name || '') : '';
-  const fallbackTitleKey = normalizeNameKey(candidate.title || '');
+  const fallbackTitleKey = normalizeNameKey(candidate.title || (candidate as any).name || '');
   const namesAlign = Boolean(
     !matchingEvidence ||
       (candidateNameKey &&
@@ -2515,7 +2941,7 @@ function buildFallbackListing(
   const routePhone = (p?: string) => {
     if (!p) return;
     const classified = classifyNepalPhone(p);
-    if (classified.type === 'invalid') return;
+    if (classified.type === 'invalid' || classified.type === 'international') return;
     if (seenDigits.has(classified.digits)) return;
     seenDigits.add(classified.digits);
 
@@ -2545,18 +2971,35 @@ function buildFallbackListing(
     for (const p of extractPhones(content)) routePhone(p);
   }
 
-  // Social Links: first_party ONLY
+  // Social Links: first_party website evidence OR SERP-discovered social profiles
+  const fallbackDiscoveredSocials =
+    (candidate as any).discoveredSocials ||
+    (candidate.discoveryProvenance as any)?.discoveredSocials ||
+    (matchingEvidence?.candidate as any)?.discoveredSocials ||
+    (matchingEvidence?.candidate.discoveryProvenance as any)?.discoveredSocials;
+
   const fallbackSocials = isFirstParty
     ? extractSocialLinks(content, { businessName: candidate.title, websiteDomain: candidate.url })
     : { facebook: '', instagram: '', tiktok: '', other: {} };
-  const rawFb = (isFirstParty ? webEvidence?.extractedSocialLinks?.facebook : '') || fallbackSocials.facebook || '';
-  const rawTt = (isFirstParty ? webEvidence?.extractedSocialLinks?.tiktok : '') || fallbackSocials.tiktok || '';
-  const rawIg = (isFirstParty ? webEvidence?.extractedSocialLinks?.instagram : '') || fallbackSocials.instagram || '';
 
-  const otherSources = { ...(fallbackSocials.other || {}), ...(isFirstParty ? webEvidence?.extractedSocialLinks?.other || {} : {}) };
+  let rawFb = (isFirstParty ? webEvidence?.extractedSocialLinks?.facebook : '') || fallbackSocials.facebook || '';
+  if (!rawFb && fallbackDiscoveredSocials?.facebook) rawFb = fallbackDiscoveredSocials.facebook;
+
+  let rawTt = (isFirstParty ? webEvidence?.extractedSocialLinks?.tiktok : '') || fallbackSocials.tiktok || '';
+  if (!rawTt && fallbackDiscoveredSocials?.tiktok) rawTt = fallbackDiscoveredSocials.tiktok;
+
+  let rawIg = (isFirstParty ? webEvidence?.extractedSocialLinks?.instagram : '') || fallbackSocials.instagram || '';
+  if (!rawIg && fallbackDiscoveredSocials?.instagram) rawIg = fallbackDiscoveredSocials.instagram;
+
+  const otherSources: Record<string, unknown> = {
+    ...(fallbackSocials.other || {}),
+    ...(isFirstParty ? webEvidence?.extractedSocialLinks?.other || {} : {}),
+    ...(fallbackDiscoveredSocials?.other || {}),
+    ...(fallbackDiscoveredSocials?.linkedin ? { linkedin: fallbackDiscoveredSocials.linkedin } : {}),
+  };
   const validatedOther: Record<string, string> = {};
   for (const [k, v] of Object.entries(otherSources)) {
-    if (v && isRealSocialProfile(v, k)) {
+    if (typeof v === 'string' && v && isRealSocialProfile(v, k)) {
       validatedOther[k] = v;
     }
   }
@@ -2571,13 +3014,14 @@ function buildFallbackListing(
   const finalLocation =
     candidate.address ||
     matchingEvidence?.candidate.location ||
-    fallbackLocation ||
-    'Kathmandu, Nepal';
+    '';
 
   const websites: string[] = [];
-  if (candidate.url && hasSite) websites.push(candidate.url);
-  else if (matchingEvidence?.candidate.website) websites.push(matchingEvidence.candidate.website);
-  else if (webEvidence?.url) websites.push(webEvidence.url);
+  if (isFirstParty || isCorporateParent) {
+    if (candidate.url && hasSite) websites.push(candidate.url);
+    else if (matchingEvidence?.candidate.website) websites.push(matchingEvidence.candidate.website);
+    else if (webEvidence?.url) websites.push(webEvidence.url);
+  }
 
   const fallbackSocialProfiles = (webEvidence as any)?.extractedSocialProfiles ||
     (isFirstParty ? classifyAllSocialProfiles(content, { businessName: candidate.title, websiteDomain: candidate.url }) : []);
@@ -2585,8 +3029,49 @@ function buildFallbackListing(
     (p: any) => p.status === 'rejected' || p.status === 'unknown'
   );
 
+  // Phase 8f: Rich Maps Metadata Resolution
+  const rawCandidateHours = (candidate as any).hours || matchingEvidence?.candidate.hours;
+  const resolvedHours =
+    webEvidence?.extractedHours ||
+    (typeof rawCandidateHours === 'string'
+      ? rawCandidateHours
+      : rawCandidateHours && typeof rawCandidateHours === 'object'
+      ? Object.entries(rawCandidateHours).map(([day, time]) => `${day}: ${time}`).join(', ')
+      : '');
+
+  const resolvedPriceRange =
+    (candidate as any).priceRange ||
+    (candidate as any).priceLevel ||
+    matchingEvidence?.candidate.priceRange ||
+    '';
+
+  const resolvedCategories: string[] = [
+    ...new Set([
+      ...((candidate as any).categories || []),
+      ...(matchingEvidence?.candidate.categories || []),
+      ...(candidate.businessType ? [candidate.businessType] : []),
+      ...(matchingEvidence?.candidate.category ? [matchingEvidence.candidate.category] : []),
+    ]),
+  ].filter(Boolean);
+
+  const resolvedBusinessDesc =
+    matchingEvidence?.candidate.description ||
+    (candidate as any).businessDescription ||
+    (candidate as any).description ||
+    undefined;
+
+  const resolvedThumbnail =
+    (candidate as any).thumbnailUrl ||
+    matchingEvidence?.candidate.thumbnailUrl ||
+    undefined;
+
+  const resolvedBookingLinks =
+    (candidate as any).bookingLinks ||
+    matchingEvidence?.candidate.bookingLinks ||
+    undefined;
+
   return {
-    name: candidate.title,
+    name: candidate.title || (candidate as any).name || 'Unknown Business',
     location: finalLocation,
     emails,
     phones: mergedPhones,
@@ -2600,9 +3085,14 @@ function buildFallbackListing(
       rating: candidate.rating,
       ratingCount: candidate.ratingCount,
       businessType: candidate.businessType,
+      categories: resolvedCategories.length > 0 ? resolvedCategories : undefined,
       placeId: candidate.placeId || matchingEvidence?.candidate.sources.googleMaps?.placeId,
-      services: webEvidence?.extractedServices || [],
-      hours: webEvidence?.extractedHours || '',
+      services: webEvidence?.extractedServices?.length ? webEvidence.extractedServices : (resolvedCategories.length > 0 ? resolvedCategories : []),
+      hours: resolvedHours,
+      priceRange: resolvedPriceRange,
+      businessDescription: resolvedBusinessDesc,
+      thumbnailUrl: resolvedThumbnail,
+      bookingLinks: resolvedBookingLinks,
       classifiedSocialProfiles: fallbackSocialProfiles.length > 0 ? fallbackSocialProfiles : undefined,
       socialLinksRejected: fallbackSocialsRejected.length > 0 ? fallbackSocialsRejected : undefined,
       discoveryState: matchingEvidence?.candidate.discoveryState || candidate.discoveryState,

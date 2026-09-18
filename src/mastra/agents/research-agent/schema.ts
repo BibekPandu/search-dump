@@ -57,6 +57,20 @@ export const researchCandidateSchema = z.object({
   rating: z.number().optional(),
   ratingCount: z.number().optional(),
   category: z.string().optional(),
+  categories: z.array(z.string()).optional(),
+  hours: z.union([z.string(), z.record(z.string(), z.string())]).optional(),
+  priceRange: z.string().optional(),
+  description: z.string().optional(),
+  thumbnailUrl: z.string().optional(),
+  bookingLinks: z.any().optional(),
+  /**
+   * Phase 8h (W2-06): Origin of candidate discovery.
+   */
+  discoverySource: z.enum(['google_maps', 'web_fallback', 'places_api']).optional(),
+  /**
+   * Phase 8h (W2-02): Authoritative name provenance.
+   */
+  nameSource: z.enum(['maps_title', 'serp_title', 'page_h1', 'page_schema', 'page_og', 'page_title']).optional(),
   /**
    * Phase 7a Task 3 / Phase 7b Task 10: website discovery state propagated from the Maps place
    * (MAPS_HAS_WEBSITE / DISCOVERY_* ).
@@ -127,7 +141,7 @@ export const researchReportSchema = z.object({
   query: z.string(),
   location: z.string().optional(),
   pagesSearched: z.number(),
-  targetCandidates: z.number(),
+  targetCandidates: z.number().optional(),
   candidatesFound: z.number(),
   usableCount: z.number(),
   excludedCount: z.number(),
