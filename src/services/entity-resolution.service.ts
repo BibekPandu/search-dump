@@ -47,6 +47,11 @@ export interface ConflictCheckListing {
     instagram?: string;
     other?: Record<string, string>;
   };
+  metadata?: {
+    confidence?: number;
+    source?: string;
+    [key: string]: unknown;
+  };
   otherDetails?: Record<string, unknown>;
   [key: string]: unknown;
 }
@@ -1040,5 +1045,178 @@ export function detectCrossListingConflicts(listings: ConflictCheckListing[]): C
     conflicts: detectedConflicts,
     clusters,
     annotatedListings,
+  };
+}
+
+/**
+ * Phase 8g: Automated Same-Domain Entity Deduplication
+ *
+ * When 2+ listings share an official website domain and trigger POSSIBLY_SAME_ENTITY,
+ * merges them using a 4-tier deterministic tie-breaker:
+ * 1. Confidence score (highest wins)
+ * 2. Total verified contact channels (phones + mobiles + emails + social links count)
+ * 3. Origin authority (google_maps wins over web fallback)
+ * 4. Alphabetical tie-breaker on business name
+ *
+ * The primary listing absorbs contacts, while the merged secondary listing
+ * is tracked in `otherDetails.mergedAliases`.
+ */
+export function mergeDuplicateDomainEntities<T extends ConflictCheckListing>(
+  listings: T[]
+): { mergedListings: T[]; mergedCount: number; autoMergedCount: number } {
+  if (!listings || listings.length <= 1) {
+    return { mergedListings: listings, mergedCount: 0, autoMergedCount: 0 };
+  }
+
+  const { conflicts } = detectCrossListingConflicts(listings);
+  // Find pairs with shared first-party domain and entity alignment (POSSIBLY_SAME_ENTITY or RELATED_BRAND with name alignment)
+  const mergePairs = conflicts.filter((c) => {
+    const isDomainShared =
+      c.conflict.sharedContacts.domains.length > 0 &&
+      c.conflict.sharedContacts.domains.some((d: string) => isUsableOfficialWebsite(`https://${d}`));
+
+    if (!isDomainShared) return false;
+
+    if (
+      c.conflict.conflictType === 'POSSIBLY_SAME_ENTITY' ||
+      c.conflict.conflictType === 'DUPLICATE_MAPS_LISTING'
+    ) {
+      return true;
+    }
+
+    if (c.conflict.conflictType === 'RELATED_BRAND') {
+      const nameA = listings[c.listingIndexA]?.name || '';
+      const nameB = listings[c.listingIndexB]?.name || '';
+      const normA = normalizeNameKey(nameA);
+      const normB = normalizeNameKey(nameB);
+      if (
+        normA &&
+        normB &&
+        (normA.includes(normB) || normB.includes(normA) || tokenJaccard(normA, normB) >= 0.5)
+      ) {
+        return true;
+      }
+    }
+
+    return false;
+  });
+
+  if (mergePairs.length === 0) {
+    return { mergedListings: listings, mergedCount: 0, autoMergedCount: 0 };
+  }
+
+  const parent = Array.from({ length: listings.length }, (_, i) => i);
+  function find(i: number): number {
+    if (parent[i] === i) return i;
+    parent[i] = find(parent[i]);
+    return parent[i];
+  }
+  function union(i: number, j: number) {
+    const rootI = find(i);
+    const rootJ = find(j);
+    if (rootI !== rootJ) parent[rootI] = rootJ;
+  }
+
+  for (const pair of mergePairs) {
+    union(pair.listingIndexA, pair.listingIndexB);
+  }
+
+  const clusters = new Map<number, number[]>();
+  for (let i = 0; i < listings.length; i++) {
+    const root = find(i);
+    if (!clusters.has(root)) clusters.set(root, []);
+    clusters.get(root)!.push(i);
+  }
+
+  const mergedListings: T[] = [];
+  let mergedCount = 0;
+
+  for (const indices of clusters.values()) {
+    if (indices.length === 1) {
+      mergedListings.push(listings[indices[0]]);
+      continue;
+    }
+
+    // Multiple listings in cluster — apply 4-tier deterministic tie-breaker
+    const clusterItems = indices.map((idx) => listings[idx]);
+
+    clusterItems.sort((a, b) => {
+      // 1. Confidence score
+      const confA = a.metadata?.confidence ?? 0;
+      const confB = b.metadata?.confidence ?? 0;
+      if (confA !== confB) return confB - confA;
+
+      // 2. Verified contact count
+      const contactsA =
+        (a.phones?.length || 0) +
+        (a.mobiles?.length || 0) +
+        (a.emails?.length || 0) +
+        Object.keys(a.socialLinks || {}).filter((k) => (a.socialLinks as any)[k]).length;
+      const contactsB =
+        (b.phones?.length || 0) +
+        (b.mobiles?.length || 0) +
+        (b.emails?.length || 0) +
+        Object.keys(b.socialLinks || {}).filter((k) => (b.socialLinks as any)[k]).length;
+      if (contactsA !== contactsB) return contactsB - contactsA;
+
+      // 3. Origin authority (google_maps > web)
+      const isMapsA = a.metadata?.source === 'google_maps';
+      const isMapsB = b.metadata?.source === 'google_maps';
+      if (isMapsA && !isMapsB) return -1;
+      if (!isMapsA && isMapsB) return 1;
+
+      // 4. Alphabetical tie-breaker
+      return a.name.localeCompare(b.name);
+    });
+
+    const primary = { ...clusterItems[0] };
+    const secondaries = clusterItems.slice(1);
+    mergedCount += secondaries.length;
+
+    // Merge contacts from secondaries into primary
+    const mergedEmails = new Set([...(primary.emails || [])]);
+    const mergedPhones = new Set([...(primary.phones || [])]);
+    const mergedMobiles = new Set([...(primary.mobiles || [])]);
+    const mergedWebsites = new Set([...(primary.websites || [])]);
+
+    const primarySocials = { ...(primary.socialLinks || { facebook: '', tiktok: '', instagram: '', other: {} }) };
+
+    const aliases: Array<{ name: string; source?: string }> = [
+      ...((primary.otherDetails as any)?.mergedAliases || []),
+    ];
+
+    for (const sec of secondaries) {
+      for (const e of sec.emails || []) mergedEmails.add(e);
+      for (const p of sec.phones || []) mergedPhones.add(p);
+      for (const m of sec.mobiles || []) mergedMobiles.add(m);
+      for (const w of sec.websites || []) mergedWebsites.add(w);
+
+      if (!primarySocials.facebook && sec.socialLinks?.facebook) primarySocials.facebook = sec.socialLinks.facebook;
+      if (!primarySocials.instagram && sec.socialLinks?.instagram) primarySocials.instagram = sec.socialLinks.instagram;
+      if (!primarySocials.tiktok && sec.socialLinks?.tiktok) primarySocials.tiktok = sec.socialLinks.tiktok;
+
+      aliases.push({
+        name: sec.name,
+        source: sec.metadata?.source,
+      });
+    }
+
+    primary.emails = [...mergedEmails];
+    primary.phones = [...mergedPhones];
+    primary.mobiles = [...mergedMobiles];
+    primary.websites = [...mergedWebsites];
+    primary.socialLinks = primarySocials;
+    primary.otherDetails = {
+      ...(primary.otherDetails || {}),
+      mergedAliases: aliases,
+    };
+
+    mergedListings.push(primary);
+  }
+
+  return {
+    mergedListings,
+    mergedCount,
+    autoMergedCount: mergedCount,
   };
 }
