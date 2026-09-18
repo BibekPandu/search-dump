@@ -1,4 +1,5 @@
 import {
+  type LocalityClusterConfig,
   findRegisteredLocalityCluster,
   normalizeLocalityString,
   REGISTERED_LOCALITY_CLUSTERS,
@@ -65,7 +66,8 @@ export function calculateHaversineDistanceKm(
  */
 export function evaluateGeographicLocality(
   candidate: CandidateGeoInput,
-  requestedLocation: string
+  requestedLocation: string,
+  dynamicCluster?: LocalityClusterConfig | null
 ): GeographicDecision {
   const normalizedRequested = normalizeLocalityString(requestedLocation);
   const combinedCandidateText = [
@@ -97,7 +99,7 @@ export function evaluateGeographicLocality(
     };
   }
 
-  const cluster = findRegisteredLocalityCluster(normalizedRequested);
+  const cluster = dynamicCluster || findRegisteredLocalityCluster(normalizedRequested);
 
   // === BRANCH 1: Registered Locality Cluster (e.g. Satungal, Kirtipur, Sinamangal) ===
   if (cluster) {
