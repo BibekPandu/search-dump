@@ -45,13 +45,10 @@ export async function generateWithUnoFallback(
   options: UnoFallbackOptions = {}
 ): Promise<{ text: string; modelUsed: string }> {
   const uno = getUnoRouterProvider();
-  const timeoutMs = options.timeoutMs ?? 20000;
+  const timeoutMs = options.timeoutMs ?? 4000;
   const modelChain = options.models ?? [
     UNO_FREE_MODELS.GEMINI_3_5_FLASH,
-    UNO_FREE_MODELS.GEMINI_3_1_FLASH,
     UNO_FREE_MODELS.STEP_FLASH,
-    UNO_FREE_MODELS.GLM_5_2,
-    UNO_FREE_MODELS.GLM_5_3_FLASH,
   ];
 
   for (const modelId of modelChain) {
@@ -97,9 +94,9 @@ export async function generateWithUnoTribunal(
   options: UnoTribunalOptions = {}
 ): Promise<{ text: string; modelUsed: string; consensus: boolean }> {
   const uno = getUnoRouterProvider();
-  const expert1Timeout = options.expert1TimeoutMs ?? 20000;
-  const expert2Timeout = options.expert2TimeoutMs ?? 20000;
-  const judgeTimeout = options.judgeTimeoutMs ?? 18000;
+  const expert1Timeout = options.expert1TimeoutMs ?? 4000;
+  const expert2Timeout = options.expert2TimeoutMs ?? 4000;
+  const judgeTimeout = options.judgeTimeoutMs ?? 4000;
 
   console.log('[UnoRouter Tribunal] Convening AI Tribunal with Expert 1 (Gemini) and Expert 2 (Step/GLM)...');
 

@@ -20,6 +20,12 @@ const BLOCKLIST_PATTERNS: RegExp[] = [
   /reddit\.com/i,
   /pinterest\.com/i,
   /quora\.com/i,
+  /edusanjal\.com/i,
+  /collegesnepal\.com/i,
+  /noshnepal\.com/i,
+  /mapcarta\.com/i,
+  /wikimapia\.org/i,
+  /openstreetmap\.org/i,
 ];
 
 const PRIORITY_PATH_PATTERNS: RegExp[] = [

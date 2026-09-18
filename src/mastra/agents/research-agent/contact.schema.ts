@@ -33,6 +33,9 @@ export const classifiedContactSchema = z.object({
   context: z.string().optional(),
   blockId: z.string().optional(),
   pageUrl: z.string().optional(),
+  pagesSeenOn: z.array(z.string()).optional(),
+  associatedPerson: z.string().optional(),
+  associatedJobTitle: z.string().optional(),
 });
 
 /**

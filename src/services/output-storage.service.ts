@@ -116,11 +116,13 @@ export function saveStageOutput(
       if (!fs.existsSync(historyDir)) fs.mkdirSync(historyDir, { recursive: true });
     }
 
+    const displayDir = options?.outputRoot ? path.basename(options.outputRoot) : 'output';
+
     // 1. Root mirror (backward compatibility)
     if (!options?.skipRootMirror) {
       const latestPath = path.join(outputDir, filename);
       fs.writeFileSync(latestPath, JSON.stringify(data, null, 2), 'utf-8');
-      console.log(`[Storage] Saved ${filename} to output/`);
+      console.log(`[Storage] Saved ${filename} to ${displayDir}/`);
     }
 
     // 2. Co-located History run folder
@@ -128,7 +130,7 @@ export function saveStageOutput(
       const runDir = path.join(outputDir, 'history', runId);
       if (!fs.existsSync(runDir)) fs.mkdirSync(runDir, { recursive: true });
       fs.writeFileSync(path.join(runDir, filename), JSON.stringify(data, null, 2), 'utf-8');
-      console.log(`[Storage] Archived ${filename} to output/history/${runId}/`);
+      console.log(`[Storage] Archived ${filename} to ${displayDir}/history/${runId}/`);
     }
 
     // 3. Human/client latest folder
@@ -136,10 +138,10 @@ export function saveStageOutput(
       const latestDir = path.join(outputDir, 'latest');
       if (filename === '3-final-listings.json' || filename === 'results.json') {
         fs.writeFileSync(path.join(latestDir, 'businesses.json'), JSON.stringify(data, null, 2), 'utf-8');
-        console.log(`[Storage] Copied ${filename} to output/latest/businesses.json`);
+        console.log(`[Storage] Copied ${filename} to ${displayDir}/latest/businesses.json`);
       } else if (filename === 'entity-conflicts.json') {
         fs.writeFileSync(path.join(latestDir, 'entity-conflicts.json'), JSON.stringify(data, null, 2), 'utf-8');
-        console.log(`[Storage] Copied ${filename} to output/latest/entity-conflicts.json`);
+        console.log(`[Storage] Copied ${filename} to ${displayDir}/latest/entity-conflicts.json`);
       }
     }
   } catch (err) {
@@ -167,6 +169,7 @@ export interface RunSummaryData {
   };
   status?: 'success' | 'partial' | 'failed';
   synthesisMethod?: string;
+  telemetry?: Record<string, unknown>;
   notes?: string[];
 }
 

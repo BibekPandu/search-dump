@@ -1,500 +1,364 @@
-﻿#  Agentic Business Discovery Pipeline
-An intelligent, multi-stage business intelligence engine built on **Mastra**, **Google Serper (Google Search & Google Maps Places)**, **DuckDuckGo**, **Tavily Extract**, and **Google Gemma / Gemini** via **OpenRouter** and **UnoRouter**.
-The pipeline discovers local businesses and commercial entities by fusing Google Maps Places with web search, filters noise using a hybrid deterministic + LLM classifier, crawls official websites with a multi-layer extraction strategy (Tavily + Raw HTML safety net + AJAX footer recovery), runs deterministic phone/email/social normalization, and synthesizes verified business listings with contact details, GPS coordinates, ratings, and confidence scores.
----
-##  System Architecture
-```
-                           ┌──────────────────────────────────┐
-                           │     User Query + Location        │
-                           │  target=N, maxPages, maxMapsPages│
-                           └────────────────┬─────────────────┘
-                                            │
-                     ──── Phase 0: Google Maps Places First ────
-                                            ▼
-           ┌────────────────────────────────────────────────────────────┐
-           │ maps-discovery.service.ts / paginateMapsDiscovery()        │
-           │ • Paginates Serper.dev /places (up to maxMapsPages)        │
-           │ • Captures: title, address, phone, GPS, rating, placeId    │
-           │ • 4 safeguards: target_reached | maps_exhausted |          │
-           │   stale_limit_reached (2 consecutive) | max_pages_reached  │
-           │ • Targeted Web Lookup: discovers official sites for        │
-           │   Maps entries lacking a website URL                       │
-           │ • Entity dedup via resolveEntityPair() cascade:            │
-           │   phone digits → domain → name+address Jaccard             │
-           └───────────────────────────┬────────────────────────────────┘
-                                       │
-            ┌── target reached? ───────┴──────────── no ──┐
-            │  (skip web search)           Phase 1 Web Fallback
-            ▼                                             ▼
-           ┌────────────────────────────────────────────────────────────┐
-           │ research-workflow.ts / runResearchDiscovery()              │
-           │ Web Fallback Pagination Loop (page 1..maxPages)            │
-           │  1. searchWithFallback() — Serper → DuckDuckGo cascade     │
-           │     7-day disk cache (.cache/search-results.json)          │
-           │  2. seenUrls dedup — URL-level across pages                │
-           │  3. filterSearchResults() — deterministic domain/path/     │
-           │     listicle regex (0 API cost)                            │
-           │  4. searchWorkerAgent — LLM classification of ambiguous    │
-           │     items only (Gemini Flash Lite)                         │
-           │  5. buildResearchCandidates() — entity merge & dedup       │
-           │  Stopping: target_reached | no_more_pages |                │
-           │            no_new_results (2+ consecutive stale) |         │
-           │            max_pages_reached                               │
-           └───────────────────────────┬────────────────────────────────┘
-                                       │
-                    output/0-research-candidates.json
-                    output/0b-research-candidates-lean.json
-                                       │
-                 ──── Step 1: Human-in-the-Loop Review ────
-                                       ▼
-           ┌────────────────────────────────────────────────────────────┐
-           │ humanReviewStep()                                          │
-           │ • autoApprove=true: passes through instantly (headless)    │
-           │ • autoApprove=false: suspends for interactive review       │
-           │   Supports optional URL filter for partial approval        │
-           └───────────────────────────┬────────────────────────────────┘
-                                       │
-           ──── Step 2: Deep Website Extraction & Verification ────
-                                       ▼
-           ┌────────────────────────────────────────────────────────────┐
-           │ deepExtractionStep() — Per-candidate 5-layer extraction    │
-           │                                                            │
-           │  For each candidate with an official website:              │
-           │  1. Homepage Tavily Extract (basic depth, cached)          │
-           │  2. discoverWebsitePages() — finds best internal pages     │
-           │     (/contact, /about) via markdown link parsing +         │
-           │     fallback guessing (0 extra API calls)                  │
-           │  3. Batch Tavily Extract for up to 4 internal pages        │
-           │  4. Raw HTML Safety Net (fetchRawPageHtml)                 │
-           │     Always for: homepage, contact page                     │
-           │     Also if: candidate has zero contact or social signals  │
-           │     Cost: 0 API credits (~80-120ms native fetch)           │
-           │  5. AJAX/Componentized Footer Recovery                     │
-           │     Probes /footer.html if footer placeholder detected     │
-           │     or still-zero social signals after raw HTML pass       │
-           │  6. Secondary Tavily Advanced Retry                        │
-           │     Only if still zero phones/emails after all passes      │
-           │                                                            │
-           │  buildVerifiedEvidence() — deterministic per-candidate     │
-           │  structure: extractedPhones, extractedMobiles, emails,     │
-           │  socialLinks, favicon, PhoneEvidence[] page provenance     │
-           └───────────────────────────┬────────────────────────────────┘
-                                       │
-                    output/2-deep-extractions.json
-                    output/2b-verified-evidence.json
-                                       │
-              ──── Step 3: AI Business Data Synthesis ────
-                                       ▼
-           ┌────────────────────────────────────────────────────────────┐
-           │ supervisorSynthesisStep() — 3-Layer AI Cascade             │
-           │                                                            │
-           │  Layer 1: UnoRouter AI Consensus Tribunal                  │
-           │    generateWithUnoTribunal() — multi-model consensus       │
-           │    (used when UNOROUTER_API_KEY is set)                    │
-           │                                                            │
-           │  Layer 2: OpenRouter Supervisor Agent                      │
-           │    gemmaSupervisorAgent — Gemma 4 / Nemotron on OpenRouter │
-           │    Cascade: gemma-4-26b → gemma-4-31b → nemotron → nex    │
-           │                                                            │
-           │  Layer 3: Zero-Token Deterministic Fallback                │
-           │    buildFallbackListing() — no LLM required                │
-           │                                                            │
-           │  Post-synthesis re-injection (deterministic, no LLM):      │
-           │  • GPS coordinates from Google Maps candidates             │
-           │  • Star ratings, review counts, placeIds                   │
-           │  • sanitizeListingWithEvidence() routes phones, mobiles,   │
-           │    emails, socialLinks from verifiedEvidence               │
-           └───────────────────────────┬────────────────────────────────┘
-                                       │
-                    output/3-final-listings.json
-                    output/latest/businesses.json
-                    output/latest/summary-report.json
-                    output/history/{timestamp}-{slug}/  (all stages)
-```
----
-##  v1.5 Deterministic Phone Normalization Pipeline
+# Agentic Business Discovery & Extraction Engine
 
-All phone handling is **zero-LLM** and fully deterministic:
-```
-Raw phone candidate (text / HTML / tel: href)
-  ↓
-expandSlashExtensions()       e.g. "+977 1 5363501/511/560" → 3 numbers
-  ↓
-classifyNepalPhone(raw)       Explicit structure recognition (no guessing):
-  │  PATH A: +977 prefix
-  │    • 97x/98x + 10 mobile digits → mobile
-  │    • 1 + 8 landline digits      → landline
-  │    • Short/truncated            → INCOMPLETE_MOBILE or INCOMPLETE_LANDLINE
-  │  PATH B: No +977 prefix (international checked FIRST to avoid mis-gating)
-  │    • Explicit '+' present       → international (raw format preserved)
-  │    • 9x/8x domestic 10-digit   → mobile
-  │    • 01/1 + 7-digit trunk      → landline
-  │    • Everything else           → INVALID_STRUCTURE
-  ↓
-formatPhoneDisplay(digits, type, raw?)
-  • Nepal mobile:    9808222425  → +977-980-8222425
-  • Nepal landline:  14522833    → +977-01-4522833
-  • International:               → raw format preserved
-  ↓
-Canonical dedup by digits-only identity
-  • +977-1-4522833 == 01-4522833 == +977 1 4522833 → ONE entry
-  ↓
-PhoneEvidence[]    (raw, canonicalDigits, display, type, source, pageUrl, reason?)
-  • Valid   → extractedPhones or extractedMobiles (public arrays)
-  • Invalid → extractedPhoneEvidence ONLY (forensic, never public)
-  ↓
-Strict invariant enforced: phones ∩ mobiles = ∅
-```
+An intelligent, multi-stage business intelligence and data synthesis pipeline built on **Mastra**, **Google Serper** (Search & Places), **DuckDuckGo**, **Tavily Extract**, and **OpenRouter** AI supervisor agents with zero-token deterministic fallback.
+
+The engine discovers authentic local businesses by fusing Google Maps Places with organic web search, enforces strict geographic locality boundaries using dynamic OSM geocoding and registered clusters, discovers official websites via deterministic token ranking, crawls websites through multi-layer extraction, validates contact information using official telecom standards, applies cascade rejection to purge third-party directory contamination, promotes verified social links independently, and synthesizes structured, high-confidence business profiles with GPS coordinates, phone taxonomies, and provenance metadata.
+
 ---
-##  Key Features
-### 1.  Google Maps-First Discovery (Phase 0)
-- Paginates Google Maps Places via Serper.dev `/places` with up to `maxMapsPages` pages.
-- Captures: addresses, phone numbers, GPS coordinates, star ratings, review counts, business categories, placeIds.
-- **Targeted Web Lookup**: Automatically finds official websites for businesses with no Maps website (filtered through `isUsableOfficialWebsite()`).
-- **Entity deduplication**: `dedupeByEntity()` collapses duplicate Maps entries before adding to the candidate pool.
-### 2.  Zero-API-Cost Deterministic Candidate Filtering
-- `candidate-classifier.service.ts` handles >90% of filtering with no LLM tokens.
-- **Aggregators blocked**: Booking.com, Agoda, TripAdvisor, Expedia, Trivago, Makemytrip, Kayak, Airbnb, Hostelworld, Viator, GetYourGuide, and dozens more.
-- **Directories blocked**: YellowPages, Yelp, Justdial, SignalHire, ZoomInfo, Manta, Crunchbase, Foursquare, etc.
-- **Social media blocked**: Facebook, Instagram, TikTok, LinkedIn, Twitter/X, YouTube, Reddit, Quora, Pinterest, etc.
-- **Listicles blocked**: Paths matching `/blog/`, `/news/`, `/article/`, `/guides/`, and title patterns like *"10 Best…"*.
-### 3.  LLM Ambiguous Item Classification
-- Only genuinely ambiguous candidates go to `searchWorkerAgent` (`google/gemini-3.5-flash-lite`).
-- Classifies: `business | aggregator | directory | article | social | irrelevant`.
-- LLM failure is safe: ambiguous items default to excluded.
-### 4.  Multi-Provider Search Fallback
-- **Primary**: Google Serper API with native `page` parameter.
-- **Fallback**: DuckDuckGo (`duck-duck-scrape`) with native offset-based pagination.
-- Both share the same 7-day disk cache.
-### 5.  Deterministic Entity Resolution (0-Token)
-Three-level cascade in `resolveEntityPair()`:
-1. **Phone digits** (≥7 digits, exact match) → confidence 1.0
-2. **Official domain** (exact match, excludes social/google) → confidence 1.0
-3. **VETO**: conflicting phone or domain blocks soft matches entirely
-4. **Name + Address Jaccard** (nameSim ≥ 0.85 + addrSim ≥ 0.5, or nameSim ≥ 0.95 alone) → confidence 0.85–0.9
-### 6.  Multi-Layer Website Extraction
-- **Tavily Extract** (basic depth, cached per-URL 7 days): homepage + up to 4 internal pages.
-- **Raw HTML Safety Net**: Always fires for homepage and contact pages (0 API credits). Recovers icon-only social anchors, `mailto:` and `tel:` href links that readability parsers strip.
-- **AJAX Footer Recovery**: Probes `/footer.html` for sites with componentized/templated footers that render empty on initial load.
-- **Secondary Tavily Advanced Retry**: Only when all prior layers yield zero contact signals.
-### 7.  Deterministic Data Quality (v1.5)
-- `classifyNepalPhone()`: Explicit structure validation, never guesses.
-- `formatPhoneDisplay()`: `+977-9XX-XXXXXXX` (mobile), `+977-01-XXXXXXX` (landline), raw-preserved (international).
-- EPABX slash expansion: `+977 1 5363501/511/560` → 3 separate landlines.
-- `PhoneEvidence[]` per-page provenance for every phone candidate.
-- Strict taxonomy: `phones ∩ mobiles = ∅` enforced as a hard invariant.
-- Social link validation: rejects Facebook `/sharer`, Twitter `/share`, Instagram posts/reels/explore, LinkedIn `/shareArticle`.
-- Email sanitization: strips trailing `)*`, `\`, `\\`, markdown wrappers before dedup.
-### 8.  3-Layer AI Synthesis with Deterministic Fallback
-| Layer | Mechanism | Trigger |
-|---|---|---|
-| 1 | UnoRouter AI Consensus Tribunal | When `UNOROUTER_API_KEY` is set |
-| 2 | OpenRouter Supervisor Agent (Gemma 4 cascade) | When Layer 1 unavailable or fails |
-| 3 | Zero-token `buildFallbackListing()` | When both AI layers fail or return empty |
-### 9.  Deterministic Post-Synthesis Re-injection
-After AI synthesis, a deterministic pass re-injects:
-- Exact GPS coordinates from Maps candidates (never LLM-inferred)
-- Star ratings, review counts, placeIds
-- `sanitizeListingWithEvidence()` routes phones, mobiles, emails, social links from `verifiedEvidence`
-### 10.  No-Website Tradesmen Preservation
-Local businesses with a Maps listing and phone but no website are preserved and emitted as valid listings — they are never dropped because extraction returns empty.
-### 11.  7-Day Disk Cache (Shared Across All Providers)
-- Single file: `.cache/search-results.json`
-- Three namespaced providers in the same file: `serper-places`, `serper-search`, `tavily-extract`
-- SHA-256 keyed: `hash(provider::query)` — collision-safe
-- Atomic write lock prevents race conditions
-### 12.  Dual-Folder Output Architecture
-- `output/latest/` — always the most recent run (overwrites every run)
-- `output/history/{timestamp}-{slug}/` — permanent per-run archive (never overwritten)
+
+##  System Architecture
+
+```
+                               ┌──────────────────────────────────────────┐
+                               │         User Query + Location            │
+                               │  query, location, targetCandidates,      │
+                               │  maxPages, maxMapsPages, discoveryMode   │
+                               └─────────────────┬────────────────────────┘
+                                                 │
+                   ──── Stage 0: Google Maps Ingestion & Discovery ────
+                                                 ▼
+               ┌──────────────────────────────────────────────────────────────────┐
+               │ 1. Google Maps Places Discovery (maps-discovery.service.ts)      │
+               │    • Paginates Serper /places with pagination safeguards         │
+               │    • Captures: Title, address, phone, GPS, rating, placeId       │
+               │                                                                  │
+               │ 2. Dynamic Geocoding & Boundary Gate (geographic-evaluator)      │
+               │    • extractCanonicalLocality: Strips trailing district qualifiers│
+               │    • Dynamic OSM Nominatim geocoding with clamped radius formula │
+               │      R = min(max(bboxRadius * 1.25, 2.0km), 8.0km)               │
+               │    • Static registry fallback with ward aliasing (Satungal-11..13)│
+               │    • Strict exclusion of out-of-boundary Places                  │
+               │                                                                  │
+               │ 3. Yield-Protecting Overfetch Buffer (W2-08)                     │
+               │    • Bounds candidates to max(2x target, target + 5)             │
+               │    • Early halt on search queries once overfetch cap reached     │
+               │    • Absorbs extraction dropouts without starving final yield    │
+               │                                                                  │
+               │ 4. Universal Website Discovery Gate (website-discovery-gate)     │
+               │    • Evaluates all Maps candidates lacking websites              │
+               │    • Zero-HTTP Token Ranker: First-party match vs directory block │
+               │    • Multi-tenant template detection (/service/{slug}, etc.)     │
+               │    • Phone Attribution Guard: Snippet phones from own domain only│
+               │                                                                  │
+               │ 5. Entity Deduplication Cascade (entity-resolution.service.ts)   │
+               │    • Exact Phone Digits (≥7) → Official Domain → Name+Address    │
+               └─────────────────────────────────┬────────────────────────────────┘
+                                                 │
+                               ┌─ Target Reached? ─┴─ No ──┐
+                               │                           ▼
+                               │        Stage 1: Web Search Fallback
+                               │        • Serper → DuckDuckGo search cascade
+                               │        • Deterministic Aggregator/Directory filter
+                               │        • LLM classifier for ambiguous search items
+                               │                           │
+                               └─────────────┬─────────────┘
+                                             │
+                   ──── Stage 2: Deep Extraction & Evidence Verification ────
+                                             ▼
+               ┌──────────────────────────────────────────────────────────────────┐
+               │ Multi-Layer Extraction Pipeline (deepExtractionStep)             │
+               │ 1. Homepage Tavily Extract (Markdown + structured links)         │
+               │ 2. Internal Page Discovery (/contact, /about, /services)         │
+               │ 3. Batch Internal Page Extraction                                │
+               │ 4. Raw HTML Safety Net: Native fast fetch for icon-only socials, │
+               │    tel:, mailto: links stripped by markdown parsers              │
+               │ 5. AJAX / Componentized Footer Recovery (/footer.html)           │
+               │ 6. Address Re-check: Revalidates extracted addresses against geo│
+               │                                                                  │
+               │ Verified Evidence Builder (verification.service.ts)              │
+               │ • Extracts Phones, Mobiles, Emails, Social Links, Favicons       │
+               │ • Contact Role Decision Matrix: Maps Authority vs Staff Person   │
+               │ • Rule A First-Seen-Wins Contact Deduplication (pagesSeenOn[])   │
+               └─────────────────────────────────┬────────────────────────────────┘
+                                                 │
+                   ──── Stage 3: Synthesis, Sanitization & Output Capping ────
+                                                 ▼
+               ┌──────────────────────────────────────────────────────────────────┐
+               │ 1. Direct Synthesis & Deterministic Fallback                     │
+               │    • Layer 2: OpenRouter Supervisor Agent (gemma-supervisor)     │
+               │    • Layer 3: Zero-Token Deterministic Fallback                  │
+               │                                                                  │
+               │ 2. Deterministic Evidence Sanitizer (Zero Hallucination)         │
+               │    • Deterministically re-injects GPS, placeId, ratings from Maps│
+               │    • Cascade Rejection: Discards all contacts and socials        │
+               │      sourced from unverified or directory domains                │
+               │    • Corporate Parent Guard: Blocks HQ emails & foreign phones   │
+               │    • Social Link Independence: Promotes verified SERP socials    │
+               │      independently; applies deliberate empty fallback if none    │
+               │    • Enforces Phone Invariant: phones ∩ mobiles = ∅              │
+               │                                                                  │
+               │ 3. Post-Synthesis Filtering & Output Capping                     │
+               │    • Zero-Actionable Filter: Drops listings with 0 contact modes │
+               │    • Quality-Sorted Hard Cap (W2-08): Sorts by confidence and    │
+               │      completeness, strictly enforcing requested targetCandidates │
+               │    • Multi-dimensional deterministic confidence calculation      │
+               └─────────────────────────────────┬────────────────────────────────┘
+                                                 │
+                                                 ▼
+                                     Dual Output Generation
+                                     • output/latest/businesses.json
+                                     • output/latest/summary-report.json
+                                     • output/history/{timestamp}-{slug}/
+```
+
 ---
-##  Project Structure
+
+##  Core Engine Capabilities
+
+### 1. Maps-First Discovery & Dynamic Geocoding
+- **Google Maps Ingestion**: Queries Serper `/places` for authoritative business listings, ratings, and GPS coordinates.
+- **Dynamic OSM Geocoding (`geocoding.service.ts`)**:
+  - **Query Normalization (`extractCanonicalLocality`)**: Strips broad administrative qualifiers (`"Tokha, Kathmandu"` $\to$ `"Tokha"`) so variations share the same cache key and Nominatim polygon.
+  - **Clamped Dynamic Radius**: Computes distance from centroid to the 4 bounding box corners and scales:
+    $$\text{radiusKm} = \min(\max(\text{bboxRadius} \times 1.25, 2.0), 8.0)$$
+  - **Static Registry Fallback**: Retains verified centroids and ward aliases for registered clusters (e.g. Satungal Wards 11–13).
+- **Yield-Protecting Overfetch Buffer (W2-08)**:
+  - Binds pre-enrichment places to $\max(2 \times \text{target}, \text{target} + 5)$.
+  - Halts query pagination early once the buffer is met, protecting runtime while ensuring enough candidates to absorb downstream verification failures.
+
+### 2. Universal Website Discovery & Directory Defense
+- **Universal Evaluation Gate (`website-discovery-gate.service.ts`)**: Evaluates all Maps candidates lacking websites and assigns strict audit states (`MAPS_HAS_WEBSITE`, `DISCOVERY_FOUND_FIRST_PARTY`, `DISCOVERY_FOUND_ONLY_THIRD_PARTY`, `DISCOVERY_EXHAUSTED_NO_FIRST_PARTY`, `DISCOVERY_NOT_ATTEMPTED_BUDGET`).
+- **Deterministic Token Ranker (`website-search-ranker.service.ts`)**:
+  - Scores search results with weighted token matching (Name tokens $+12$, Domain bonus $+10$, Location $+10$, TLD bonus $+12$, Third-Party penalty $-50$).
+  - Multi-tenant directory listing templates (`/restaurant/{slug}`, `/service/{slug}`, `/places/{id}`) are penalized and excluded.
+  - **Directory Blocklist**: Hard blocks known aggregator domains (`bhansaghar.com`, `prolinknepal.com`, `hamrobazaar.com`, `volza.com`, `skillsewa.com`, `tripadvisor.com`, etc.).
+- **Snippet Phone Attribution Guard**: Extracts phone numbers from search snippets only when the snippet URL belongs to the candidate's verified first-party domain.
+
+### 3. Multi-Layer Extraction & Address Verification
+- **Tavily Markdown Extraction**: Scrapes homepages and discovers internal `/contact`, `/about`, and `/services` pages.
+- **Raw HTML Safety Net**: Native fast fetch inspecting raw markup to recover `tel:`, `mailto:`, and icon-only social anchors stripped by text parsers.
+- **Step 2 Address Re-check**: Revalidates extracted addresses against the dynamic geocoder, excluding candidates whose web footers reveal out-of-boundary headquarters.
+
+### 4. Deterministic Contact Taxonomy & Cascade Rejection
+- **Nepal Telecom Authority (NTA) Parser (`nepal-telecom.config.ts`)**:
+  - Validates domestic mobile prefixes (`98x`, `97x`, `96x`) and fixed-line area codes (`01` for Kathmandu, `061` for Pokhara, etc.).
+  - Mathematical Invariant: Enforces $\text{phones} \cap \text{mobiles} = \emptyset$.
+- **Cascade Contact Rejection (W2-07)**:
+  - When a candidate's website is classified as `unverified` or directory, **all** contacts extracted from that site are purged. Only Maps-verified contacts survive.
+  - **Corporate Parent Isolation**: Corporate parent domains do not leak headquarters emails or foreign manufacturer (+91...) phones; only exact matching Maps phone digits are accepted.
+- **Social Link Independence**:
+  - Validates social URLs independently of website status using token matching against the business name.
+  - Verified `discoveredSocials` from SERP review are promoted directly.
+  - If no candidate profile matches, `socialLinks` remains deliberately empty (`{ facebook: '', instagram: '', tiktok: '', other: {} }`).
+
+### 5. Synthesis, Quality Capping & Confidence Scoring
+- **Direct Synthesis Cascade**:
+  - Direct execution via Layer 2 OpenRouter Supervisor Agent (`gemma-supervisor-agent` or specified model), bypassing free-tier rate limits.
+  - Layer 3 zero-token deterministic fallback guarantees structured output if LLM generation fails or produces malformed JSON.
+- **Post-Synthesis Quality-Sorted Hard Cap (W2-08)**:
+  - Sorts final listings descending by `metadata.confidence` (with contact completeness tie-breaking).
+  - Slices strictly to `targetCandidates`.
+  - When `targetCandidates` is undefined, all valid listings are preserved without artificial caps.
+- **Zero-Actionable Filter (W2-05)**:
+  - Drops zombie listings where all contact channels (phones, mobiles, emails, websites) are completely empty.
+- **Multi-Dimensional Deterministic Confidence**:
+  - Formula combining Maps identity ($0.95$), website evidence, contact verification, and entity conflict penalties.
+
+---
+
+##  Repository Structure
+
 ```
 searchDump/
 ├── .cache/
+│   ├── geocoding/                   # Persistent OSM Nominatim geocoding cache
 │   └── search-results.json          # 7-day shared disk cache (Maps + Web + Tavily)
 ├── output/
-│   ├── latest/                      # Most recent run (always current)
-│   │   ├── businesses.json          # Final BusinessListing[] — UI/export ready
-│   │   └── summary-report.json      # Run KPIs (count, contacts, runtime)
-│   ├── history/                     # Permanent per-run archives (co-located)
-│   │   └── <timestamp>-<slug>/
-│   │       ├── 0-research-candidates.json
-│   │       ├── 0b-research-candidates-lean.json
-│   │       ├── 1-broad-search.json
-│   │       ├── 2-deep-extractions.json
-│   │       ├── 2b-verified-evidence.json
-│   │       ├── 3-final-listings.json
-│   │       └── summary-report.json
-│   └── (root mirrors)               # Backward-compatible mirrors
-│       ├── 0-research-candidates.json
-│       ├── 2b-verified-evidence.json
-│       ├── 3-final-listings.json
-│       └── results.json
-├── scripts/
-│   ├── test-business-extractor.ts   # v1.5 phone/email/social regression suite (100+ assertions)
-│   ├── test-entity-resolution.ts    # Entity matching cascade unit tests
-│   ├── test-candidate-classifier.ts # Deterministic classifier benchmark
-│   ├── test-maps-discovery.ts       # Maps pagination safeguard unit tests
-│   ├── test-website-discovery.ts    # Website page discovery unit tests
-│   ├── test-verification.ts         # Verified evidence builder tests
-│   ├── test-step3-projection.ts     # Step 3 taxonomy + slash expansion tests
-│   ├── test-deep-extraction-offline.ts  # Offline extraction path tests
-│   ├── test-output-structure.ts     # Output folder/file structure tests
-│   ├── test-all-fixes.ts            # Comprehensive pipeline benchmark
-│   ├── test-research-workflow-e2e.ts    # Live E2E workflow test
-│   ├── test-phase2-e2e.ts           # Phase 2 extraction E2E test
-│   ├── test-unorouter.ts            # UnoRouter consensus tribunal test
-│   ├── test-gemma-experiment.ts     # OpenRouter Gemma reasoning benchmark
-│   ├── test-enrichment-logic.ts     # Enrichment logic unit tests
-│   └── inspect-lookups.ts           # Targeted lookup debug tool
+│   ├── latest/                      # Most recent run (overwritten each execution)
+│   │   ├── businesses.json          # Verified BusinessListing[] ready for consumption
+│   │   └── summary-report.json      # Run KPIs and execution telemetry
+│   └── history/                     # Permanent timestamped run archives
+│       └── <timestamp>-<slug>/      # Complete audit trail (Stage 0, 1, 2, 3 artifacts)
 ├── src/
+│   ├── config/
+│   │   ├── geo-localities.config.ts    # OSM centroids & ward-level geographic boundaries
+│   │   ├── nepal-telecom.config.ts     # Authoritative NTA mobile & landline prefix tables
+│   │   └── website-discovery.config.ts # Discovery budget policy (production vs benchmark)
 │   ├── services/
-│   │   ├── business-extractor.service.ts   # Phone/email/social extraction + v1.5 normalization
-│   │   │                                   # classifyNepalPhone, formatPhoneDisplay, PhoneEvidence
-│   │   │                                   # extractEmails, extractSocialLinks, expandSlashExtensions
-│   │   ├── cache.service.ts                # Root-anchored SHA-256 disk cache, atomic write lock
-│   │   ├── candidate-classifier.service.ts # Fast domain/path/listicle regex classifier
-│   │   ├── db.service.ts                   # LibSQL memory store + getProjectRootDir()
-│   │   ├── entity-resolution.service.ts    # resolveEntityPair, dedupeByEntity, isUsableOfficialWebsite
-│   │   │                                   # normalizeNameKey, tokenJaccard, normalizePhoneDigits
-│   │   ├── maps-discovery.service.ts       # paginateMapsDiscovery() — 4-safeguard Maps pagination
-│   │   ├── openrouter.service.ts           # OpenRouter API client
-│   │   ├── output-storage.service.ts       # saveStageOutput (dual-write), startRunSession
-│   │   ├── research-candidate.service.ts   # buildResearchCandidates(), toUnifiedCandidates()
-│   │   ├── search-fallback.service.ts      # searchWithFallback() — Serper → DuckDuckGo, caching
-│   │   ├── serper-places.service.ts        # searchSerperPlaces() — /places endpoint, cached
-│   │   ├── serper-search.service.ts        # Google Serper web search client
-│   │   ├── tavily-extract.service.ts       # tavilyExtract() — basic/advanced, per-URL cache
-│   │   ├── unorouter.service.ts            # generateWithUnoTribunal() — multi-model consensus
-│   │   ├── url-filter.service.ts           # filterCandidateUrls() — official domain prioritizer
-│   │   ├── verification.service.ts         # buildVerifiedEvidence(), keyOfCandidate()
-│   │   └── website-discovery.service.ts    # discoverWebsitePages() — internal page discovery
+│   │   ├── business-extractor.service.ts   # Phone/email/social normalization & contact role matrix
+│   │   ├── candidate-classifier.service.ts # Fast regex candidate filter & directory blocklist
+│   │   ├── candidate-validation.service.ts # Country and geographic candidate validation
+│   │   ├── confidence.service.ts           # Multi-dimensional deterministic confidence model
+│   │   ├── discovery-state.service.ts      # Canonical DiscoveryState enum & schemas
+│   │   ├── entity-resolution.service.ts    # Phone/Domain/Jaccard entity matching cascade
+│   │   ├── geocoding.service.ts            # Dynamic OSM Nominatim geocoder & query normalizer
+│   │   ├── geographic-evaluator.service.ts # Ward alias & Haversine distance boundary gate
+│   │   ├── maps-discovery.service.ts       # Google Maps Places pagination & safeguards
+│   │   ├── output-storage.service.ts       # Dual-write output storage & session management
+│   │   ├── research-candidate.service.ts   # Candidate pool builder & state preservation
+│   │   ├── search-fallback.service.ts      # Serper to DuckDuckGo search fallback
+│   │   ├── tavily-extract.service.ts       # Tavily Extract client with disk caching
+│   │   ├── verification.service.ts         # Verified business evidence builder
+│   │   ├── website-discovery-gate.service.ts  # Universal evaluation gate & audit telemetry
+│   │   ├── website-relationship.service.ts # Website relationship & cascade rejection classifier
+│   │   └── website-search-ranker.service.ts   # Zero-HTTP token ranker & penalty model
 │   └── mastra/
-│       ├── index.ts                        # Mastra instance — registered agents & workflows
-│       ├── Tools/
-│       │   ├── broad-search.ts             # broadSearchTool
-│       │   ├── deep-extract.ts             # deepExtractTool
-│       │   └── google-maps-search.ts       # googleMapsSearchTool
-│       ├── agents/
-│       │   ├── research-agent/
-│       │   │   ├── schema.ts               # ResearchReport, ResearchCandidate, ResearchDecision
-│       │   │   └── verification.schema.ts  # VerifiedBusinessEvidence, PhoneEvidence, WebsiteEvidence
-│       │   ├── search-worker/
-│       │   │   ├── config.ts               # searchWorkerAgent (Gemini Flash Lite)
-│       │   │   └── prompt.md
-│       │   ├── gemma-supervisor/
-│       │   │   ├── config.ts               # gemmaSupervisorAgent (Gemma 4 via OpenRouter)
-│       │   │   └── prompt.md
-│       │   └── uno-supervisor/
-│       │       ├── config.ts               # UnoRouter tribunal agent
-│       │       └── prompt.md
+│       ├── index.ts                        # Mastra configuration & registered workflows
+│       ├── agents/                         # Supervisor agents & schema definitions
+│       ├── Tools/                          # Mastra execution tools (Maps, Search, Extract)
 │       └── workflows/
-│           └── research-workflow.ts        # End-to-end 4-step discovery workflow (1818 lines)
-├── cspell.json                      # Domain-specific spellcheck dictionary
+│           └── research-workflow.ts        # Core 4-stage business research workflow
+├── .env.example
+├── cspell.json
 ├── package.json
 └── tsconfig.json
 ```
+
 ---
-##  Data Contracts
-### Research Candidates (`output/0-research-candidates.json`)
-```json
-{
-  "query": "Tours and Travels",
-  "location": "Kathmandu",
-  "pagesSearched": 0,
-  "targetCandidates": 10,
-  "uniqueBusinessesFound": 10,
-  "matchesMerged": 2,
-  "stoppedReason": "target_reached",
-  "researchCandidates": [
-    {
-      "name": "Kumari Tours & Travels",
-      "location": "Thamel, Kathmandu",
-      "website": "https://kumaritravel.com",
-      "phone": "+977 1 5363501",
-      "coordinates": { "lat": 27.7172, "lng": 85.3128 },
-      "rating": 4.6,
-      "ratingCount": 134,
-      "category": "Travel agency",
-      "sources": {
-        "googleMaps": { "found": true, "placeId": "...", "address": "..." },
-        "webSearch": []
-      },
-      "entityMatch": { "matched": false, "confidence": 0, "method": "none" },
-      "classification": { "status": "usable", "type": "business", "confidence": 1.0 }
-    }
-  ]
-}
-```
-### Verified Evidence (`output/2b-verified-evidence.json`)
-```json
-{
-  "query": "Tours and Travels",
-  "maxDeepVerifyCandidates": 10,
-  "verifiedEvidence": [
-    {
-      "candidateKey": "kumari-tours-travels",
-      "name": "Kumari Tours & Travels",
-      "websiteEvidence": {
-        "url": "https://kumaritravel.com",
-        "domain": "kumaritravel.com",
-        "extractedEmails": ["info@kumaritravel.com"],
-        "extractedPhones": ["+977-01-5363501", "+977-01-5363511"],
-        "extractedMobiles": ["+977-985-1334626"],
-        "extractedSocialLinks": {
-          "facebook": "https://facebook.com/kumaritravel",
-          "instagram": "https://instagram.com/kumaritravel",
-          "tiktok": "",
-          "other": {}
-        },
-        "favicon": "https://kumaritravel.com/favicon.ico",
-        "extractedPhoneEvidence": [
-          {
-            "raw": "+977 1 5363501/511",
-            "canonicalDigits": "15363501",
-            "display": "+977-01-5363501",
-            "type": "landline",
-            "source": "markdown",
-            "pageUrl": "https://kumaritravel.com/contact"
-          }
-        ]
-      },
-      "verification": {
-        "status": "verified",
-        "overallConfidence": 0.95,
-        "checks": {
-          "websiteIsUsableOfficial": true,
-          "websiteDomainMatchesCandidate": true,
-          "businessNameFoundOnWebsite": true,
-          "phoneMatchesMaps": true,
-          "emailFoundOnWebsite": true,
-          "socialLinksFoundOnWebsite": true
-        }
-      }
-    }
-  ]
-}
-```
-### Final Listings (`output/latest/businesses.json`)
+
+## Data Contract: Final Output Schema (`output/latest/businesses.json`)
+
 ```json
 [
   {
-    "name": "Kumari Tours & Travels",
-    "location": "Thamel, Kathmandu",
-    "emails": ["info@kumaritravel.com"],
-    "phones": ["+977-01-5363501", "+977-01-5363511"],
-    "mobiles": ["+977-985-1334626"],
-    "websites": ["https://kumaritravel.com"],
-    "icon": "https://kumaritravel.com/favicon.ico",
+    "name": "Crystal Home Cleaning",
+    "location": "Satungal, Kathmandu",
+    "emails": ["info@crystalcleaning.com.np"],
+    "phones": ["+977-01-4311600"],
+    "mobiles": ["+977-985-1201603"],
+    "websites": ["https://crystalcleaning.com.np/"],
+    "icon": "https://crystalcleaning.com.np/favicon.ico",
     "socialLinks": {
-      "facebook": "https://facebook.com/kumaritravel",
+      "facebook": "https://facebook.com/crystalcleaningnp",
+      "instagram": "https://instagram.com/crystalcleaningnp",
       "tiktok": "",
-      "instagram": "https://instagram.com/kumaritravel",
       "other": {}
     },
+    "gpsCoordinates": {
+      "latitude": 27.6931,
+      "longitude": 85.2684
+    },
+    "rating": 4.8,
+    "ratingCount": 42,
+    "placeId": "17540895154546494724",
+    "businessType": "House cleaning service",
     "otherDetails": {
-      "address": "Thamel, Kathmandu",
-      "rating": 4.6,
-      "ratingCount": 134,
-      "businessType": "Travel agency"
+      "websiteRelationship": "first_party",
+      "discoveryState": "DISCOVERY_FOUND_FIRST_PARTY",
+      "socialsCascadeRejected": 0,
+      "contactsCascadeRejected": 0,
+      "classifiedContacts": [
+        {
+          "value": "+977-01-4311600",
+          "canonicalDigits": "14311600",
+          "type": "phone",
+          "phoneType": "landline",
+          "role": "primary_business",
+          "owner": "business",
+          "channels": ["call"],
+          "context": "Main Office",
+          "pagesSeenOn": ["https://crystalcleaning.com.np/contact"]
+        },
+        {
+          "value": "+977-985-1201603",
+          "canonicalDigits": "9851201603",
+          "type": "phone",
+          "phoneType": "mobile",
+          "role": "primary_business",
+          "owner": "business",
+          "channels": ["call", "whatsapp"],
+          "pagesSeenOn": ["https://crystalcleaning.com.np/"]
+        }
+      ]
     },
-    "gpsCoordinates": { "latitude": 27.7172, "longitude": 85.3128 },
-    "rating": 4.6,
-    "ratingCount": 134,
-    "placeId": "ChIJ...",
     "metadata": {
-      "source": "google_maps",
-      "extractedAt": "2026-09-14T06:00:00.000Z",
-      "confidence": 0.95
-    },
-    "process": "Verified via Google Maps Places + Tavily Website Extract"
+      "source": "web",
+      "extractedAt": "2026-09-18T11:46:19.784Z",
+      "runStartedAt": "2026-09-18T11:42:05.485Z",
+      "confidence": 0.94,
+      "confidenceBreakdown": {
+        "mapsIdentityConfidence": 0.95,
+        "websiteEvidenceConfidence": 0.92,
+        "contactConfidence": 0.9,
+        "overallConfidence": 0.94,
+        "conflictPenalty": 1.0,
+        "evidenceSummary": {
+          "mapsVerified": true,
+          "websiteVerified": true,
+          "phoneVerified": true,
+          "emailVerified": true,
+          "relationshipType": "first_party"
+        }
+      }
+    }
   }
 ]
 ```
+
 ---
-##  Agents & Tools Reference
-| Component | Type | Identifier | Description | Model / Provider |
-|:---|:---|:---|:---|:---|
-| **`searchWorkerAgent`** | Agent | `search-worker-agent` | Classifies ambiguous candidates | `google/gemini-3.5-flash-lite` |
-| **`gemmaSupervisorAgent`** | Agent | `gemma-supervisor-agent` | AI synthesis Layer 2 | `google/gemma-4-26b-a4b-it:free` → 31b → nemotron → nex (OpenRouter) |
-| **`unoSupervisorAgent`** | Agent | `uno-supervisor-agent` | AI synthesis Layer 1 consensus tribunal | UnoRouter multi-model |
-| **`googleMapsSearchTool`** | Tool | `google-maps-search-tool` | Maps Places discovery | Serper.dev `/places` |
-| **`broadSearchTool`** | Tool | `broad-search-tool` | Multi-provider web search | Serper → DuckDuckGo |
-| **`deepExtractTool`** | Tool | `deep-extract-tool` | Markdown extraction | Tavily Extract API |
----
-##  Environment Variables
-Create `.env` in the `searchDump/` root:
-| Variable | Required | Description |
-|:---|:---|:---|
-| `SERPER_API_KEY` | **Yes** | Google Search & Maps Places from [serper.dev](https://serper.dev) |
-| `TAVILY_API_KEY` | **Yes** | Web content extraction from [tavily.com](https://tavily.com) |
-| `OPENROUTER_API_KEY` | **Yes** | Gemma 4 / Nemotron via [openrouter.ai](https://openrouter.ai) |
-| `GOOGLE_GENERATIVE_AI_API_KEY` | **Yes** | Gemini API for `searchWorkerAgent` |
-| `UNOROUTER_API_KEY` | Optional | UnoRouter consensus tribunal (Layer 1 AI). Falls back to OpenRouter if absent. |
-| `GOOGLE_API_KEY` | Optional | Fallback alias for Gemini key |
+
+## Quickstart & Usage
+
+### 1. Environment Configuration
+
+Create a `.env` file in the project root:
 
 ```env
-SERPER_API_KEY=your_serper_key
-TAVILY_API_KEY=your_tavily_key
-OPENROUTER_API_KEY=your_openrouter_key
-GOOGLE_GENERATIVE_AI_API_KEY=your_gemini_key
-UNOROUTER_API_KEY=your_unorouter_key   # optional
+# Required Provider API Keys
+SERPER_API_KEY=your_serper_dev_api_key
+TAVILY_API_KEY=your_tavily_api_key
+OPENROUTER_API_KEY=your_openrouter_api_key
+GOOGLE_GENERATIVE_AI_API_KEY=your_gemini_api_key
+
+# Optional Configuration
+DISCOVERY_MODE=production                       # 'production' (default) or 'benchmark'
 ```
----
-##  Quickstart
-### 1. Install Dependencies
+
+### 2. Installation & Running
+
 ```bash
+# Install dependencies
 npm install
-```
-### 2. Start Mastra Studio
-```bash
+
+# Start Mastra Studio UI
 npm run dev
 ```
-Open **[http://localhost:4111](http://localhost:4111)** to trigger workflows, inspect runs, and view agent traces
-### 3. Trigger Programmatically
+
+### 3. Programmatic Invocation
+
 ```typescript
 import { mastra } from './src/mastra';
+
 const workflow = mastra.getWorkflow('researchWorkflow');
 const run = await workflow.createRun();
+
 const response = await run.start({
   inputData: {
-    query: 'Tours and Travels',
-    location: 'Kathmandu',
-    targetCandidates: 20,
+    query: 'Plumber',
+    location: 'Tokha, Kathmandu',
+    targetCandidates: 5,                // Output strictly capped to top 5
     maxMapsPages: 3,
-    maxPages: 5,
-    maxDeepVerifyCandidates: 20,
-    autoApprove: true,           // false = pause for human review
+    maxPages: 3,
+    maxDeepVerifyCandidates: 10,
+    websiteDiscoveryMode: 'benchmark',  // 'benchmark' evaluates all eligible candidates
+    autoApprove: true,                  // true = headless; false = human review step
     agentId: 'gemma-supervisor-agent',
   },
 });
-console.log('Verified Listings:', response.results?.listings);
+
+console.log('Discovered Businesses:', response.results?.listings);
 ```
+
 ---
-##  Test Suite
+
+##  Test Suite & Invariant Verification
+
+The codebase includes **39 zero-API test suites** validating all invariants offline with deterministic fixtures:
+
 ```bash
-# Full unit + integration suite (zero API calls)
+# Run complete test suite (all 39 suites)
 npm test
-# Individual zero-API suites
-npx tsx scripts/test-business-extractor.ts    # v1.5 phone/email/social (100+ assertions)
-npx tsx scripts/test-entity-resolution.ts     # Entity matching cascade
-npx tsx scripts/test-candidate-classifier.ts  # Deterministic classifier
-npx tsx scripts/test-maps-discovery.ts        # Maps pagination safeguards
-npx tsx scripts/test-website-discovery.ts     # Internal page discovery
-npx tsx scripts/test-verification.ts          # Verified evidence builder
-npx tsx scripts/test-step3-projection.ts      # Step 3 taxonomy invariants
-npx tsx scripts/test-output-structure.ts      # Output folder structure
-# End-to-end (live API calls)
-npm run test:e2e         # Full workflow E2E
-npm run test:e2e:phase2  # Phase 2 extraction E2E
-npm run test:all         # Comprehensive pipeline benchmark
+
+# Run specific Phase 8 suites
+npm run test:phase8h                                      # Core Phase 8h defects (W2-01 to W2-06)
+npx tsx scripts/test-phase8h-w207.ts                      # Defect W2-07 (Cascade rejection & social independence)
+npx tsx scripts/test-phase8h-w208.ts                      # Defect W2-08 (Target cap & query normalization)
+npx tsx scripts/test-phase8a-geographic-evaluator.ts      # Geographic boundary & distance tests
+npx tsx scripts/test-phase8b-contact-role-aggregation.ts  # Contact role decision matrix tests
 ```
-`npm test` runs 8 test files (entity resolution, candidate classification, Maps pagination, website discovery, v1.5 phone normalization with 100+ regression fixtures, verification, offline extraction, output structure) — all zero-API-cost.
+
 ---
-##  Caching & Cross-Run Behaviour
-- **Same query + location run twice within 7 days**: Maps discovery and web search both hit the **disk cache** — the same businesses will be returned. This is by design (saves API credits).
-- **Cross-run deduplication**: Does **not** exist. The workflow has no knowledge of previous runs. `output/latest/businesses.json` is consumed by external clients, never read back by the pipeline.
-- **Cache invalidation**: Delete `.cache/search-results.json` to force fresh provider calls on the next run.
----
+
 ##  License
-ISC License. Built for agentic business research and discovery.
+
+ISC License. Built for agentic business research and extraction.

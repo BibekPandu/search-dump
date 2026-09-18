@@ -64,6 +64,32 @@ export const DIRECTORY_DOMAINS = new Set([
   'bbb.org',
   'trustpilot.com',
   'sitejabber.com',
+  'edusanjal.com',
+  'collegesnepal.com',
+  'noshnepal.com',
+  'mapcarta.com',
+  'restaurantguru.com',
+  'usnepal.com',
+  'directoryofnepal.com',
+  'wikimapia.org',
+  'openstreetmap.org',
+  'bhansaghar.com',
+  'bhansaghar.com.np',
+  'skillsewa.com',
+  'nepalhotel.com',
+  'yandex.ru',
+  'yandex.com',
+  'booking.com',
+  'agoda.com',
+  'tripadvisor.com',
+  'airbnb.com',
+  'expedia.com',
+  'trivago.com',
+  'searchactual.com',
+  'realestateinnepal.com',
+  'prolinknepal.com',
+  'hamrobazaar.com',
+  'volza.com',
 ]);
 
 export const SOCIAL_DOMAINS = new Set([
@@ -112,6 +138,10 @@ const NON_ENTITY_PATHS: RegExp[] = [
   /\/category(\/|$)/i,
   /\/author(\/|$)/i,
   /\/city\/[a-z0-9_-]+\.html/i,
+];
+
+export const DIRECTORY_LISTING_PATHS: RegExp[] = [
+  /\/(restaurant|restaurants|listing|listings|business|businesses|company|companies|places|eatery|profile|catalog|vendor|classifieds?|org|services?)\/[a-z0-9_-]+/i,
 ];
 
 const LISTICLE_TITLE_PATTERNS: RegExp[] = [
@@ -183,6 +213,24 @@ export function classifySearchResult(candidate: UnifiedSearchResult): Classifica
     };
   }
 
+  // 2b. Check directory listing template path pattern
+  let pathname = '';
+  try {
+    pathname = new URL(url).pathname;
+  } catch {
+    pathname = url;
+  }
+
+  const isDirectoryListingPath = DIRECTORY_LISTING_PATHS.some((pattern) => pattern.test(pathname));
+  if (isDirectoryListingPath && !DIRECT_BUSINESS_PATHS.some((pattern) => pattern.test(pathname))) {
+    return {
+      status: 'excluded',
+      classification: 'directory',
+      confidence: 0.9,
+      reason: `Directory listing template path detected (${pathname})`,
+    };
+  }
+
   // 3. Check social and forum platforms
   if (SOCIAL_DOMAINS.has(domain)) {
     return {
@@ -194,13 +242,6 @@ export function classifySearchResult(candidate: UnifiedSearchResult): Classifica
   }
 
   // 4. Check path-based article/blog/listicle indicators
-  let pathname = '';
-  try {
-    pathname = new URL(url).pathname;
-  } catch {
-    pathname = url;
-  }
-
   const isArticlePath = NON_ENTITY_PATHS.some((pattern) => pattern.test(pathname));
   const isListicleTitle = LISTICLE_TITLE_PATTERNS.some((pattern) => pattern.test(title));
   const isTravelGuideDomain = CONTENT_TRAVEL_DOMAINS.has(domain);

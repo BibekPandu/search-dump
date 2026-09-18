@@ -19,7 +19,7 @@ export const NEPAL_COUNTRY_CODE = '977';
  */
 export const NTA_MOBILE_PREFIXES = [
   '984', '985', '986',        // Nepal Telecom (NTC) GSM
-  '974', '975',               // Nepal Telecom (NTC) CDMA
+  '974', '975', '976',        // Nepal Telecom (NTC) GSM / CDMA / 4G
   '980', '981', '982', '970', // Ncell Axiata GSM
   '988', '961', '962',        // Smart Telecom (historical allocations)
   '972',                      // UTL (historical allocation)

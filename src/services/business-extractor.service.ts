@@ -1,4 +1,4 @@
-import { domainFromUrlOrHost } from './entity-resolution.service';
+import { extractDomain } from './search-fallback.service';
 import type { WebsitePageEvidence, WebsiteEvidence, PhoneEvidenceRecord } from '../mastra/agents/research-agent/verification.schema';
 import { NTA_MOBILE_PREFIXES, NTA_LANDLINE_AREA_CODES } from '../config/nepal-telecom.config';
 import {
@@ -9,6 +9,20 @@ import {
 } from '../mastra/agents/research-agent/contact.schema';
 import type { ClassifiedSocialProfile } from '../mastra/agents/research-agent/social.schema';
 
+function domainFromUrlOrHost(value: string): string {
+  if (!value) return '';
+  const trimmed = value.trim();
+  const fromUrl = extractDomain(trimmed);
+  if (fromUrl) return fromUrl;
+
+  return trimmed
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/^www\./, '')
+    .split('/')[0]
+    .split(':')[0];
+}
+
 // ============================================================================
 // Business Extractor — deterministic (0-token) structured fact extraction
 // ============================================================================
@@ -16,16 +30,20 @@ import type { ClassifiedSocialProfile } from '../mastra/agents/research-agent/so
 // facts (emails, phones, mobiles, socials, favicon, services, hours) are
 // extracted via regex/rules and used as EVIDENCE-BACKED authority downstream.
 
-const EMAIL_REGEX = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+const EMAIL_REGEX = /\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:\.[a-zA-Z]{2,})?\b(?!\.[a-zA-Z])/g;
 
 // Placeholder / throwaway addresses that must never be treated as real evidence.
 const PLACEHOLDER_EMAIL_PATTERNS = [
   /^example\./i,
-  /@example\.(com|org|net)$/i,
+  /@example\.(com|org|net|co|np)$/i,
+  /@(?:mail|email|test|domain|yoursite)\.(?:com|org|net|co)$/i,
+  /@mail\.com$/i,
+  /@email\.com$/i,
+  /@test\.(com|org|net)$/i,
   /sentry\.io$/i,
   /wixpress\.com$/i,
   /\.wix\.com$/i,
-  /@domain\.(com|net)$/i,
+  /@domain\.(com|net|org)$/i,
   /^test@/i,
   /^user@/i,
   /^email@/i,
@@ -215,6 +233,11 @@ export function classifyNepalPhone(raw: string): ClassifiedPhone {
 
   let digits = cleaned.replace(/\D/g, '');
   if (!digits) return { type: 'invalid', digits: '', normalized: cleaned, reason: 'NO_DIGITS' };
+
+  // Phase 8g: Reject floating-point GPS coordinate strings misparsed as numbers (e.g. 27.382262 or 85.309623)
+  if (/\b\d{1,3}\.\d{4,8}\b/.test(raw.trim())) {
+    return { type: 'invalid', digits: '', normalized: cleaned, reason: 'COORDINATE_FLOAT' };
+  }
 
   // Task 4: Duplicate country code (+977 977 9851234567 -> +977 9851234567)
   if (digits.startsWith('977977')) {
@@ -461,7 +484,9 @@ export function isRealSocialProfile(url: string, platform?: string): boolean {
         return !!(id && /^\d+$/.test(id));
       }
       if (FACEBOOK_RESERVED_PATHS.has(firstSegment)) return false;
-      if (firstSegment.length < 3) return false;
+      const isModernPagePattern = firstSegment === 'p' && pathSegments.length > 1;
+      const isPagesPattern = firstSegment === 'pages' && pathSegments.length > 2;
+      if (!isModernPagePattern && !isPagesPattern && firstSegment.length < 3) return false;
       return true;
     }
 
@@ -642,7 +667,10 @@ export function classifySocialProfile(
         distinctiveTokensFound: [],
       };
     }
-    if (firstSegment.length < 3) {
+    const isModernPagePattern = firstSegment === 'p' && pathSegments.length > 1;
+    const isPagesPattern = firstSegment === 'pages' && pathSegments.length > 2;
+
+    if (!isModernPagePattern && !isPagesPattern && firstSegment.length < 3) {
       return {
         url,
         platform: plat,
@@ -750,7 +778,11 @@ export function classifySocialProfile(
 
   // Extract handle
   let handle = firstSegment;
-  if (plat === 'linkedin' && firstSegment === 'company') {
+  if (plat === 'facebook' && firstSegment === 'p' && pathSegments.length > 1) {
+    handle = (pathSegments[1] || '').replace(/-\d{8,}$/, '');
+  } else if (plat === 'facebook' && firstSegment === 'pages' && pathSegments.length > 2) {
+    handle = (pathSegments[2] || '').replace(/-\d+$/, '');
+  } else if (plat === 'linkedin' && firstSegment === 'company') {
     handle = (pathSegments[1] || '').toLowerCase();
     if (!handle || handle.length < 2 || ['sharearticle', 'share-offsite'].includes(handle)) {
       return {
@@ -1146,7 +1178,7 @@ export function extractEmails(content: string): string[] {
     if (!email) continue;
     // Detach glued words from markdown before lowercasing (e.g. gmail.comOpening -> gmail.com)
     const gluedMatch = email.match(
-      /^([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.(?:com\.np|org\.np|com|org|net|edu|gov|io|co|np|biz|info))([A-Z].*)$/
+      /^([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.(?:edu\.np|com\.np|org\.np|gov\.np|net\.np|mil\.np|com|org|net|edu|gov|io|co|np|biz|info))([A-Z].*)$/
     );
     if (gluedMatch) {
       email = gluedMatch[1];
@@ -1157,11 +1189,17 @@ export function extractEmails(content: string): string[] {
     // Task 5: Reject media filenames and DPR retina assets misparsed as emails
     if (MEDIA_FILENAME_PATTERN.test(email) || MEDIA_DPR_PATTERN.test(email)) continue;
     if (email.includes(' ') || !email.includes('@')) continue;
-    if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email)) continue;
+    if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:\.[a-zA-Z]{2,})?$/.test(email)) continue;
 
-    // Task 5: Reject emails whose domain ends with an image/media file extension
+    // Reject emails whose final domain segment is a single character (e.g. .n)
     const emailDomain = email.split('@')[1]?.toLowerCase() ?? '';
     const tld = emailDomain.split('.').pop() ?? '';
+    if (tld.length < 2) continue;
+
+    // Phase 8g: Reject invalid / typo Nepal ccTLDs (e.g. .co.np is a typo for .com.np)
+    if (emailDomain.endsWith('.co.np')) continue;
+
+    // Task 5: Reject emails whose domain ends with an image/media file extension
     if (IMAGE_FILE_TLDS.has(tld)) continue;
 
     unique.add(email);
@@ -1271,15 +1309,180 @@ export function classifyEmailRole(
   return { role: 'unknown', owner: 'unknown' };
 }
 
+export type PageType = 'homepage' | 'contact' | 'about' | 'team' | 'services' | 'other';
+
 /**
- * Classifies a phone number into functional role, ownership entity, and communication channels.
+ * Classifies a URL into a page type based on pathname heuristics.
+ */
+export function classifyPageType(url?: string, pageTitle?: string): PageType {
+  if (!url) return 'other';
+  try {
+    const raw = url.startsWith('http') ? url : `https://${url}`;
+    const parsed = new URL(raw);
+    const path = parsed.pathname.toLowerCase().replace(/\/+$/, '');
+
+    // Homepage: root, index.html, index.php, /home
+    if (path === '' || path === '/' || path === '/index.html' || path === '/index.php' || path === '/home') {
+      return 'homepage';
+    }
+
+    // Contact: contact, contact-us, reach-us, get-in-touch, get-a-quote, location
+    if (/\b(contact|contact-us|reach-us|get-in-touch|get-a-quote|contactus|location|branches)\b/i.test(path)) {
+      return 'contact';
+    }
+
+    // Team: team, our-team, leadership, board, management, staff, members
+    if (/\b(team|our-team|leadership|board|management|staff|members)\b/i.test(path)) {
+      return 'team';
+    }
+
+    // About: about, about-us, who-we-are, company, profile
+    if (/\b(about|about-us|who-we-are|company|profile)\b/i.test(path)) {
+      return 'about';
+    }
+
+    // Services: service, services, our-services
+    if (/\b(service|services|our-services)\b/i.test(path)) {
+      return 'services';
+    }
+
+    return 'other';
+  } catch {
+    return 'other';
+  }
+}
+
+export const OWNER_LEADERSHIP_TITLES = [
+  'owner',
+  'founder',
+  'co-founder',
+  'proprietor',
+  'managing director',
+  'ceo',
+  'chairman',
+  'chairperson',
+  'president',
+  'principal',
+];
+
+export const STAFF_TITLES = [
+  'supervisor',
+  'housekeeping supervisor',
+  'manager',
+  'executive',
+  'field marketing executive',
+  'officer',
+  'coordinator',
+  'accountant',
+  'front desk',
+  'receptionist',
+  'maid',
+  'cleaner',
+  'designer',
+  'graphic designer',
+  'graphic design',
+  'web design',
+  'design',
+  'developer',
+  'technician',
+  'operator',
+  'sales head',
+  'head',
+];
+
+export interface ContactSignalSnapshot {
+  hasMapsSignal: boolean;
+  hasPageCtaSignal: boolean;
+  hasGeneralContactSignal: boolean;
+  hasOwnerLeadershipSignal: boolean;
+  hasStaffSignal: boolean;
+  hasBranchSignal: boolean;
+  hasPlatformSignal: boolean;
+  pageTypesSeen: Set<PageType>;
+}
+
+/**
+ * Evaluates the 9-Row Role Decision Matrix against accumulated contact signals.
+ */
+export function evaluateContactRoleMatrix(s: ContactSignalSnapshot): {
+  role: ContactRole;
+  owner: ContactOwner;
+} {
+  // Row 1 & 2: Maps phone is the absolute identity authority -> primary_business
+  if (s.hasMapsSignal) {
+    return { role: 'primary_business', owner: 'business' };
+  }
+
+  // Row 8: Branch signal -> branch_contact
+  if (s.hasBranchSignal) {
+    return { role: 'branch_contact', owner: 'branch' };
+  }
+
+  // Platform number -> unknown, platform
+  if (s.hasPlatformSignal) {
+    return { role: 'unknown', owner: 'platform' };
+  }
+
+  const isHomepageOrContact = s.pageTypesSeen.has('homepage') || s.pageTypesSeen.has('contact');
+  const isAboutOrTeam = s.pageTypesSeen.has('about') || s.pageTypesSeen.has('team');
+
+  // Row 3: Prominent Business CTA on Homepage / Contact page -> primary_business
+  // (Homepage CTA elevates the number to primary_business even if it also appears as staff on team page)
+  if (isHomepageOrContact && s.hasPageCtaSignal) {
+    return { role: 'primary_business', owner: 'business' };
+  }
+
+  // Standalone CTA with no team page association
+  if (s.hasPageCtaSignal && !s.hasStaffSignal && !isAboutOrTeam) {
+    return { role: 'primary_business', owner: 'business' };
+  }
+
+  // Row 5: Homepage or Contact page sighting without staff signals -> primary_business
+  if (isHomepageOrContact && !s.hasStaffSignal) {
+    return { role: 'primary_business', owner: 'business' };
+  }
+
+  // Row 6 & 7: About or team page profiles without Homepage CTA -> staff_person
+  if (isAboutOrTeam && (s.hasOwnerLeadershipSignal || s.hasStaffSignal)) {
+    return { role: 'staff_person', owner: 'person' };
+  }
+
+  // Row 4: Staff title without Homepage CTA -> staff_person
+  if (s.hasStaffSignal) {
+    return { role: 'staff_person', owner: 'person' };
+  }
+
+  // Row 9: No CTA / bare text / blog -> unknown, unknown
+  return { role: 'unknown', owner: 'unknown' };
+}
+
+export interface PhoneRoleClassificationResult {
+  role: ContactRole;
+  owner: ContactOwner;
+  channels: ContactChannel[];
+  associatedPerson?: string;
+  associatedJobTitle?: string;
+  hasMapsSignal?: boolean;
+  hasPageCtaSignal?: boolean;
+  hasGeneralContactSignal?: boolean;
+  hasOwnerLeadershipSignal?: boolean;
+  hasStaffSignal?: boolean;
+  hasBranchSignal?: boolean;
+  hasPlatformSignal?: boolean;
+}
+
+/**
+ * Classifies a phone number into functional role, ownership entity, communication channels,
+ * and associated person metadata based on context, URL, and signal aggregation.
  */
 export function classifyPhoneRole(
   phone: string,
   context: string = '',
   businessName?: string,
-  classifiedPhone?: ClassifiedPhone
-): { role: ContactRole; owner: ContactOwner; channels: ContactChannel[] } {
+  classifiedPhone?: ClassifiedPhone,
+  pageUrl?: string,
+  isMapsPhone?: boolean
+): PhoneRoleClassificationResult {
   const lowerContext = context.toLowerCase();
   const channels: ContactChannel[] = ['call'];
 
@@ -1291,33 +1494,85 @@ export function classifyPhoneRole(
     channels.push('viber');
   }
 
-  // Head / Main / Central office override -> primary business
-  if (/\b(head office|main office|central office|headquarters|corporate office|main clinic|main hospital)\b/i.test(lowerContext)) {
-    return { role: 'primary_business', owner: 'business', channels };
-  }
+  const pageType = classifyPageType(pageUrl);
 
-  // Tier 1: Explicit branch keywords
+  // 1. Channel / CTA Signals
+  const hasPageCtaSignal =
+    /\b(call now|call us|emergency service|fast service|toll free|customer care|hotline|get a quote|need clean|book now|talk to us|phone:|chat with us|whatsapp|viber|call|order|orders|delivery)\b/i.test(
+      lowerContext
+    ) || /\[(?:call|phone|tel|emergency|hotline|now|quote)[^\]]*\]\(tel:/i.test(context);
+
+  const hasGeneralContactSignal =
+    pageType === 'contact' ||
+    /\b(head office|main office|central office|contact us|email us)\b/i.test(lowerContext);
+
+  // 2. Branch Signals
   const hasBranchKeyword = /\b(branch|branches|outlet|outlets|our branches)\b/i.test(lowerContext);
-  if (hasBranchKeyword) {
-    return { role: 'branch_contact', owner: 'branch', channels };
-  }
-
-  // Tier 2: Location/Address block with district/locality + structure cues
   const hasLocationCues = /\b(clinic|center|centre|office|outlet)\b/i.test(lowerContext);
   const hasLocalities = /\b(chabahil|naikap|bardibas|banasthali|chapagaun|jawalakhel|koteshwor|kumaripati|pokhara|biratnagar|birgunj|dharan|hetauda|nepalgunj|butwal)\b/i.test(lowerContext);
   const hasAddressCues = /\b(chowk|marga|street|road|ward|tole)\b/i.test(lowerContext);
+  const hasBranchSignal = hasBranchKeyword || (hasLocationCues && hasLocalities) || (hasLocalities && hasAddressCues);
 
-  if ((hasLocationCues && hasLocalities) || (hasLocalities && hasAddressCues)) {
-    return { role: 'branch_contact', owner: 'branch', channels };
+  // 3. Person / Title Signals
+  let hasOwnerLeadershipSignal = false;
+  let hasStaffSignal = false;
+  let associatedPerson: string | undefined;
+  let associatedJobTitle: string | undefined;
+
+  for (const title of OWNER_LEADERSHIP_TITLES) {
+    if (new RegExp(`\\b${title}\\b`, 'i').test(lowerContext)) {
+      hasOwnerLeadershipSignal = true;
+      associatedJobTitle = title;
+      break;
+    }
   }
 
-  // Personal honorifics in context
-  if (/\b(dr\.|dr\s|mr\.|mrs\.|ms\.|prof\.|director)\b/i.test(lowerContext)) {
-    return { role: 'staff_person', owner: 'person', channels };
+  for (const title of STAFF_TITLES) {
+    if (new RegExp(`\\b${title}\\b`, 'i').test(lowerContext)) {
+      hasStaffSignal = true;
+      if (!associatedJobTitle) associatedJobTitle = title;
+      break;
+    }
   }
 
-  // Default: primary business contact
-  return { role: 'primary_business', owner: 'business', channels };
+  if (/\b(dr\.|dr\s|mr\.|mrs\.|ms\.|prof\.)\b/i.test(lowerContext)) {
+    hasStaffSignal = true;
+  }
+
+  // Extract person name if present in markdown team cues
+  const personMatch = context.match(/(?:###|\*\*|##)?\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})\s+(?:Chairman|Managing Director|Director|Supervisor|Marketing|Front Desk|Design|Executive|Head|Manager|Cleaner|Maid|Technician|Owner|Founder)/i);
+  if (personMatch) {
+    associatedPerson = personMatch[1].trim();
+  }
+
+  const hasMapsSignal = Boolean(isMapsPhone);
+  const hasPlatformSignal = false;
+
+  const decision = evaluateContactRoleMatrix({
+    hasMapsSignal,
+    hasPageCtaSignal,
+    hasGeneralContactSignal,
+    hasOwnerLeadershipSignal,
+    hasStaffSignal,
+    hasBranchSignal,
+    hasPlatformSignal,
+    pageTypesSeen: new Set([pageType]),
+  });
+
+  return {
+    role: decision.role,
+    owner: decision.owner,
+    channels,
+    associatedPerson,
+    associatedJobTitle,
+    hasMapsSignal,
+    hasPageCtaSignal,
+    hasGeneralContactSignal,
+    hasOwnerLeadershipSignal,
+    hasStaffSignal,
+    hasBranchSignal,
+    hasPlatformSignal,
+  };
 }
 
 /**
@@ -1772,6 +2027,255 @@ export function extractBusinessInfo(content: string): {
   return result;
 }
 
+function isGenericName(name: string): boolean {
+  const lower = name.toLowerCase().trim();
+  const genericStrings = [
+    'home',
+    'welcome',
+    'about us',
+    'contact us',
+    'privacy policy',
+    'terms of service',
+    'services',
+    'our services',
+    '404',
+    'not found',
+    'error',
+    'untitled',
+    'index',
+  ];
+  return genericStrings.includes(lower);
+}
+
+export interface ExtractedPageBusinessName {
+  name: string;
+  source: 'schema' | 'h1' | 'og' | 'title';
+}
+
+/**
+ * Phase 8h (W2-02): Authoritatively extracts real business name from page HTML / Markdown.
+ * Priority: Schema.org JSON-LD -> og:site_name -> Clean <h1> -> Clean <title>.
+ */
+export function extractPageBusinessName(
+  rawHtml?: string,
+  markdown?: string
+): ExtractedPageBusinessName | null {
+  // 1. JSON-LD Schema.org name
+  if (rawHtml) {
+    const schemaMatches = rawHtml.matchAll(
+      /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi
+    );
+    for (const match of schemaMatches) {
+      try {
+        const json = JSON.parse(match[1]);
+        const entities = Array.isArray(json) ? json : [json];
+        for (const item of entities) {
+          const type = (item['@type'] || '').toString().toLowerCase();
+          if (
+            type.includes('organization') ||
+            type.includes('business') ||
+            type.includes('store') ||
+            type.includes('restaurant') ||
+            type.includes('company') ||
+            type.includes('service') ||
+            type.includes('hotel')
+          ) {
+            if (
+              typeof item.name === 'string' &&
+              item.name.trim().length >= 3 &&
+              item.name.trim().length <= 70
+            ) {
+              const cleaned = item.name.trim();
+              if (!isGenericName(cleaned)) {
+                return { name: cleaned, source: 'schema' };
+              }
+            }
+          }
+        }
+      } catch {}
+    }
+
+    // 2. OpenGraph site_name
+    const ogMatch =
+      rawHtml.match(/<meta[^>]*property=["']og:site_name["'][^>]*content=["']([^"']+)["']/i) ||
+      rawHtml.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:site_name["']/i);
+    if (ogMatch && ogMatch[1]) {
+      const ogName = ogMatch[1].trim();
+      if (ogName.length >= 3 && ogName.length <= 60 && !isGenericName(ogName)) {
+        return { name: ogName, source: 'og' };
+      }
+    }
+
+    // 3. Clean <h1> from HTML
+    const h1Match = rawHtml.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+    if (h1Match && h1Match[1]) {
+      const h1Text = h1Match[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      if (h1Text.length >= 3 && h1Text.length <= 60 && !isGenericName(h1Text)) {
+        return { name: h1Text, source: 'h1' };
+      }
+    }
+  }
+
+  // 4. Markdown # Heading
+  if (markdown) {
+    const mdH1 = markdown.match(/^#\s+([^\n\r]+)/m);
+    if (mdH1 && mdH1[1]) {
+      const heading = mdH1[1].trim();
+      if (heading.length >= 3 && heading.length <= 60 && !isGenericName(heading)) {
+        return { name: heading, source: 'h1' };
+      }
+    }
+  }
+
+  // 5. HTML <title> tag (stripping common marketing / location suffixes)
+  if (rawHtml) {
+    const titleMatch = rawHtml.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+    if (titleMatch && titleMatch[1]) {
+      let titleText = titleMatch[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      titleText = titleText
+        .split(/\s*[-–|:]\s*(?:home|official|welcome|about|contact|best|top|kathmandu|nepal|services)/i)[0]
+        .trim();
+      if (titleText.length >= 3 && titleText.length <= 60 && !isGenericName(titleText)) {
+        return { name: titleText, source: 'title' };
+      }
+    }
+  }
+
+  return null;
+}
+
+let llmMultiBusinessCallCount = 0;
+
+export function getLlmMultiBusinessCallCount(): number {
+  return llmMultiBusinessCallCount;
+}
+
+export function resetLlmMultiBusinessCallCount(): void {
+  llmMultiBusinessCallCount = 0;
+}
+
+/**
+ * Phase 8h (W2-04): Enhanced multi-business listing / directory / aggregator / blog post detector.
+ * Identifies pages presenting multiple distinct companies, contacts, or listicles.
+ */
+export function detectMultiBusinessPage(
+  content: string,
+  url?: string,
+  businessName?: string
+): boolean {
+  if (!content) return false;
+
+  if (url) {
+    const lowerUrl = url.toLowerCase();
+    if (
+      lowerUrl.includes('/directory') ||
+      lowerUrl.includes('/yellow-pages') ||
+      lowerUrl.includes('/yellowpages') ||
+      lowerUrl.includes('/listings') ||
+      lowerUrl.includes('/category/') ||
+      lowerUrl.includes('/categories/') ||
+      lowerUrl.includes('/listing/') ||
+      lowerUrl.includes('/eatery/') ||
+      lowerUrl.includes('skillsewa.com')
+    ) {
+      return true;
+    }
+  }
+
+  // 1. Numbered listicle headings (e.g. <h2>1. Apex... <h2>2. Kathmandu... <h2>3. Smart...)
+  const listicleMatches =
+    content.match(/(?:<h[1-6][^>]*>|^|\n|\.\s+)\s*\d{1,2}\.?\s+(?:Top|Best|[A-Z])[A-Za-z0-9\s&'-]{3,40}/gi) || [];
+  const realListicles = listicleMatches.filter((m) => !/\bbranch\b/i.test(m));
+  if (realListicles.length >= 3) {
+    return true;
+  }
+
+  // 2. Distinct standalone corporate entities (e.g. "X Pvt Ltd", "Y Suppliers", "Z Traders", "W Enterprises")
+  const text = content.replace(/<[^>]+>/g, ' ');
+  const entityMatches =
+    text.match(
+      /\b[A-Z][A-Za-z0-9\s&'-]{2,35}\s+(?:Pvt\.?\s*Ltd\.?|Suppliers?|Traders?|Enterprises?|Pvt\b|Limited\b)\b/gi
+    ) || [];
+
+  const bTokens = businessName
+    ? businessName.toLowerCase().split(/\s+/).filter((t) => t.length > 2)
+    : [];
+  const filteredEntities = entityMatches.filter((e) => {
+    const lower = e.toLowerCase();
+    if (lower.includes('branch') || lower.includes('office') || lower.includes('counter')) return false;
+    if (bTokens.length > 0 && bTokens.some((t) => lower.includes(t))) return false;
+    return true;
+  });
+
+  const uniqueEntities = new Set(filteredEntities.map((e) => e.trim().toLowerCase()));
+  if (uniqueEntities.size >= 3) {
+    return true;
+  }
+
+  // 3. Multi-business directory / listicle phone dump
+  const phones = extractPhones(content);
+  const mobiles = extractMobiles(content);
+  const totalPhones = new Set([...phones, ...mobiles]);
+  if (realListicles.length >= 2 && totalPhones.size >= 3) {
+    return true;
+  }
+  if (uniqueEntities.size >= 2 && totalPhones.size >= 4) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Phase 8h (W2-04): Two-Tier Hybrid Gate (Deterministic first, bounded LLM fallback with telemetry).
+ * Budget cap: 10 LLM calls per run, 4,000 char prompt snippet, 5-second timeout.
+ */
+export async function detectMultiBusinessPageWithLlmFallback(
+  content: string,
+  url?: string,
+  businessName?: string,
+  options?: { agent?: any }
+): Promise<{ isMulti: boolean; usedLlm: boolean; reason: string }> {
+  // Tier 1: Deterministic evaluation
+  if (detectMultiBusinessPage(content, url, businessName)) {
+    return { isMulti: true, usedLlm: false, reason: 'DETERMINISTIC_MULTI_PAGE' };
+  }
+
+  // Borderline check: If page mentions blog-like listicle keywords or 2 distinct entities
+  const lowerContent = content.toLowerCase();
+  const isBorderline =
+    /\b(?:top\s*\d+|best\s*\d+|list\s*of|directory|companies\s*in|services\s*in)\b/i.test(
+      lowerContent.slice(0, 4000)
+    );
+
+  if (isBorderline && options?.agent && llmMultiBusinessCallCount < 10) {
+    llmMultiBusinessCallCount++;
+    try {
+      const promptSnippet = content.slice(0, 4000);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+      const prompt = `Analyze this webpage content snippet. Is this a multi-business aggregator/directory/blog listing multiple companies, or is it the official single business website for "${businessName || 'the company'}"? Respond ONLY with a JSON object: {"isMultiBusiness": true/false, "reason": "short explanation"}`;
+
+      const res = await options.agent.generate([
+        { role: 'user', content: `${prompt}\n\nContent:\n${promptSnippet}` },
+      ]);
+      clearTimeout(timeoutId);
+
+      const parsed = JSON.parse(res.text?.trim() || '{}');
+      return {
+        isMulti: Boolean(parsed.isMultiBusiness),
+        usedLlm: true,
+        reason: parsed.reason || 'LLM_CLASSIFICATION',
+      };
+    } catch {
+      return { isMulti: false, usedLlm: true, reason: 'LLM_FALLBACK_TIMEOUT' };
+    }
+  }
+
+  return { isMulti: false, usedLlm: false, reason: 'DETERMINISTIC_SINGLE_PAGE' };
+}
+
 /**
  * Runs ALL deterministic extractors over a set of successfully-extracted pages
  * and produces a lean WebsiteEvidence payload (minus url/domain/pages which the
@@ -1804,6 +2308,12 @@ export function extractAllFromPages(
   for (const page of successful) {
     const pageUrl = page.url;
     const pageText = (page.content || '') + '\n' + (page.rawHtml || '');
+
+    // Phase 8g: Multi-entity directory gate — reject contacts if page mentions >=3 distinct businesses
+    if (detectMultiBusinessPage(pageText, pageUrl, businessName)) {
+      continue;
+    }
+
     for (const email of extractEmails(pageText)) {
       emailSet.add(email);
       const ctx = extractContextAroundMatch(pageText, email);
@@ -1835,7 +2345,7 @@ export function extractAllFromPages(
     allPhoneEvidence.push(evidence);
 
     const context = pageText ? extractContextAroundMatch(pageText, raw) : '';
-    const phoneRole = classifyPhoneRole(raw, context, businessName, classified);
+    const phoneRole = classifyPhoneRole(raw, context, businessName, classified, pageUrl);
 
     if (classified.type !== 'invalid') {
       allClassifiedContacts.push({
@@ -1846,6 +2356,8 @@ export function extractAllFromPages(
         role: phoneRole.role,
         owner: phoneRole.owner,
         channels: phoneRole.channels,
+        associatedPerson: phoneRole.associatedPerson,
+        associatedJobTitle: phoneRole.associatedJobTitle,
         context: context || undefined,
         pageUrl,
       });
@@ -1866,6 +2378,12 @@ export function extractAllFromPages(
 
   for (const page of successful) {
     const pageUrl = page.url;
+    const pageText = (page.content || '') + '\n' + (page.rawHtml || '');
+
+    // Phase 8g: Multi-entity directory gate — reject contacts if page mentions >=3 distinct businesses
+    if (detectMultiBusinessPage(pageText, pageUrl, businessName)) {
+      continue;
+    }
 
     if (page.content) {
       for (const raw of extractLandlinesAndIntl(page.content)) processCandidate(raw, 'markdown', pageUrl, page.content);
@@ -1909,16 +2427,194 @@ export function extractAllFromPages(
     .map((p) => p.content.replace(/\s+/g, ' ').slice(0, 200));
   const rawContentSummary = summaryParts.join(' ... ').slice(0, 600);
 
+  const deduplicatedContacts = deduplicateClassifiedContacts(allClassifiedContacts);
+
   return {
     extractedEmails: [...emailSet],
     extractedPhones: [...phoneSet],
     extractedMobiles: [...mobileSet],
     extractedPhoneEvidence: allPhoneEvidence.length > 0 ? allPhoneEvidence : undefined,
-    extractedClassifiedContacts: allClassifiedContacts.length > 0 ? allClassifiedContacts : undefined,
+    extractedClassifiedContacts: deduplicatedContacts.length > 0 ? deduplicatedContacts : undefined,
     extractedSocialLinks: socialLinks,
     extractedServices: info.services,
     extractedHours: info.hours,
     favicon,
     rawContentSummary: rawContentSummary || undefined,
   };
+}
+
+/**
+ * Deduplicates ClassifiedContact records deterministically using Rule (A): "First-seen wins"
+ * and Rule (B): "Signal OR-Combination" across all page sightings.
+ * Keyed by canonical identity (canonicalDigits for phones, lowercase value for emails).
+ * pagesSeenOn aggregates all normalized unique URLs where the contact was witnessed.
+ */
+export function deduplicateClassifiedContacts(contacts: ClassifiedContact[]): ClassifiedContact[] {
+  const map = new Map<
+    string,
+    {
+      contact: ClassifiedContact;
+      pages: Set<string>;
+      pageTypesSeen: Set<PageType>;
+      hasMapsSignal: boolean;
+      hasPageCtaSignal: boolean;
+      hasGeneralContactSignal: boolean;
+      hasOwnerLeadershipSignal: boolean;
+      hasStaffSignal: boolean;
+      hasBranchSignal: boolean;
+      hasPlatformSignal: boolean;
+    }
+  >();
+
+  for (const c of contacts) {
+    const key = c.type === 'phone'
+      ? (c.canonicalDigits || c.value.replace(/\D/g, ''))
+      : c.value.toLowerCase().trim();
+
+    if (!key) continue;
+
+    const normalizedPageUrl = c.pageUrl ? c.pageUrl.replace(/\/+$/, '') : undefined;
+    const pType = classifyPageType(c.pageUrl);
+
+    const ctx = (c.context || '').toLowerCase();
+    const ctaSignal =
+      /\b(call now|call us|emergency service|fast service|toll free|customer care|hotline|get a quote|need clean|book now|talk to us|phone:)\b/i.test(
+        ctx
+      ) || /\[(?:call|phone|tel|emergency|hotline|now|quote)[^\]]*\]\(tel:/i.test(c.context || '');
+    const generalSignal =
+      pType === 'contact' ||
+      /\b(head office|main office|central office|contact us|email us)\b/i.test(ctx);
+    const branchSignal =
+      c.role === 'branch_contact' ||
+      c.owner === 'branch' ||
+      /\b(branch|branches|outlet|outlets)\b/i.test(ctx);
+    const platformSignal = c.owner === 'platform';
+
+    let ownerSignal = Boolean(
+      c.associatedJobTitle &&
+        OWNER_LEADERSHIP_TITLES.some((t) => c.associatedJobTitle?.toLowerCase().includes(t))
+    );
+    let staffSignal =
+      Boolean(c.owner === 'person' || c.role === 'staff_person') ||
+      Boolean(
+        c.associatedJobTitle &&
+          STAFF_TITLES.some((t) => c.associatedJobTitle?.toLowerCase().includes(t))
+      );
+
+    if (!ownerSignal) {
+      for (const t of OWNER_LEADERSHIP_TITLES) {
+        if (new RegExp(`\\b${t}\\b`, 'i').test(ctx)) {
+          ownerSignal = true;
+          break;
+        }
+      }
+    }
+
+    if (!staffSignal) {
+      for (const t of STAFF_TITLES) {
+        if (new RegExp(`\\b${t}\\b`, 'i').test(ctx)) {
+          staffSignal = true;
+          break;
+        }
+      }
+      if (/\b(dr\.|dr\s|mr\.|mrs\.|ms\.|prof\.)\b/i.test(ctx)) {
+        staffSignal = true;
+      }
+    }
+
+    const existing = map.get(key);
+    if (!existing) {
+      const pages = new Set<string>();
+      if (normalizedPageUrl) pages.add(normalizedPageUrl);
+      if (c.pagesSeenOn) {
+        for (const p of c.pagesSeenOn) {
+          const norm = p.replace(/\/+$/, '');
+          if (norm) pages.add(norm);
+        }
+      }
+      const pageTypesSeen = new Set<PageType>([pType]);
+
+      map.set(key, {
+        contact: { ...c },
+        pages,
+        pageTypesSeen,
+        hasMapsSignal: c.role === 'primary_business' && c.owner === 'business' && !c.context, // raw Maps seed
+        hasPageCtaSignal: ctaSignal,
+        hasGeneralContactSignal: generalSignal,
+        hasOwnerLeadershipSignal: ownerSignal,
+        hasStaffSignal: staffSignal,
+        hasBranchSignal: branchSignal,
+        hasPlatformSignal: platformSignal,
+      });
+    } else {
+      if (normalizedPageUrl) existing.pages.add(normalizedPageUrl);
+      if (c.pagesSeenOn) {
+        for (const p of c.pagesSeenOn) {
+          const norm = p.replace(/\/+$/, '');
+          if (norm) existing.pages.add(norm);
+        }
+      }
+      existing.pageTypesSeen.add(pType);
+      existing.hasPageCtaSignal = existing.hasPageCtaSignal || ctaSignal;
+      existing.hasGeneralContactSignal = existing.hasGeneralContactSignal || generalSignal;
+      existing.hasOwnerLeadershipSignal = existing.hasOwnerLeadershipSignal || ownerSignal;
+      existing.hasStaffSignal = existing.hasStaffSignal || staffSignal;
+      existing.hasBranchSignal = existing.hasBranchSignal || branchSignal;
+      existing.hasPlatformSignal = existing.hasPlatformSignal || platformSignal;
+
+      for (const ch of c.channels || []) {
+        if (!existing.contact.channels.includes(ch)) {
+          existing.contact.channels.push(ch);
+        }
+      }
+
+      if (!existing.contact.associatedPerson && c.associatedPerson) {
+        existing.contact.associatedPerson = c.associatedPerson;
+      }
+      if (!existing.contact.associatedJobTitle && c.associatedJobTitle) {
+        existing.contact.associatedJobTitle = c.associatedJobTitle;
+      }
+    }
+  }
+
+  return Array.from(map.values()).map(
+    ({
+      contact,
+      pages,
+      pageTypesSeen,
+      hasMapsSignal,
+      hasPageCtaSignal,
+      hasGeneralContactSignal,
+      hasOwnerLeadershipSignal,
+      hasStaffSignal,
+      hasBranchSignal,
+      hasPlatformSignal,
+    }) => {
+      // Re-evaluate 9-row decision matrix on the OR-combined signal vector for phones
+      if (contact.type === 'phone') {
+        const reevaluated = evaluateContactRoleMatrix({
+          hasMapsSignal,
+          hasPageCtaSignal,
+          hasGeneralContactSignal,
+          hasOwnerLeadershipSignal,
+          hasStaffSignal,
+          hasBranchSignal,
+          hasPlatformSignal,
+          pageTypesSeen,
+        });
+        contact.role = reevaluated.role;
+        contact.owner = reevaluated.owner;
+      }
+
+      return {
+        ...contact,
+        pagesSeenOn:
+          pages.size > 0
+            ? Array.from(pages)
+            : contact.pageUrl
+            ? [contact.pageUrl.replace(/\/+$/, '')]
+            : undefined,
+      };
+    }
+  );
 }
