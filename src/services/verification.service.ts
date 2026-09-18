@@ -14,7 +14,7 @@ import {
   domainFromUrlOrHost,
   isUsableOfficialWebsite,
 } from './entity-resolution.service';
-import { extractAllFromPages } from './business-extractor.service';
+import { extractAllFromPages, extractPageBusinessName } from './business-extractor.service';
 import {
   classifyWebsiteRelationship,
   determineWebsiteLifecycle,
@@ -197,6 +197,18 @@ function buildWebsiteEvidence(
   candidate: ResearchCandidate,
   pages: WebsitePageEvidence[]
 ): WebsiteEvidence {
+  // Phase 8h (W2-02): Authoritative name extraction from page evidence
+  for (const page of pages) {
+    if (page.success && (page.rawHtml || page.content)) {
+      const authoritative = extractPageBusinessName(page.rawHtml, page.content);
+      if (authoritative && (candidate.nameSource === 'serp_title' || candidate.discoverySource === 'web_fallback')) {
+        candidate.name = authoritative.name;
+        candidate.nameSource = `page_${authoritative.source}` as any;
+        break;
+      }
+    }
+  }
+
   const extracted = extractAllFromPages(pages, candidate.name, candidate.website);
   return {
     url: candidate.website || '',

@@ -32,6 +32,15 @@ export const discoveryProvenanceSchema = z.object({
   selectionReason: z.string().optional(),
   secondChanceAttempted: z.boolean().default(false),
   phoneSourceDomain: z.string().optional(),
+  discoveredSocials: z
+    .object({
+      facebook: z.string().optional(),
+      instagram: z.string().optional(),
+      tiktok: z.string().optional(),
+      linkedin: z.string().optional(),
+      other: z.record(z.string(), z.string()).optional(),
+    })
+    .optional(),
 });
 
 /** Full discovery provenance record carried through candidate -> evidence -> listing. */

@@ -50,11 +50,9 @@ export function buildResearchCandidates(
 ): { candidates: ResearchCandidate[]; matchesMerged: number } {
   let rawPlaces: SerperPlaceResult[] = [];
   let webUsable: Array<{ candidate: UnifiedSearchResult; decision: ResearchDecision }> = [];
-  let defaultLocation: string | undefined;
 
   if (Array.isArray(inputOrPlaces)) {
     rawPlaces = inputOrPlaces;
-    defaultLocation = legacyOptions.defaultLocation;
     for (const r of legacyWebResults) {
       webUsable.push({
         candidate: r,
@@ -72,7 +70,6 @@ export function buildResearchCandidates(
   } else {
     rawPlaces = inputOrPlaces.places || [];
     webUsable = inputOrPlaces.webUsable || [];
-    defaultLocation = inputOrPlaces.defaultLocation;
   }
   let matchesMerged = 0;
 
@@ -94,7 +91,7 @@ export function buildResearchCandidates(
 
     return {
       name: place.title,
-      location: place.address || defaultLocation || '',
+      location: place.address || '',
       website: cleanWebsite,
       phone: place.phoneNumber || '',
       // Phase 7a Task 3: carry the explicit discovery outcome into the candidate.
@@ -109,6 +106,14 @@ export function buildResearchCandidates(
       rating: place.rating,
       ratingCount: place.ratingCount,
       category: place.category || place.type,
+      categories: place.types || (place.category ? [place.category] : []),
+      hours: place.openingHours,
+      priceRange: place.priceLevel,
+      description: place.description,
+      thumbnailUrl: place.thumbnailUrl,
+      bookingLinks: place.bookingLinks,
+      discoverySource: 'google_maps',
+      nameSource: 'maps_title',
       // Safeguard 1: Lean source provenance only, no raw provider blobs.
       // NOTE on provenance: sources.googleMaps.website is EXACTLY what Google Maps
       // reported (raw, unvalidated) — it may be a social/directory URL. The
@@ -204,6 +209,16 @@ export function buildResearchCandidates(
         rating: result.rating,
         ratingCount: result.ratingCount,
         category: result.businessType,
+        discoverySource: 'web_fallback',
+        nameSource: 'serp_title',
+        discoveryState: isUsableOfficialWebsite(result.url) ? 'DISCOVERY_FOUND_FIRST_PARTY' : 'DISCOVERY_FOUND_ONLY_THIRD_PARTY',
+        discoveryProvenance: {
+          queries: [result.title],
+          candidateUrlsReviewed: [result.url],
+          selectedUrl: isUsableOfficialWebsite(result.url) ? normalizeUrl(result.url) : undefined,
+          selectionReason: 'Discovered via web fallback search',
+          secondChanceAttempted: false,
+        },
         sources: {
           googleMaps: undefined, // Invariant: strictly undefined for web-only
           webSearch: [
@@ -284,7 +299,7 @@ export function toUnifiedCandidates(
         url: placeUrl,
         originalUrl: c.website || placeUrl,
         domain,
-        description: `${c.category || 'Business'} in ${c.location || 'Nepal'}. Phone: ${c.phone || 'N/A'}. Rating: ${c.rating ? `${c.rating} (${c.ratingCount || 0} reviews)` : 'N/A'}`,
+        description: c.description || `${c.category || 'Business'} in ${c.location || 'Nepal'}. Phone: ${c.phone || 'N/A'}. Rating: ${c.rating ? `${c.rating} (${c.ratingCount || 0} reviews)` : 'N/A'}`,
         extraSnippets: c.location ? [c.location] : [],
         provider: 'serper_places',
         source: 'google_maps',

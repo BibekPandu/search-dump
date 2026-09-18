@@ -169,6 +169,7 @@ export interface RunSummaryData {
   };
   status?: 'success' | 'partial' | 'failed';
   synthesisMethod?: string;
+  telemetry?: Record<string, unknown>;
   notes?: string[];
 }
 
