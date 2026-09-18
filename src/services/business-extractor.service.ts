@@ -35,11 +35,15 @@ const EMAIL_REGEX = /\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:\.[a-zA-
 // Placeholder / throwaway addresses that must never be treated as real evidence.
 const PLACEHOLDER_EMAIL_PATTERNS = [
   /^example\./i,
-  /@example\.(com|org|net)$/i,
+  /@example\.(com|org|net|co|np)$/i,
+  /@(?:mail|email|test|domain|yoursite)\.(?:com|org|net|co)$/i,
+  /@mail\.com$/i,
+  /@email\.com$/i,
+  /@test\.(com|org|net)$/i,
   /sentry\.io$/i,
   /wixpress\.com$/i,
   /\.wix\.com$/i,
-  /@domain\.(com|net)$/i,
+  /@domain\.(com|net|org)$/i,
   /^test@/i,
   /^user@/i,
   /^email@/i,
@@ -229,6 +233,11 @@ export function classifyNepalPhone(raw: string): ClassifiedPhone {
 
   let digits = cleaned.replace(/\D/g, '');
   if (!digits) return { type: 'invalid', digits: '', normalized: cleaned, reason: 'NO_DIGITS' };
+
+  // Phase 8g: Reject floating-point GPS coordinate strings misparsed as numbers (e.g. 27.382262 or 85.309623)
+  if (/\b\d{1,3}\.\d{4,8}\b/.test(raw.trim())) {
+    return { type: 'invalid', digits: '', normalized: cleaned, reason: 'COORDINATE_FLOAT' };
+  }
 
   // Task 4: Duplicate country code (+977 977 9851234567 -> +977 9851234567)
   if (digits.startsWith('977977')) {
@@ -475,7 +484,9 @@ export function isRealSocialProfile(url: string, platform?: string): boolean {
         return !!(id && /^\d+$/.test(id));
       }
       if (FACEBOOK_RESERVED_PATHS.has(firstSegment)) return false;
-      if (firstSegment.length < 3) return false;
+      const isModernPagePattern = firstSegment === 'p' && pathSegments.length > 1;
+      const isPagesPattern = firstSegment === 'pages' && pathSegments.length > 2;
+      if (!isModernPagePattern && !isPagesPattern && firstSegment.length < 3) return false;
       return true;
     }
 
@@ -656,7 +667,10 @@ export function classifySocialProfile(
         distinctiveTokensFound: [],
       };
     }
-    if (firstSegment.length < 3) {
+    const isModernPagePattern = firstSegment === 'p' && pathSegments.length > 1;
+    const isPagesPattern = firstSegment === 'pages' && pathSegments.length > 2;
+
+    if (!isModernPagePattern && !isPagesPattern && firstSegment.length < 3) {
       return {
         url,
         platform: plat,
@@ -764,7 +778,11 @@ export function classifySocialProfile(
 
   // Extract handle
   let handle = firstSegment;
-  if (plat === 'linkedin' && firstSegment === 'company') {
+  if (plat === 'facebook' && firstSegment === 'p' && pathSegments.length > 1) {
+    handle = (pathSegments[1] || '').replace(/-\d{8,}$/, '');
+  } else if (plat === 'facebook' && firstSegment === 'pages' && pathSegments.length > 2) {
+    handle = (pathSegments[2] || '').replace(/-\d+$/, '');
+  } else if (plat === 'linkedin' && firstSegment === 'company') {
     handle = (pathSegments[1] || '').toLowerCase();
     if (!handle || handle.length < 2 || ['sharearticle', 'share-offsite'].includes(handle)) {
       return {
@@ -1177,6 +1195,9 @@ export function extractEmails(content: string): string[] {
     const emailDomain = email.split('@')[1]?.toLowerCase() ?? '';
     const tld = emailDomain.split('.').pop() ?? '';
     if (tld.length < 2) continue;
+
+    // Phase 8g: Reject invalid / typo Nepal ccTLDs (e.g. .co.np is a typo for .com.np)
+    if (emailDomain.endsWith('.co.np')) continue;
 
     // Task 5: Reject emails whose domain ends with an image/media file extension
     if (IMAGE_FILE_TLDS.has(tld)) continue;
@@ -2006,6 +2027,255 @@ export function extractBusinessInfo(content: string): {
   return result;
 }
 
+function isGenericName(name: string): boolean {
+  const lower = name.toLowerCase().trim();
+  const genericStrings = [
+    'home',
+    'welcome',
+    'about us',
+    'contact us',
+    'privacy policy',
+    'terms of service',
+    'services',
+    'our services',
+    '404',
+    'not found',
+    'error',
+    'untitled',
+    'index',
+  ];
+  return genericStrings.includes(lower);
+}
+
+export interface ExtractedPageBusinessName {
+  name: string;
+  source: 'schema' | 'h1' | 'og' | 'title';
+}
+
+/**
+ * Phase 8h (W2-02): Authoritatively extracts real business name from page HTML / Markdown.
+ * Priority: Schema.org JSON-LD -> og:site_name -> Clean <h1> -> Clean <title>.
+ */
+export function extractPageBusinessName(
+  rawHtml?: string,
+  markdown?: string
+): ExtractedPageBusinessName | null {
+  // 1. JSON-LD Schema.org name
+  if (rawHtml) {
+    const schemaMatches = rawHtml.matchAll(
+      /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi
+    );
+    for (const match of schemaMatches) {
+      try {
+        const json = JSON.parse(match[1]);
+        const entities = Array.isArray(json) ? json : [json];
+        for (const item of entities) {
+          const type = (item['@type'] || '').toString().toLowerCase();
+          if (
+            type.includes('organization') ||
+            type.includes('business') ||
+            type.includes('store') ||
+            type.includes('restaurant') ||
+            type.includes('company') ||
+            type.includes('service') ||
+            type.includes('hotel')
+          ) {
+            if (
+              typeof item.name === 'string' &&
+              item.name.trim().length >= 3 &&
+              item.name.trim().length <= 70
+            ) {
+              const cleaned = item.name.trim();
+              if (!isGenericName(cleaned)) {
+                return { name: cleaned, source: 'schema' };
+              }
+            }
+          }
+        }
+      } catch {}
+    }
+
+    // 2. OpenGraph site_name
+    const ogMatch =
+      rawHtml.match(/<meta[^>]*property=["']og:site_name["'][^>]*content=["']([^"']+)["']/i) ||
+      rawHtml.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:site_name["']/i);
+    if (ogMatch && ogMatch[1]) {
+      const ogName = ogMatch[1].trim();
+      if (ogName.length >= 3 && ogName.length <= 60 && !isGenericName(ogName)) {
+        return { name: ogName, source: 'og' };
+      }
+    }
+
+    // 3. Clean <h1> from HTML
+    const h1Match = rawHtml.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+    if (h1Match && h1Match[1]) {
+      const h1Text = h1Match[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      if (h1Text.length >= 3 && h1Text.length <= 60 && !isGenericName(h1Text)) {
+        return { name: h1Text, source: 'h1' };
+      }
+    }
+  }
+
+  // 4. Markdown # Heading
+  if (markdown) {
+    const mdH1 = markdown.match(/^#\s+([^\n\r]+)/m);
+    if (mdH1 && mdH1[1]) {
+      const heading = mdH1[1].trim();
+      if (heading.length >= 3 && heading.length <= 60 && !isGenericName(heading)) {
+        return { name: heading, source: 'h1' };
+      }
+    }
+  }
+
+  // 5. HTML <title> tag (stripping common marketing / location suffixes)
+  if (rawHtml) {
+    const titleMatch = rawHtml.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+    if (titleMatch && titleMatch[1]) {
+      let titleText = titleMatch[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      titleText = titleText
+        .split(/\s*[-–|:]\s*(?:home|official|welcome|about|contact|best|top|kathmandu|nepal|services)/i)[0]
+        .trim();
+      if (titleText.length >= 3 && titleText.length <= 60 && !isGenericName(titleText)) {
+        return { name: titleText, source: 'title' };
+      }
+    }
+  }
+
+  return null;
+}
+
+let llmMultiBusinessCallCount = 0;
+
+export function getLlmMultiBusinessCallCount(): number {
+  return llmMultiBusinessCallCount;
+}
+
+export function resetLlmMultiBusinessCallCount(): void {
+  llmMultiBusinessCallCount = 0;
+}
+
+/**
+ * Phase 8h (W2-04): Enhanced multi-business listing / directory / aggregator / blog post detector.
+ * Identifies pages presenting multiple distinct companies, contacts, or listicles.
+ */
+export function detectMultiBusinessPage(
+  content: string,
+  url?: string,
+  businessName?: string
+): boolean {
+  if (!content) return false;
+
+  if (url) {
+    const lowerUrl = url.toLowerCase();
+    if (
+      lowerUrl.includes('/directory') ||
+      lowerUrl.includes('/yellow-pages') ||
+      lowerUrl.includes('/yellowpages') ||
+      lowerUrl.includes('/listings') ||
+      lowerUrl.includes('/category/') ||
+      lowerUrl.includes('/categories/') ||
+      lowerUrl.includes('/listing/') ||
+      lowerUrl.includes('/eatery/') ||
+      lowerUrl.includes('skillsewa.com')
+    ) {
+      return true;
+    }
+  }
+
+  // 1. Numbered listicle headings (e.g. <h2>1. Apex... <h2>2. Kathmandu... <h2>3. Smart...)
+  const listicleMatches =
+    content.match(/(?:<h[1-6][^>]*>|^|\n|\.\s+)\s*\d{1,2}\.?\s+(?:Top|Best|[A-Z])[A-Za-z0-9\s&'-]{3,40}/gi) || [];
+  const realListicles = listicleMatches.filter((m) => !/\bbranch\b/i.test(m));
+  if (realListicles.length >= 3) {
+    return true;
+  }
+
+  // 2. Distinct standalone corporate entities (e.g. "X Pvt Ltd", "Y Suppliers", "Z Traders", "W Enterprises")
+  const text = content.replace(/<[^>]+>/g, ' ');
+  const entityMatches =
+    text.match(
+      /\b[A-Z][A-Za-z0-9\s&'-]{2,35}\s+(?:Pvt\.?\s*Ltd\.?|Suppliers?|Traders?|Enterprises?|Pvt\b|Limited\b)\b/gi
+    ) || [];
+
+  const bTokens = businessName
+    ? businessName.toLowerCase().split(/\s+/).filter((t) => t.length > 2)
+    : [];
+  const filteredEntities = entityMatches.filter((e) => {
+    const lower = e.toLowerCase();
+    if (lower.includes('branch') || lower.includes('office') || lower.includes('counter')) return false;
+    if (bTokens.length > 0 && bTokens.some((t) => lower.includes(t))) return false;
+    return true;
+  });
+
+  const uniqueEntities = new Set(filteredEntities.map((e) => e.trim().toLowerCase()));
+  if (uniqueEntities.size >= 3) {
+    return true;
+  }
+
+  // 3. Multi-business directory / listicle phone dump
+  const phones = extractPhones(content);
+  const mobiles = extractMobiles(content);
+  const totalPhones = new Set([...phones, ...mobiles]);
+  if (realListicles.length >= 2 && totalPhones.size >= 3) {
+    return true;
+  }
+  if (uniqueEntities.size >= 2 && totalPhones.size >= 4) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Phase 8h (W2-04): Two-Tier Hybrid Gate (Deterministic first, bounded LLM fallback with telemetry).
+ * Budget cap: 10 LLM calls per run, 4,000 char prompt snippet, 5-second timeout.
+ */
+export async function detectMultiBusinessPageWithLlmFallback(
+  content: string,
+  url?: string,
+  businessName?: string,
+  options?: { agent?: any }
+): Promise<{ isMulti: boolean; usedLlm: boolean; reason: string }> {
+  // Tier 1: Deterministic evaluation
+  if (detectMultiBusinessPage(content, url, businessName)) {
+    return { isMulti: true, usedLlm: false, reason: 'DETERMINISTIC_MULTI_PAGE' };
+  }
+
+  // Borderline check: If page mentions blog-like listicle keywords or 2 distinct entities
+  const lowerContent = content.toLowerCase();
+  const isBorderline =
+    /\b(?:top\s*\d+|best\s*\d+|list\s*of|directory|companies\s*in|services\s*in)\b/i.test(
+      lowerContent.slice(0, 4000)
+    );
+
+  if (isBorderline && options?.agent && llmMultiBusinessCallCount < 10) {
+    llmMultiBusinessCallCount++;
+    try {
+      const promptSnippet = content.slice(0, 4000);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+      const prompt = `Analyze this webpage content snippet. Is this a multi-business aggregator/directory/blog listing multiple companies, or is it the official single business website for "${businessName || 'the company'}"? Respond ONLY with a JSON object: {"isMultiBusiness": true/false, "reason": "short explanation"}`;
+
+      const res = await options.agent.generate([
+        { role: 'user', content: `${prompt}\n\nContent:\n${promptSnippet}` },
+      ]);
+      clearTimeout(timeoutId);
+
+      const parsed = JSON.parse(res.text?.trim() || '{}');
+      return {
+        isMulti: Boolean(parsed.isMultiBusiness),
+        usedLlm: true,
+        reason: parsed.reason || 'LLM_CLASSIFICATION',
+      };
+    } catch {
+      return { isMulti: false, usedLlm: true, reason: 'LLM_FALLBACK_TIMEOUT' };
+    }
+  }
+
+  return { isMulti: false, usedLlm: false, reason: 'DETERMINISTIC_SINGLE_PAGE' };
+}
+
 /**
  * Runs ALL deterministic extractors over a set of successfully-extracted pages
  * and produces a lean WebsiteEvidence payload (minus url/domain/pages which the
@@ -2038,6 +2308,12 @@ export function extractAllFromPages(
   for (const page of successful) {
     const pageUrl = page.url;
     const pageText = (page.content || '') + '\n' + (page.rawHtml || '');
+
+    // Phase 8g: Multi-entity directory gate — reject contacts if page mentions >=3 distinct businesses
+    if (detectMultiBusinessPage(pageText, pageUrl, businessName)) {
+      continue;
+    }
+
     for (const email of extractEmails(pageText)) {
       emailSet.add(email);
       const ctx = extractContextAroundMatch(pageText, email);
@@ -2102,6 +2378,12 @@ export function extractAllFromPages(
 
   for (const page of successful) {
     const pageUrl = page.url;
+    const pageText = (page.content || '') + '\n' + (page.rawHtml || '');
+
+    // Phase 8g: Multi-entity directory gate — reject contacts if page mentions >=3 distinct businesses
+    if (detectMultiBusinessPage(pageText, pageUrl, businessName)) {
+      continue;
+    }
 
     if (page.content) {
       for (const raw of extractLandlinesAndIntl(page.content)) processCandidate(raw, 'markdown', pageUrl, page.content);
