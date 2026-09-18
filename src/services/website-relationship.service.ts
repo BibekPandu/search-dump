@@ -60,7 +60,24 @@ export const DIRECTORY_DOMAINS = new Set<string>([
   'mapcarta.com',
   'wikimapia.org',
   'openstreetmap.org',
+  'restaurantguru.com',
+  'usnepal.com',
+  'noshnepal.com',
+  'directoryofnepal.com',
+  'bhansaghar.com',
+  'bhansaghar.com.np',
+  'skillsewa.com',
+  'nepalhotel.com',
+  'yandex.ru',
+  'yandex.com',
+  'prolinknepal.com',
+  'hamrobazaar.com',
+  'volza.com',
 ]);
+
+export const DIRECTORY_LISTING_PATHS: RegExp[] = [
+  /\/(restaurant|restaurants|listing|listings|business|businesses|company|companies|places|eatery|profile|catalog|vendor|classifieds?|org|services?)\/[a-z0-9_-]+/i,
+];
 
 /** Backward-compatible export combining all third-party platforms */
 export const THIRD_PARTY_PLATFORMS = new Set<string>([
@@ -310,6 +327,30 @@ export function classifyWebsiteRelationship(
       confidence: 0.85,
       signals: { domainNameTokenMatch: false, hardBlockMatch: true, vendorFingerprint },
     };
+  }
+
+  // STEP 1D: Directory listing path pattern check (e.g. /restaurant/{slug}, /places/{id})
+  if (websiteUrl) {
+    try {
+      const pathname = new URL(websiteUrl).pathname;
+      if (DIRECTORY_LISTING_PATHS.some((p) => p.test(pathname))) {
+        const tokens = extractBusinessNameTokens(businessName);
+        const domainTokens = domainLower.replace(/\.[^/.]+$/, '').split(/[.-]/);
+        const hasDirectTokenMatch = tokens.some(
+          (t) => domainTokens.includes(t) || (t.length >= 4 && domainLower.includes(t))
+        );
+        if (!hasDirectTokenMatch) {
+          return {
+            relationship: 'directory',
+            isContactEnrichable: false,
+            confidence: 0.9,
+            signals: { domainNameTokenMatch: false, hardBlockMatch: true, vendorFingerprint },
+          };
+        }
+      }
+    } catch {
+      // pass
+    }
   }
 
   // STEP 1.5: Corporate parent check

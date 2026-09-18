@@ -4,7 +4,7 @@ import {
   detectBusinessCategory,
   isUsableOfficialWebsite,
 } from './entity-resolution.service';
-import { extractPhones, extractMobiles } from './business-extractor.service';
+import { extractPhones, extractMobiles, classifySocialProfile } from './business-extractor.service';
 
 // ============================================================================
 // Website Discovery Gate — Universal Candidate Evaluation (Phase 7a Task 3)
@@ -112,6 +112,14 @@ export interface DiscoveryGroupRecord {
   phoneSourceDomain?: string;
   /** Task 5: true when a bounded second-chance query was executed. */
   secondChanceAttempted?: boolean;
+  /** Discovered social media profiles from candidateUrlsReviewed (FB, IG, TikTok, LinkedIn) */
+  discoveredSocials?: {
+    facebook?: string;
+    instagram?: string;
+    tiktok?: string;
+    linkedin?: string;
+    other?: Record<string, string>;
+  };
 }
 
 export interface DiscoveryGateSummary {
@@ -544,6 +552,37 @@ export async function runWebsiteDiscoveryGate(
       }
     }
 
+    // Extract & classify SERP-discovered social media profiles
+    if (record.candidateUrlsReviewed.length > 0) {
+      const discoveredSocials: {
+        facebook?: string;
+        instagram?: string;
+        tiktok?: string;
+        linkedin?: string;
+        other?: Record<string, string>;
+      } = {};
+      for (const u of record.candidateUrlsReviewed) {
+        const classified = classifySocialProfile(u, undefined, representative.title);
+        if (classified.status === 'accepted' && classified.profileType === 'business_page') {
+          if (classified.platform === 'facebook' && !discoveredSocials.facebook) {
+            discoveredSocials.facebook = u;
+          } else if (classified.platform === 'instagram' && !discoveredSocials.instagram) {
+            discoveredSocials.instagram = u;
+          } else if (classified.platform === 'tiktok' && !discoveredSocials.tiktok) {
+            discoveredSocials.tiktok = u;
+          } else if (classified.platform === 'linkedin' && !discoveredSocials.linkedin) {
+            discoveredSocials.linkedin = u;
+          }
+        }
+      }
+      if (Object.keys(discoveredSocials).length > 0) {
+        record.discoveredSocials = discoveredSocials;
+        for (const member of group.members) {
+          (member as any).discoveredSocials = discoveredSocials;
+        }
+      }
+    }
+
     // 4. Apply the outcome to every duplicate object (no contradictory states).
     for (const member of group.members) {
       member.discoveryState = record.state;
@@ -554,6 +593,7 @@ export async function runWebsiteDiscoveryGate(
         selectionReason: record.selectionReason,
         secondChanceAttempted: Boolean(record.secondChanceAttempted),
         phoneSourceDomain: record.phoneSourceDomain,
+        discoveredSocials: record.discoveredSocials,
       };
       if (record.selectedUrl && !hasMapsWebsite(member)) member.website = record.selectedUrl;
     }

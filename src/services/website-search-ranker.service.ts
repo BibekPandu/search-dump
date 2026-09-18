@@ -95,7 +95,7 @@ const THIRD_PARTY_DOMAINS = new Set<string>([
 ]);
 
 const DIRECTORY_PATH_PATTERNS: RegExp[] = [
-  /\/(schools?|colleges?|institutes?|listings?|directory|places?|businesses?)\//i,
+  /\/(schools?|colleges?|institutes?|listings?|directory|places?|businesses?|eatery|eateries|restaurants?|menu\/restaurant|restaurant-review|services?)\//i,
   /\/(search|results|category|categories|browse|tag)\b/i,
   /[?&](q|query|search|s)=/i,
   /\/(c|biz|company|profile)\/\d+/i,
@@ -163,8 +163,45 @@ export function locationTokens(location?: string): string[] {
     .filter((t) => t.length >= 3 && t !== 'nepal');
 }
 
+const GENERIC_CATEGORY_WORDS = new Set([
+  'school',
+  'schools',
+  'college',
+  'colleges',
+  'institute',
+  'institutes',
+  'academy',
+  'hotel',
+  'hotels',
+  'restaurant',
+  'restaurants',
+  'restro',
+  'cafe',
+  'kitchen',
+  'hub',
+  'hospital',
+  'clinic',
+  'dental',
+  'store',
+  'shop',
+  'services',
+  'service',
+  'directory',
+  'listing',
+  'portal',
+]);
+
 export function isThirdPartyDomain(domain: string): boolean {
   if (!domain) return false;
+  const lower = domain.toLowerCase();
+  if (
+    lower.includes('directory') ||
+    lower.includes('yellowpages') ||
+    lower.includes('tripadvisor') ||
+    lower.includes('restaurantguru')
+  ) {
+    return true;
+  }
   for (const blocked of THIRD_PARTY_DOMAINS) {
     if (domain === blocked || domain.endsWith(`.${blocked}`)) return true;
   }
@@ -233,7 +270,7 @@ function textContainsToken(text: string, token: string): boolean {
  * an accidental double match unlikely, and identity verification (Phase 7 Task 7)
  * plus the isUsableOfficialWebsite category gate remain the downstream guards.
  */
-function scoreCandidate(
+export function scoreCandidate(
   candidate: RankedUrl,
   index: number,
   distinctiveTokens: string[],
@@ -295,7 +332,15 @@ function scoreCandidate(
     reasons.push(`deep/article path (${RANK_WEIGHTS.deepPathPenalty})`);
   }
 
-  const thirdParty = isThirdPartyDomain(domain) || looksThirdPartyUrl(url);
+  const brandDistinctiveTokens = distinctiveTokens.filter(
+    (t) => !GENERIC_CATEGORY_WORDS.has(t.toLowerCase())
+  );
+  const hasDistinctiveInDomain =
+    brandDistinctiveTokens.length > 0 &&
+    brandDistinctiveTokens.some((t) => domainLower.includes(t));
+
+  const looksDir = looksThirdPartyUrl(url);
+  const thirdParty = isThirdPartyDomain(domain) || (looksDir && !hasDistinctiveInDomain);
   if (thirdParty) {
     score += RANK_WEIGHTS.thirdPartyPenalty;
     reasons.push(`third-party/directory signal (${RANK_WEIGHTS.thirdPartyPenalty})`);
