@@ -90,6 +90,21 @@ export const DIRECTORY_DOMAINS = new Set([
   'prolinknepal.com',
   'hamrobazaar.com',
   'volza.com',
+  'collegenp.com',
+  'suvidhasewa.com.np',
+  'aarohnepal.org',
+  'virtualedufairnepal.com',
+  'play.google.com',
+  'apps.apple.com',
+  'merokirana.com',
+  'nepalhomesearch.com',
+  'bihebazaar.com',
+  'playo.co',
+  'cybo.com',
+  'turantcall.com',
+  'findallnepal.com',
+  'scorchdeal.com',
+  'hospitalnepal.com',
 ]);
 
 export const SOCIAL_DOMAINS = new Set([
@@ -123,6 +138,16 @@ export const CONTENT_TRAVEL_DOMAINS = new Set([
   'travelinsighter.com',
   'sprudge.com',
   'thelongestwayhome.com',
+  'khabarhub.com',
+  'english.khabarhub.com',
+  'hamropatro.com',
+  'onlinekhabar.com',
+  'ratopati.com',
+  'setopati.com',
+  'nagariknetwork.com',
+  'ekantipur.com',
+  'thehimalayantimes.com',
+  'nepalnews.com',
 ]);
 
 const NON_ENTITY_PATHS: RegExp[] = [
