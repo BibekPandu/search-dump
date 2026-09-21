@@ -24,6 +24,7 @@ export const MAPS_ONLY_FALLBACK_BASELINE = 0.5;
 export interface ConfidenceInputs {
   // Maps signals
   isMapsCandidate: boolean;
+  mapsPhone?: string;
   rating?: number;
   ratingCount?: number;
   placeId?: string;
@@ -113,11 +114,15 @@ export function computeWebsiteEvidenceConfidence(inputs: ConfidenceInputs): numb
 
 export function computeContactConfidence(inputs: ConfidenceInputs): number {
   const checks = inputs.verificationChecks;
-  if (!checks) return 0;
+  const isMapsCandidate = inputs.isMapsCandidate;
+  const hasMapsPhone = Boolean(inputs.mapsPhone || (isMapsCandidate && ((inputs.phonesCount ?? 0) + (inputs.mobilesCount ?? 0) > 0)));
+
   let score = 0;
-  if (checks.phoneMatchesMaps) score += 0.4;
-  if (checks.emailFoundOnWebsite) score += 0.3;
-  if (checks.addressOrLocationFoundOnWebsite) score += 0.2;
+  if (checks?.phoneMatchesMaps || (isMapsCandidate && hasMapsPhone && !inputs.hasWebsiteEvidence)) {
+    score += 0.4;
+  }
+  if (checks?.emailFoundOnWebsite) score += 0.3;
+  if (checks?.addressOrLocationFoundOnWebsite) score += 0.2;
   // Total unique phone identity count (guaranteed unique by Task 4)
   const totalPhones = (inputs.phonesCount ?? 0) + (inputs.mobilesCount ?? 0);
   if (totalPhones >= 2) score += 0.1;
@@ -191,7 +196,8 @@ export function computeConfidenceBreakdown(inputs: ConfidenceInputs): Confidence
       phoneVerified:
         ((inputs.finalPhones !== undefined ? inputs.finalPhones.length : (inputs.phonesCount ?? 0)) +
          (inputs.finalMobiles !== undefined ? inputs.finalMobiles.length : (inputs.mobilesCount ?? 0))) > 0 &&
-        (inputs.verificationChecks?.phoneMatchesMaps ?? false),
+        ((inputs.verificationChecks?.phoneMatchesMaps ?? false) ||
+         (inputs.isMapsCandidate && ((inputs.phonesCount ?? 0) > 0 || (inputs.mobilesCount ?? 0) > 0 || Boolean(inputs.mapsPhone)))),
       emailVerified:
         (inputs.finalEmails?.length ?? 0) > 0 &&
         (inputs.verificationChecks?.emailFoundOnWebsite ?? false),

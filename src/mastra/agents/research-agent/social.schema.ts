@@ -27,6 +27,7 @@ export const socialRejectionReasonEnum = z.enum([
   'BUSINESS_NAME_MISMATCH',
   'RESERVED_PATH',
   'NOT_A_REAL_PROFILE',
+  'OPAQUE_CHANNEL_ID',
   'UNSUPPORTED',
   'INSUFFICIENT_EVIDENCE',
 ]);
@@ -41,6 +42,7 @@ export type SocialStatus = z.infer<typeof socialStatusEnum>;
 
 export const classifiedSocialProfileSchema = z.object({
   url: z.string(),
+  canonicalUrl: z.string().optional(),
   platform: z.enum(['facebook', 'instagram', 'tiktok', 'twitter', 'youtube', 'linkedin', 'other']),
   handle: z.string(),
   profileType: socialProfileTypeEnum,

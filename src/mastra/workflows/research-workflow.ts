@@ -52,7 +52,8 @@ import {
   getLlmMultiBusinessCallCount,
   resetLlmMultiBusinessCallCount,
 } from '../../services/business-extractor.service';
-import { mergeDuplicateDomainEntities } from '../../services/entity-resolution.service';
+import { getTelemetry, incrementTelemetry } from '../../services/telemetry.service';
+import { mergeDuplicateEntities } from '../../services/entity-resolution.service';
 import {
   researchReportSchema,
   researchCandidateSchema,
@@ -499,6 +500,7 @@ export async function runResearchDiscovery(
           results,
           businessName: place.title,
           location: location || place.address,
+          categoryContext: [query, place.category, place.type, place.types].flat().filter(Boolean) as string[],
           isUsable: (candidate) =>
             isUsableOfficialWebsite(
               candidate.url,
@@ -1451,26 +1453,89 @@ async function fetchRawPageHtml(url: string, timeoutMs = 8000, maxRetries = 1): 
       const dynamicCluster = location ? await geocodeLocality(location) : null;
       const verifiedEvidence = buildVerifiedEvidence(researchCandidates, extractionsByCandidate);
 
-      // Phase 8h (W2-03): Step 2 extracted address revalidation against dynamic geocoder
+      // Phase 8h (W2-03) & Phase 8i (GEO-02): Step 2 extracted address revalidation against dynamic geocoder
       if (location) {
         for (const ev of verifiedEvidence) {
           const c = ev.candidate;
-          const candidateAddress = c.location || '';
-          if (candidateAddress) {
-            const recheck = revalidateExtractedCandidateAddress(
+          let candidateAddress = c.location || (c as any).address || '';
+          let discoveredCoords: { lat: number; lng: number } | undefined =
+            c.coordinates?.lat !== undefined && c.coordinates?.lng !== undefined
+              ? { lat: c.coordinates.lat, lng: c.coordinates.lng }
+              : undefined;
+
+          if (ev.websiteEvidence?.pages) {
+            for (const page of ev.websiteEvidence.pages) {
+              const fullHtml = page.rawHtml || '';
+              const fullContent = page.content || '';
+              const combinedText = fullContent + '\n' + fullHtml;
+
+              // 1. Meta geo position / ICBM coordinates
+              if (!discoveredCoords) {
+                const geoMeta = fullHtml.match(/<meta\s+name=["'](?:geo\.position|ICBM)["']\s+content=["']([0-9.]+)[;, ]+([0-9.]+)["']/i);
+                if (geoMeta) {
+                  const lat = parseFloat(geoMeta[1]);
+                  const lng = parseFloat(geoMeta[2]);
+                  if (!isNaN(lat) && !isNaN(lng) && lat > 20 && lat < 32 && lng > 79 && lng < 89) {
+                    discoveredCoords = { lat, lng };
+                    c.coordinates = { lat, lng };
+                  }
+                }
+              }
+
+              if (!candidateAddress) {
+                // 2. JSON-LD schema address
+                const schemaMatch = combinedText.match(/["'](?:streetAddress|addressLocality)["']\s*:\s*["']([^"']+)["']/i);
+                if (schemaMatch && schemaMatch[1].trim().length > 3) {
+                  candidateAddress = schemaMatch[1].trim();
+                  break;
+                }
+
+                // 3. HTML address or contact container
+                const contactHtmlMatch = fullHtml.match(/(?:class|id)=["'][^"']*(?:sidebar__contact|contact-text|footer-address|contact-info|address-text|location-text)[^"']*["'][^>]*>([\s\S]*?)<\/(?:div|p|span|address|li)>/i);
+                if (contactHtmlMatch) {
+                  const cleanText = contactHtmlMatch[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+                  if (cleanText.length > 5 && (/[0-9]/.test(cleanText) || /kathmandu|lalitpur|bhaktapur|ward|galli|marg|road|chowk|tole|anamnagar|satungal|chandragiri/i.test(cleanText))) {
+                    candidateAddress = cleanText;
+                    break;
+                  }
+                }
+
+                // 4. Content text based in / office / address
+                const textLocMatch = fullContent.match(/(?:based in|office(?: located)? at|located (?:at|in)|address\s*:?|head office\s*:?)\s*([A-Za-z0-9\s,-]{5,80})/i);
+                if (textLocMatch) {
+                  candidateAddress = textLocMatch[1].trim();
+                  break;
+                }
+
+                // 5. Locality mentions with city
+                const cityMentionMatch = combinedText.match(/(?:Anamnagar|Putalisadak|Thamel|New Road|Baneshwor|Koteshwor|Kalanki|Satungal|Balkhu|Kirtipur|Chabahil|Maharajgunj|Lazimpat|Jhamsikhel|Kupondole|Sanepa)[^,\n.<>]*,\s*(?:Chandragiri Galli,\s*)?(?:Kathmandu|Lalitpur|Bhaktapur|Nepal)[A-Za-z0-9\s,-]*/i);
+                if (cityMentionMatch) {
+                  candidateAddress = cityMentionMatch[0].trim();
+                  break;
+                }
+              }
+            }
+          }
+
+          if (candidateAddress || discoveredCoords) {
+            const recheck = await revalidateExtractedCandidateAddress(
               c,
-              candidateAddress,
+              candidateAddress || `${c.name} Location`,
               location,
               dynamicCluster
             );
             if (!recheck.isValid) {
               console.log(
-                `[Workflow:Step2] W2-03 Address Re-check Exclusion: Candidate "${c.name}" address "${candidateAddress}" is outside target "${location}": ${recheck.reason}`
+                `[Workflow:Step2] W2-03/GEO-02 Address Re-check Exclusion: Candidate "${c.name}" address "${candidateAddress}" is outside target "${location}": ${recheck.reason}`
               );
               ev.verification.checks.addressOrLocationFoundOnWebsite = false;
-              if (ev.verification.status === 'verified') {
-                ev.verification.status = 'partial';
-              }
+              ev.verification.status = 'failed';
+              ev.websiteRelationship = 'unverified';
+              (c as any).isGeographicallyExcluded = true;
+              (c as any).geographicExclusionReason = recheck.reason;
+              (ev as any).isGeographicallyExcluded = true;
+              (ev as any).geographicExclusionReason = recheck.reason;
+              incrementTelemetry('conflictingLocalityExclusions');
             }
           }
         }
@@ -1621,7 +1686,11 @@ export const supervisorSynthesisStep = createStep({
       if (agent) {
         try {
           console.log(`[Workflow:Step3] Invoking Layer 2: ${preferredAgentId}...`);
-          const response = await agent.generate(prompt);
+          const agentPromise = agent.generate(prompt);
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error(`Agent ${preferredAgentId} timed out after 20s`)), 20000)
+          );
+          const response = (await Promise.race([agentPromise, timeoutPromise])) as any;
           const parsed = parseListingsFromJson(response.text);
           if (parsed.length > 0) {
             console.log(`[Workflow:Step3] Synthesis succeeded via ${preferredAgentId} (${parsed.length} listings)`);
@@ -1657,6 +1726,20 @@ export const supervisorSynthesisStep = createStep({
         });
       })
       .filter((item) => item.name !== 'Unknown Name');
+
+    // Filter out any listings whose candidate evidence was excluded during Step 2 address revalidation
+    if (verifiedEvidence && verifiedEvidence.length > 0) {
+      listings = listings.filter((l) => {
+        const ev = matchListingToEvidence(l, verifiedEvidence);
+        if (ev && ((ev.candidate as any).isGeographicallyExcluded || (ev as any).isGeographicallyExcluded)) {
+          console.log(
+            `[Workflow:Step3] Dropping geographically excluded listing: "${l.name}" (${(ev.candidate as any).geographicExclusionReason || (ev as any).geographicExclusionReason || 'Excluded in Step 2'})`
+          );
+          return false;
+        }
+        return true;
+      });
+    }
 
     // ========================================================================
     // Post-Synthesis: Deterministic GPS & Phone Re-injection + Tradesmen Preservation
@@ -1821,11 +1904,11 @@ export const supervisorSynthesisStep = createStep({
       console.log(`[Workflow:Step3] Sanitized ${sanitizedCount}/${verifiedEvidence.length} evidence records onto listings`);
     }
 
-    // Auto-merge duplicate domain entities (POSSIBLY_SAME_ENTITY + shared domain)
-    const { mergedListings, autoMergedCount } = mergeDuplicateDomainEntities(listings);
+    // Auto-merge duplicate entities (shared domain, phone, or social + entity alignment)
+    const { mergedListings, autoMergedCount } = mergeDuplicateEntities(listings);
     if (autoMergedCount > 0) {
       console.log(
-        `[Workflow:Step3] Auto-merged ${autoMergedCount} duplicate domain listings using 4-tier deterministic resolution`
+        `[Workflow:Step3] Auto-merged ${autoMergedCount} duplicate listings using 4-tier deterministic resolution`
       );
       listings = mergedListings;
     }
@@ -1912,6 +1995,7 @@ export const supervisorSynthesisStep = createStep({
       const inputs: ConfidenceInputs = {
         // Maps signals
         isMapsCandidate: listing.metadata?.source === 'google_maps' || Boolean(listing.placeId) || Boolean(listing.ratingCount),
+        mapsPhone: (listing.otherDetails as any)?.mapsPhone || (listing as any).mapsPhone || ev?.candidate?.phone || (ev?.candidate?.sources?.googleMaps as any)?.phone,
         rating: listing.rating ?? (listing.metadata as any)?.rating,
         ratingCount: listing.ratingCount ?? (listing.metadata as any)?.ratingCount,
         placeId: listing.placeId ?? (listing.metadata as any)?.placeId,
@@ -2052,6 +2136,12 @@ export const supervisorSynthesisStep = createStep({
         llmMultiBusinessCallsUsed: getLlmMultiBusinessCallCount(),
         socialsCascadeRejected: totalCascadeSocials,
         contactsCascadeRejected: totalCascadeContacts,
+        streetNameCollisionsCaught: getTelemetry().streetNameCollisionsCaught,
+        conflictingLocalityExclusions: getTelemetry().conflictingLocalityExclusions,
+        tieredCorroborationRejections: getTelemetry().tieredCorroborationRejections,
+        directorySubdomainPenalties: getTelemetry().directorySubdomainPenalties,
+        templateFingerprintMatches: getTelemetry().templateFingerprintMatches,
+        socialUrlsCanonicalized: getTelemetry().socialUrlsCanonicalized,
       },
       status: listings.length > 0 ? 'success' : 'failed',
       synthesisMethod: 'OpenRouter Supervisor Agent / Deterministic Fallback',
@@ -2423,19 +2513,34 @@ export function sanitizeListingWithEvidence(
 
   const validateSocialCandidate = (
     url: string,
-    plat?: 'facebook' | 'instagram' | 'tiktok' | 'linkedin' | 'other'
-  ): boolean => {
-    if (!url || !isRealSocialProfile(url, plat)) return false;
-    const classified = classifySocialProfile(url, plat, candidate.name, isFirstParty ? websiteDomain : undefined);
+    plat?: 'facebook' | 'instagram' | 'tiktok' | 'linkedin' | 'youtube' | 'twitter' | 'other',
+    origin?: 'website_evidence' | 'serp' | 'maps'
+  ): string | null => {
+    if (!url || !isRealSocialProfile(url, plat as any)) return null;
+    const categoryCtx = [
+      (listing as any).category,
+      candidate.classification?.type,
+      (candidate as any).type,
+      (candidate as any).types,
+      (candidate as any).category,
+    ].flat().filter(Boolean) as string[];
+    const classified = classifySocialProfile(
+      url,
+      plat,
+      candidate.name,
+      isFirstParty ? websiteDomain : undefined,
+      categoryCtx,
+      origin
+    );
     if (classified.status === 'accepted' && (classified.owner === 'business' || classified.owner === 'person')) {
-      return true;
+      return classified.canonicalUrl || url;
     }
     rejectedProfiles.push({
       url,
       platform: plat || 'other',
       reason: classified.rejectionReason || 'BUSINESS_NAME_MISMATCH',
     });
-    return false;
+    return null;
   };
 
   // If the website is unverified or third-party, record its scraped socials as cascade rejected
@@ -2476,89 +2581,108 @@ export function sanitizeListingWithEvidence(
 
   // 1. Resolve Facebook
   let finalFb = '';
-  if (discoveredSocials?.facebook && validateSocialCandidate(discoveredSocials.facebook, 'facebook')) {
-    finalFb = discoveredSocials.facebook;
+  if (discoveredSocials?.facebook) {
+    const valid = validateSocialCandidate(discoveredSocials.facebook, 'facebook', 'serp');
+    if (valid) finalFb = valid;
   }
   if (!finalFb) {
     for (const u of candidateUrlsReviewed) {
-      if (/facebook\.com/i.test(u) && validateSocialCandidate(u, 'facebook')) {
-        finalFb = u;
-        break;
+      if (/facebook\.com/i.test(u)) {
+        const valid = validateSocialCandidate(u, 'facebook', 'serp');
+        if (valid) {
+          finalFb = valid;
+          break;
+        }
       }
     }
   }
   if (!finalFb && isFirstParty && web?.extractedSocialLinks?.facebook) {
-    if (validateSocialCandidate(web.extractedSocialLinks.facebook, 'facebook')) {
-      finalFb = web.extractedSocialLinks.facebook;
-    }
+    const valid = validateSocialCandidate(web.extractedSocialLinks.facebook, 'facebook', 'website_evidence');
+    if (valid) finalFb = valid;
   }
   if (!finalFb && listing.socialLinks?.facebook) {
     if (!isFirstParty && web?.extractedSocialLinks?.facebook === listing.socialLinks.facebook) {
       // already recorded in rejectedProfiles
-    } else if (validateSocialCandidate(listing.socialLinks.facebook, 'facebook')) {
-      finalFb = listing.socialLinks.facebook;
+    } else {
+      const valid = validateSocialCandidate(listing.socialLinks.facebook, 'facebook', 'maps');
+      if (valid) finalFb = valid;
     }
   }
 
   // 2. Resolve Instagram
   let finalIg = '';
-  if (discoveredSocials?.instagram && validateSocialCandidate(discoveredSocials.instagram, 'instagram')) {
-    finalIg = discoveredSocials.instagram;
+  if (discoveredSocials?.instagram) {
+    const valid = validateSocialCandidate(discoveredSocials.instagram, 'instagram', 'serp');
+    if (valid) finalIg = valid;
   }
   if (!finalIg) {
     for (const u of candidateUrlsReviewed) {
-      if (/instagram\.com/i.test(u) && validateSocialCandidate(u, 'instagram')) {
-        finalIg = u;
-        break;
+      if (/instagram\.com/i.test(u)) {
+        const valid = validateSocialCandidate(u, 'instagram', 'serp');
+        if (valid) {
+          finalIg = valid;
+          break;
+        }
       }
     }
   }
   if (!finalIg && isFirstParty && web?.extractedSocialLinks?.instagram) {
-    if (validateSocialCandidate(web.extractedSocialLinks.instagram, 'instagram')) {
-      finalIg = web.extractedSocialLinks.instagram;
-    }
+    const valid = validateSocialCandidate(web.extractedSocialLinks.instagram, 'instagram', 'website_evidence');
+    if (valid) finalIg = valid;
   }
   if (!finalIg && listing.socialLinks?.instagram) {
     if (!isFirstParty && web?.extractedSocialLinks?.instagram === listing.socialLinks.instagram) {
       // already recorded in rejectedProfiles
-    } else if (validateSocialCandidate(listing.socialLinks.instagram, 'instagram')) {
-      finalIg = listing.socialLinks.instagram;
+    } else {
+      const valid = validateSocialCandidate(listing.socialLinks.instagram, 'instagram', 'maps');
+      if (valid) finalIg = valid;
     }
   }
 
   // 3. Resolve TikTok
   let finalTt = '';
-  if (discoveredSocials?.tiktok && validateSocialCandidate(discoveredSocials.tiktok, 'tiktok')) {
-    finalTt = discoveredSocials.tiktok;
+  if (discoveredSocials?.tiktok) {
+    const valid = validateSocialCandidate(discoveredSocials.tiktok, 'tiktok', 'serp');
+    if (valid) finalTt = valid;
   }
   if (!finalTt) {
     for (const u of candidateUrlsReviewed) {
-      if (/tiktok\.com/i.test(u) && validateSocialCandidate(u, 'tiktok')) {
-        finalTt = u;
-        break;
+      if (/tiktok\.com/i.test(u)) {
+        const valid = validateSocialCandidate(u, 'tiktok', 'serp');
+        if (valid) {
+          finalTt = valid;
+          break;
+        }
       }
     }
   }
   if (!finalTt && isFirstParty && web?.extractedSocialLinks?.tiktok) {
-    if (validateSocialCandidate(web.extractedSocialLinks.tiktok, 'tiktok')) {
-      finalTt = web.extractedSocialLinks.tiktok;
-    }
+    const valid = validateSocialCandidate(web.extractedSocialLinks.tiktok, 'tiktok', 'website_evidence');
+    if (valid) finalTt = valid;
   }
   if (!finalTt && listing.socialLinks?.tiktok) {
     if (!isFirstParty && web?.extractedSocialLinks?.tiktok === listing.socialLinks.tiktok) {
       // already recorded in rejectedProfiles
-    } else if (validateSocialCandidate(listing.socialLinks.tiktok, 'tiktok')) {
-      finalTt = listing.socialLinks.tiktok;
+    } else {
+      const valid = validateSocialCandidate(listing.socialLinks.tiktok, 'tiktok', 'maps');
+      if (valid) finalTt = valid;
     }
   }
 
   // 4. Resolve Other Socials
-  const candidateOther: Record<string, string> = {
-    ...(discoveredSocials?.other || {}),
-    ...(discoveredSocials?.linkedin ? { linkedin: discoveredSocials.linkedin } : {}),
-  };
+  const candidateOther: Record<string, { url: string; origin: 'website_evidence' | 'serp' | 'maps' }> = {};
+  if (discoveredSocials?.other) {
+    for (const [k, u] of Object.entries(discoveredSocials.other)) {
+      if (typeof u === 'string' && u) candidateOther[k] = { url: u, origin: 'serp' };
+    }
+  }
+  if (discoveredSocials?.linkedin) {
+    candidateOther['linkedin'] = { url: discoveredSocials.linkedin, origin: 'serp' };
+  }
   if (isFirstParty && web?.extractedSocialLinks?.other) {
-    Object.assign(candidateOther, web.extractedSocialLinks.other);
+    for (const [k, u] of Object.entries(web.extractedSocialLinks.other)) {
+      if (typeof u === 'string' && u) candidateOther[k] = { url: u, origin: 'website_evidence' };
+    }
   }
   if (listing.socialLinks?.other) {
     for (const [k, u] of Object.entries(listing.socialLinks.other)) {
@@ -2566,16 +2690,17 @@ export function sanitizeListingWithEvidence(
         if (!isFirstParty && web?.extractedSocialLinks?.other?.[k] === u) {
           // ignore unverified website other
         } else if (!candidateOther[k]) {
-          candidateOther[k] = u;
+          candidateOther[k] = { url: u, origin: 'maps' };
         }
       }
     }
   }
 
   const validatedOther: Record<string, string> = {};
-  for (const [k, u] of Object.entries(candidateOther)) {
-    if (typeof u === 'string' && validateSocialCandidate(u, k as any)) {
-      validatedOther[k] = u;
+  for (const [k, entry] of Object.entries(candidateOther)) {
+    if (entry && typeof entry.url === 'string') {
+      const valid = validateSocialCandidate(entry.url, k as any, entry.origin);
+      if (valid) validatedOther[k] = valid;
     }
   }
 

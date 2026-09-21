@@ -26,6 +26,19 @@ const BLOCKLIST_PATTERNS: RegExp[] = [
   /mapcarta\.com/i,
   /wikimapia\.org/i,
   /openstreetmap\.org/i,
+  /play\.google\.com/i,
+  /apps\.apple\.com/i,
+  /khabarhub\.com/i,
+  /hamropatro\.com/i,
+  /onlinekhabar\.com/i,
+  /ratopati\.com/i,
+  /setopati\.com/i,
+  /ekantipur\.com/i,
+  /nagariknetwork\.com/i,
+  /\.(pdf|docx?|xlsx?|pptx?|jpe?g|png|webp|svg|gif|zip|rar|gz|mp4|mp3|avi|txt|csv)(\?.*)?$/i,
+  /\/wp-content\/uploads\//i,
+  /\/notice-download\//i,
+  /\/wp-includes\//i,
 ];
 
 const PRIORITY_PATH_PATTERNS: RegExp[] = [
@@ -39,8 +52,123 @@ const PRIORITY_PATH_PATTERNS: RegExp[] = [
   /\/location/i,
 ];
 
+export const MULTI_PART_TLDS = [
+  // Nepal
+  '.com.np',
+  '.edu.np',
+  '.org.np',
+  '.gov.np',
+  '.net.np',
+  '.mil.np',
+  '.coop.np',
+  '.museum.np',
+  '.ac.np',
+  // UK
+  '.co.uk',
+  '.org.uk',
+  '.gov.uk',
+  '.ac.uk',
+  '.net.uk',
+  // India
+  '.co.in',
+  '.net.in',
+  '.org.in',
+  '.gen.in',
+  '.firm.in',
+  '.ind.in',
+  // Australia
+  '.com.au',
+  '.net.au',
+  '.org.au',
+  '.edu.au',
+  '.gov.au',
+];
+
+export function extractEtldPlusOne(domainOrHost: string): {
+  rootDomain: string;
+  subdomain: string;
+  sld: string;
+  suffix: string;
+  isSubdomain: boolean;
+} {
+  const host = domainOrHost
+    .toLowerCase()
+    .trim()
+    .replace(/^https?:\/\//i, '')
+    .split('/')[0]
+    .split(':')[0];
+
+  const matchedMulti = MULTI_PART_TLDS.find((suffix) => host.endsWith(suffix));
+  if (matchedMulti) {
+    const withoutSuffix = host.slice(0, -matchedMulti.length);
+    const labels = withoutSuffix.split('.').filter(Boolean);
+    const sld = labels[labels.length - 1] || '';
+    const rootDomain = `${sld}${matchedMulti}`;
+    const subLabels = labels.slice(0, -1);
+    const subdomain = subLabels.join('.');
+    return {
+      rootDomain,
+      subdomain,
+      sld,
+      suffix: matchedMulti,
+      isSubdomain: subLabels.length > 0 && subLabels[0] !== 'www',
+    };
+  }
+
+  // Standard single-dot suffix fallback
+  const labels = host.split('.').filter(Boolean);
+  if (labels.length <= 2) {
+    return {
+      rootDomain: host,
+      subdomain: '',
+      sld: labels[0] || '',
+      suffix: labels[1] ? `.${labels[1]}` : '',
+      isSubdomain: false,
+    };
+  }
+
+  const suffix = `.${labels[labels.length - 1]}`;
+  const sld = labels[labels.length - 2];
+  const rootDomain = `${sld}${suffix}`;
+  const subLabels = labels.slice(0, -2);
+  return {
+    rootDomain,
+    subdomain: subLabels.join('.'),
+    sld,
+    suffix,
+    isSubdomain: subLabels.length > 0 && subLabels[0] !== 'www',
+  };
+}
+
+export const DIRECTORY_SUBDOMAIN_HOSTERS = new Set([
+  'localo.site',
+  'wordpress.com',
+  'blogspot.com',
+  'business.site',
+  'wixsite.com',
+  'weebly.com',
+  'site123.me',
+  'godaddysites.com',
+  'jimdofree.com',
+  'hubspotpagebuilder.com',
+  'webador.com',
+  'mystrikingly.com',
+  'yolasite.com',
+  'yellowpages.com.np',
+  'biznepal.com',
+  'nepalyp.com',
+]);
+
+export function isDirectoryIssuedSubdomain(domainOrUrl: string): boolean {
+  if (!domainOrUrl) return false;
+  const { rootDomain, isSubdomain } = extractEtldPlusOne(domainOrUrl);
+  return isSubdomain && DIRECTORY_SUBDOMAIN_HOSTERS.has(rootDomain);
+}
+
 export function isSocialOrDirectory(url: string): boolean {
-  return BLOCKLIST_PATTERNS.some((pattern) => pattern.test(url));
+  if (BLOCKLIST_PATTERNS.some((pattern) => pattern.test(url))) return true;
+  if (isDirectoryIssuedSubdomain(url)) return true;
+  return false;
 }
 
 export function isGoogleMapsUrl(url: string): boolean {
