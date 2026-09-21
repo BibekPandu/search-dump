@@ -8,6 +8,7 @@ import {
   type ClassifiedContact,
 } from '../mastra/agents/research-agent/contact.schema';
 import type { ClassifiedSocialProfile } from '../mastra/agents/research-agent/social.schema';
+import { incrementTelemetry } from './telemetry.service';
 
 function domainFromUrlOrHost(value: string): string {
   if (!value) return '';
@@ -37,6 +38,8 @@ const PLACEHOLDER_EMAIL_PATTERNS = [
   /^example\./i,
   /@example\.(com|org|net|co|np)$/i,
   /@(?:mail|email|test|domain|yoursite)\.(?:com|org|net|co)$/i,
+  /@(?:ourschool|myschool|yourschool|demomail|demotheme|template|dummy)\.(?:edu|com|org|net)$/i,
+  /@(?:yourdomain|mycompany|sitename|companyname|themename)\.(?:com|org|net)$/i,
   /@mail\.com$/i,
   /@email\.com$/i,
   /@test\.(com|org|net)$/i,
@@ -53,6 +56,8 @@ const PLACEHOLDER_EMAIL_PATTERNS = [
   /^contact@example/i,
   /^noreply@/i,
   /^no-reply@/i,
+  /^admin@theme\./i,
+  /^(?:apollo\.creed|john\.doe|jane\.doe|dummy|demo)@/i,
   /@yopmail\./i,
   /@mailinator\./i,
   // Cloudflare-protected relay / masked-email representations.
@@ -443,7 +448,107 @@ export const INDUSTRY_GENERIC_TOKENS = new Set([
   'lalitpur', 'bhaktapur', 'services', 'service', 'solutions', 'tech', 'technologies',
   'auto', 'automobiles', 'motors', 'cleaning', 'clean', 'hygiene', 'express',
   'international', 'global', 'nepali', 'official', 'hub', 'point', 'mart', 'store',
+  // Phase 8i additions: commercial, retail, trade, medical, education
+  'shop', 'shops', 'stores', 'marts', 'market', 'bazaar',
+  'drug', 'drugs', 'chemist', 'dispensary',
+  'repair', 'repairs', 'mobile', 'electronics', 'supplier', 'suppliers', 'hardware',
+  'school', 'schools', 'college', 'colleges', 'academy', 'vidya', 'mandir', 'gyanpeeth', 'secondary', 'higher',
+  // Nepal administrative localities (must not count as distinctive brand tokens)
+  'satungal', 'chandragiri', 'thamel', 'patan', 'kirtipur', 'baneshwor', 'thankot', 'naikap',
+  'gurjudhara', 'chabahil', 'kalanki', 'koteshwor', 'dillibazar', 'lazimpat', 'maharajgunj',
+  'balkhu', 'anamnagar', 'sinamangal', 'tinkune', 'kupondole', 'jawalakhel', 'sanepa',
+  'kumaripati', 'satdobato', 'gongabu', 'balaju',
 ]);
+
+export const FACEBOOK_NON_CANONICAL_SUBPATHS = new Set([
+  'mentions',
+  'videos',
+  'posts',
+  'photos',
+  'reviews',
+  'about',
+  'community',
+  'events',
+  'reels',
+  'services',
+  'shop',
+  'offers',
+]);
+
+/**
+ * Strips subpaths and content endpoints to derive canonical social profile URLs.
+ */
+export function computeCanonicalSocialUrl(
+  url: string,
+  plat: ClassifiedSocialProfile['platform']
+): string {
+  if (!url) return '';
+  try {
+    const parsed = new URL(url);
+    const pathSegments = parsed.pathname.split('/').filter(Boolean);
+    if (pathSegments.length === 0) return url;
+
+    if (plat === 'facebook') {
+      const first = pathSegments[0].toLowerCase();
+      if (first === 'p' && pathSegments.length > 1) {
+        return `https://facebook.com/p/${pathSegments[1]}`;
+      }
+      if (first === 'pages' && pathSegments.length > 2) {
+        return `https://facebook.com/pages/${pathSegments[1]}/${pathSegments[2]}`;
+      }
+      if (first === 'profile.php') {
+        const id = parsed.searchParams.get('id');
+        return id ? `https://facebook.com/profile.php?id=${id}` : url;
+      }
+      if (pathSegments.length > 1 && FACEBOOK_NON_CANONICAL_SUBPATHS.has(pathSegments[1].toLowerCase())) {
+        return `https://facebook.com/${pathSegments[0]}`;
+      }
+      return `https://facebook.com/${pathSegments[0]}`;
+    }
+
+    if (plat === 'tiktok') {
+      const handle = pathSegments[0].startsWith('@') ? pathSegments[0] : `@${pathSegments[0]}`;
+      return `https://tiktok.com/${handle}`;
+    }
+
+    if (plat === 'instagram') {
+      const first = pathSegments[0].toLowerCase();
+      if (['p', 'reel', 'reels', 'stories', 'explore'].includes(first)) {
+        return url;
+      }
+      return `https://instagram.com/${pathSegments[0]}`;
+    }
+
+    if (plat === 'linkedin') {
+      const first = pathSegments[0].toLowerCase();
+      if (first === 'company' && pathSegments[1]) {
+        return `https://linkedin.com/company/${pathSegments[1]}`;
+      }
+      if (first === 'in' && pathSegments[1]) {
+        return `https://linkedin.com/in/${pathSegments[1]}`;
+      }
+      return url;
+    }
+
+    if (plat === 'twitter') {
+      return `https://x.com/${pathSegments[0]}`;
+    }
+
+    if (plat === 'youtube') {
+      if (pathSegments[0].startsWith('@')) {
+        return `https://youtube.com/${pathSegments[0]}`;
+      }
+      if ((pathSegments[0] === 'channel' || pathSegments[0] === 'c') && pathSegments[1]) {
+        return `https://youtube.com/${pathSegments[0]}/${pathSegments[1]}`;
+      }
+      return `https://youtube.com/${pathSegments[0]}`;
+    }
+
+    return url;
+  } catch {
+    return url;
+  }
+}
 
 export const PLATFORM_OFFICIAL_HANDLES = new Map<string, string[]>([
   ['facebook',  ['facebook', 'fb', 'meta', 'help', 'support', 'business', 'developers']],
@@ -506,6 +611,7 @@ export function isRealSocialProfile(url: string, platform?: string): boolean {
 
     // TikTok validation:
     if (platform === 'tiktok' || parsed.hostname.includes('tiktok.com')) {
+      if (['video', 'share', 'embed', 'tag', 'music', 'live', 'discover'].includes(firstSegment)) return false;
       const handle = firstSegment.replace(/^@/, '');
       if (!/^[a-zA-Z0-9._]{2,30}$/.test(handle)) return false;
       return true;
@@ -541,7 +647,9 @@ export function classifySocialProfile(
   url: string,
   platform?: string,
   businessName?: string,
-  websiteDomain?: string
+  websiteDomain?: string,
+  categoryContext?: string | string[],
+  origin?: 'website_evidence' | 'serp' | 'maps'
 ): ClassifiedSocialProfile {
   if (!url) {
     return {
@@ -774,6 +882,66 @@ export function classifySocialProfile(
         distinctiveTokensFound: [],
       };
     }
+  } else if (plat === 'tiktok') {
+    if (['video', 'share', 'embed', 'tag', 'music', 'live', 'discover'].includes(firstSegment)) {
+      return {
+        url,
+        platform: plat,
+        handle: firstSegment,
+        profileType: 'unknown',
+        owner: 'unknown',
+        status: 'rejected',
+        confidence: 1.0,
+        rejectionReason: 'NOT_A_REAL_PROFILE',
+        distinctiveTokensFound: [],
+      };
+    }
+  } else if (plat === 'youtube') {
+    if (['watch', 'playlist', 'embed', 'shorts', 'feed', 'results', 'gaming', 'premium'].includes(firstSegment)) {
+      return {
+        url,
+        platform: plat,
+        handle: firstSegment,
+        profileType: 'unknown',
+        owner: 'unknown',
+        status: 'rejected',
+        confidence: 1.0,
+        rejectionReason: 'NOT_A_REAL_PROFILE',
+        distinctiveTokensFound: [],
+      };
+    }
+    const isChannelSegment = firstSegment === 'channel' || firstSegment === 'c' || firstSegment === 'user';
+    const channelId = pathSegments[1] || '';
+    if (isChannelSegment) {
+      const canonicalUrl = computeCanonicalSocialUrl(url, plat) || url;
+      if (origin === 'website_evidence') {
+        return {
+          url,
+          canonicalUrl,
+          platform: plat,
+          handle: channelId || firstSegment,
+          profileType: 'business_page',
+          owner: 'business',
+          status: 'accepted',
+          confidence: 0.9,
+          rejectionReason: 'NONE',
+          distinctiveTokensFound: [],
+        };
+      } else {
+        return {
+          url,
+          canonicalUrl,
+          platform: plat,
+          handle: channelId || firstSegment,
+          profileType: 'business_page',
+          owner: 'unknown',
+          status: 'rejected',
+          confidence: 0.8,
+          rejectionReason: 'OPAQUE_CHANNEL_ID',
+          distinctiveTokensFound: [],
+        };
+      }
+    }
   }
 
   // Extract handle
@@ -797,6 +965,8 @@ export function classifySocialProfile(
         distinctiveTokensFound: [],
       };
     }
+  } else if (plat === 'youtube' && (firstSegment === 'c' || firstSegment === 'channel' || firstSegment === 'user') && pathSegments.length > 1) {
+    handle = pathSegments[1] || '';
   }
 
   const cleanHandle = handle.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -814,11 +984,14 @@ export function classifySocialProfile(
     };
   }
 
+  const canonicalUrl = computeCanonicalSocialUrl(url, plat) || url;
+
   // 2. Check Platform Official Handles
   const platformOfficials = PLATFORM_OFFICIAL_HANDLES.get(plat) || [];
   if (platformOfficials.some((p) => cleanHandle === p.toLowerCase().replace(/[^a-z0-9]/g, ''))) {
     return {
       url,
+      canonicalUrl,
       platform: plat,
       handle,
       profileType: 'business_page',
@@ -837,6 +1010,7 @@ export function classifySocialProfile(
     if (cleanHandle === cleanV || cleanHandle.includes(cleanV) || cleanV.includes(cleanHandle)) {
       return {
         url,
+        canonicalUrl,
         platform: plat,
         handle,
         profileType: 'business_page',
@@ -853,6 +1027,7 @@ export function classifySocialProfile(
   if (!businessName && !websiteDomain) {
     return {
       url,
+      canonicalUrl,
       platform: plat,
       handle,
       profileType: 'business_page',
@@ -866,7 +1041,26 @@ export function classifySocialProfile(
 
   // Decompose cleanHandle by removing generic tokens to isolate distinctive brand parts
   // Sort generic tokens descending by length so longer terms match first
-  const sortedGenericTokens = Array.from(INDUSTRY_GENERIC_TOKENS).sort((a, b) => b.length - a.length);
+  const categoryGenericTokens = new Set<string>(INDUSTRY_GENERIC_TOKENS);
+  if (categoryContext) {
+    const contexts = Array.isArray(categoryContext) ? categoryContext : [categoryContext];
+    for (const ctx of contexts) {
+      if (!ctx || typeof ctx !== 'string') continue;
+      const words = ctx
+        .toLowerCase()
+        .replace(/[^\w\s]/g, ' ')
+        .split(/\s+/)
+        .filter((w) => w.length >= 3);
+      for (const w of words) {
+        categoryGenericTokens.add(w);
+        if (w.endsWith('s') && w.length > 3) {
+          categoryGenericTokens.add(w.slice(0, -1));
+        }
+      }
+    }
+  }
+
+  const sortedGenericTokens = Array.from(categoryGenericTokens).sort((a, b) => b.length - a.length);
   let strippedHandle = cleanHandle;
   for (const gen of sortedGenericTokens) {
     if (strippedHandle.includes(gen)) {
@@ -877,7 +1071,7 @@ export function classifySocialProfile(
   const handleWordsFromStripped = strippedHandle.split(/\s+/).filter(Boolean);
   const allHandleWords = Array.from(new Set([...handleWordsFromSeparators, ...handleWordsFromStripped]));
   const distinctiveHandleTokens = handleWordsFromStripped.filter(
-    (w) => w.length >= 3 && !INDUSTRY_GENERIC_TOKENS.has(w)
+    (w) => w.length >= 2 && !categoryGenericTokens.has(w)
   );
 
   // Derive business tokens (full and distinctive)
@@ -893,17 +1087,17 @@ export function classifySocialProfile(
   const distinctiveBusinessTokens: string[] = (businessName || '')
     .toLowerCase()
     .split(/[^a-z0-9]+/)
-    .filter((t) => t.length >= 3 && !INDUSTRY_GENERIC_TOKENS.has(t));
+    .filter((t) => t.length >= 2 && !categoryGenericTokens.has(t));
 
   if (websiteDomain) {
     let domainLabel = domainFromUrlOrHost(websiteDomain);
     domainLabel = domainLabel.split('.')[0]?.toLowerCase() || '';
-    if (domainLabel.length >= 3 && !INDUSTRY_GENERIC_TOKENS.has(domainLabel)) {
+    if (domainLabel.length >= 2 && !categoryGenericTokens.has(domainLabel)) {
       distinctiveBusinessTokens.push(domainLabel);
     }
     const domainWords = domainLabel
       .split(/[^a-z0-9]+/)
-      .filter((w) => w.length >= 3 && !INDUSTRY_GENERIC_TOKENS.has(w));
+      .filter((w) => w.length >= 2 && !categoryGenericTokens.has(w));
     distinctiveBusinessTokens.push(...domainWords);
   }
 
@@ -922,6 +1116,7 @@ export function classifySocialProfile(
   if (isAcronymMatch) {
     return {
       url,
+      canonicalUrl,
       platform: plat,
       handle,
       profileType: 'business_page',
@@ -944,6 +1139,7 @@ export function classifySocialProfile(
   if (matchingDistinctive.length >= 1) {
     return {
       url,
+      canonicalUrl,
       platform: plat,
       handle,
       profileType: 'business_page',
@@ -960,6 +1156,7 @@ export function classifySocialProfile(
   if (distinctiveHandleTokens.length >= 1) {
     return {
       url,
+      canonicalUrl,
       platform: plat,
       handle,
       profileType: 'business_page',
@@ -974,6 +1171,7 @@ export function classifySocialProfile(
   // Generic-only tokens, short acronym (<3 chars), or ambiguous without matching distinctive tokens:
   return {
     url,
+    canonicalUrl,
     platform: plat,
     handle,
     profileType: 'business_page',
@@ -993,9 +1191,11 @@ export function isBusinessOwnedSocialProfile(
   url: string,
   platform?: string,
   businessName?: string,
-  websiteDomain?: string
+  websiteDomain?: string,
+  categoryContext?: string | string[],
+  origin?: 'website_evidence' | 'serp' | 'maps'
 ): boolean {
-  const result = classifySocialProfile(url, platform, businessName, websiteDomain);
+  const result = classifySocialProfile(url, platform, businessName, websiteDomain, categoryContext, origin);
   if (businessName || websiteDomain) {
     return result.status === 'accepted';
   }
@@ -1007,7 +1207,12 @@ export function isBusinessOwnedSocialProfile(
  */
 export function classifyAllSocialProfiles(
   content: string,
-  context?: { businessName?: string; websiteDomain?: string }
+  context?: {
+    businessName?: string;
+    websiteDomain?: string;
+    categoryContext?: string | string[];
+    origin?: 'website_evidence' | 'serp' | 'maps';
+  }
 ): ClassifiedSocialProfile[] {
   if (!content) return [];
   const structuredUrls = [
@@ -1027,7 +1232,14 @@ export function classifyAllSocialProfiles(
     if (!isSocial) continue;
 
     seenUrls.add(url);
-    const classified = classifySocialProfile(url, undefined, context?.businessName, context?.websiteDomain);
+    const classified = classifySocialProfile(
+      url,
+      undefined,
+      context?.businessName,
+      context?.websiteDomain,
+      context?.categoryContext,
+      context?.origin ?? 'website_evidence'
+    );
     classifiedProfiles.push(classified);
   }
 
@@ -1222,7 +1434,9 @@ export const BUSINESS_EMAIL_PREFIXES = new Set([
   'enquiry', 'inquiry', 'reception', 'booking', 'legal', 'hr', 'accounts',
   'billing', 'marketing', 'admission', 'frontdesk', 'reservation', 'help',
   'service', 'careers', 'jobs', 'press', 'pr', 'partners', 'media',
-  'investors', 'security',
+  'investors', 'security', 'lawyer', 'advocate', 'desk', 'query',
+  'general', 'principal', 'headmaster', 'receptionist', 'services',
+  'appointment', 'inquiries', 'mail',
 ]);
 
 export const CONSUMER_EMAIL_DOMAINS = new Set([
@@ -1287,22 +1501,50 @@ export function classifyEmailRole(
     return { role: 'primary_business', owner: 'business' };
   }
 
-  // 3. Consumer provider personal signal: domain is consumer provider AND (prefix contains digits, dots, or underscores)
+  // 3. First-party domain matching
+  const isFirstPartyDomain = Boolean(
+    websiteDomain &&
+    (domain === websiteDomain.toLowerCase() ||
+     domain.endsWith('.' + websiteDomain.toLowerCase()) ||
+     websiteDomain.toLowerCase().endsWith('.' + domain))
+  );
+
+  // If on business domain and prefix matches brand name (e.g. narayani@narayanilawfirm.org.np)
+  if (isFirstPartyDomain && businessName) {
+    const brandTokens = businessName.toLowerCase().split(/[\s,.-]+/).filter((t) => t.length >= 3);
+    if (brandTokens.some((token) => prefix.includes(token))) {
+      return { role: 'primary_business', owner: 'business' };
+    }
+  }
+
+  // 4. Consumer provider personal signal: domain is consumer provider AND (prefix contains digits, dots, or underscores)
   if (CONSUMER_EMAIL_DOMAINS.has(domain)) {
     if (/\d/.test(prefix) || prefix.includes('.') || prefix.includes('_')) {
       return { role: 'staff_person', owner: 'person' };
     }
+    // If consumer email matches business name brand token e.g. narayanilaw@gmail.com
+    if (businessName) {
+      const brandTokens = businessName.toLowerCase().split(/[\s,.-]+/).filter((t) => t.length >= 3);
+      if (brandTokens.some((token) => prefix.includes(token))) {
+        return { role: 'primary_business', owner: 'business' };
+      }
+    }
   }
 
-  // 4. Personal honorifics / markers in context: "Dr.", "Mr.", "Mrs.", "Director", etc.
+  // 5. Personal honorifics / markers in context: "Dr.", "Mr.", "Mrs.", "Director", etc.
   const lowerContext = context.toLowerCase();
   if (/\b(dr\.|dr\s|mr\.|mrs\.|ms\.|prof\.|director|founder|doctor|owner:)/i.test(lowerContext)) {
     return { role: 'staff_person', owner: 'person' };
   }
 
-  // 5. Personal name pattern in prefix: e.g. "first.last" on business domain
+  // 6. Personal name pattern in prefix: e.g. "first.last" on business domain
   if (prefix.includes('.') || prefix.includes('_')) {
     return { role: 'staff_person', owner: 'person' };
+  }
+
+  // 7. If on first-party domain and no personal markers -> primary_business, business
+  if (isFirstPartyDomain) {
+    return { role: 'primary_business', owner: 'business' };
   }
 
   // Conservative fallback: unknown, unknown (never guess staff_person)
@@ -1363,6 +1605,11 @@ export const OWNER_LEADERSHIP_TITLES = [
   'chairperson',
   'president',
   'principal',
+  'managing partner',
+  'senior partner',
+  'partner',
+  'head of legal',
+  'medical director',
 ];
 
 export const STAFF_TITLES = [
@@ -1388,6 +1635,21 @@ export const STAFF_TITLES = [
   'operator',
   'sales head',
   'head',
+  // Legal, Medical & Academic roles (Phase 8i)
+  'advocate',
+  'senior advocate',
+  'attorney',
+  'lawyer',
+  'associate',
+  'counsel',
+  'legal advisor',
+  'physician',
+  'doctor',
+  'specialist',
+  'teacher',
+  'faculty',
+  'professor',
+  'lecturer',
 ];
 
 export interface ContactSignalSnapshot {
@@ -1498,7 +1760,7 @@ export function classifyPhoneRole(
 
   // 1. Channel / CTA Signals
   const hasPageCtaSignal =
-    /\b(call now|call us|emergency service|fast service|toll free|customer care|hotline|get a quote|need clean|book now|talk to us|phone:|chat with us|whatsapp|viber|call|order|orders|delivery)\b/i.test(
+    /\b(call now|call us|emergency service|emergency|direct contact|fast service|toll free|customer care|hotline|get a quote|need clean|book now|talk to us|phone:|chat with us|whatsapp|viber|call|order|orders|delivery)\b/i.test(
       lowerContext
     ) || /\[(?:call|phone|tel|emergency|hotline|now|quote)[^\]]*\]\(tel:/i.test(context);
 
@@ -1539,8 +1801,11 @@ export function classifyPhoneRole(
     hasStaffSignal = true;
   }
 
-  // Extract person name if present in markdown team cues
-  const personMatch = context.match(/(?:###|\*\*|##)?\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})\s+(?:Chairman|Managing Director|Director|Supervisor|Marketing|Front Desk|Design|Executive|Head|Manager|Cleaner|Maid|Technician|Owner|Founder)/i);
+  // Extract person name if present in markdown team cues or direct contact cues
+  const personMatch =
+    context.match(/(?:###|\*\*|##)?\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})\s+(?:Chairman|Managing Director|Director|Supervisor|Marketing|Front Desk|Design|Executive|Head|Manager|Cleaner|Maid|Technician|Owner|Founder|Advocate|Lawyer|Attorney|Doctor|Principal|Partner)/i) ||
+    context.match(/(?:call|contact|emergency|direct|attorney|lawyer|advocate|dr|mr|mrs|ms|shree)\s*[:\-]?\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})/i) ||
+    context.match(/([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})\s*[-:]\s*(?:\+?[\d\s-]{7,})/);
   if (personMatch) {
     associatedPerson = personMatch[1].trim();
   }
@@ -1573,6 +1838,42 @@ export function classifyPhoneRole(
     hasBranchSignal,
     hasPlatformSignal,
   };
+}
+
+/**
+ * Phase 8i (Group E / W3-10): Multi-signal demo / template fingerprint detector.
+ * Identifies WordPress/theme dummy content (e.g. "Apollo Creed", "@ourschool.edu", "+1 6335 xxxx")
+ * based on co-occurrence of 2 or more template signals.
+ */
+export function detectTemplateContent(text: string, contextUrl?: string): boolean {
+  if (!text) return false;
+  let signals = 0;
+
+  // Signal 1: Dummy / celebrity placeholder names in staff / leadership sections
+  if (/\b(apollo\s+creed|john\s+doe|jane\s+doe|lorem\s+ipsum|themeforest|envato|templatemonster)\b/i.test(text)) {
+    signals++;
+  }
+
+  // Signal 2: Template / demo email pattern occurrences
+  if (/\b[a-zA-Z0-9._%+-]+@(?:ourschool|myschool|yourschool|demomail|demotheme|template|dummy)\.(?:edu|com|org|net)\b/i.test(text)) {
+    signals++;
+  }
+
+  // Signal 3: Dummy / template phone format (e.g. +1 6335..., 1234567890, +1 234 567 890, 0123456789)
+  if (/(?:\+1[-.\s]?6335\d{3,6}|\+1[-.\s]?234[-.\s]?567[-.\s]?890|\+44[-.\s]?1234[-.\s]?567890|\b1234567890\b|\b0123456789\b)/i.test(text)) {
+    signals++;
+  }
+
+  // Signal 4: Demo placeholder address / domain indicators
+  if (/\b(?:123\s+(?:fake|main|sample)\s+street|your\s+company\s+address|domain\.com|yourdomain\.com)\b/i.test(text)) {
+    signals++;
+  }
+
+  if (signals >= 2) {
+    incrementTelemetry('templateFingerprintMatches');
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -2154,9 +2455,33 @@ export function resetLlmMultiBusinessCallCount(): void {
   llmMultiBusinessCallCount = 0;
 }
 
+const EXCLUDED_LEGAL_AND_GOV_ENTITIES = new Set([
+  'office of the company registrar',
+  'department of industry',
+  'department of immigration',
+  'nepal rastra bank',
+  'investment board',
+  'inland revenue department',
+  'tribhuvan university',
+  'kathmandu university',
+  'government of nepal',
+  'supreme court',
+  'high court',
+  'district court',
+  'private limited company',
+  'public limited company',
+  'sole proprietorship',
+  'partnership firm',
+  'notary nepal',
+  'company darta nepal',
+]);
+
+const QUESTION_STARTER_WORDS = /^(how|what|why|when|where|who|which|can|is|are|do|does|should|will|could|would|step|faq|question|reason|practice|service)\b/i;
+
 /**
- * Phase 8h (W2-04): Enhanced multi-business listing / directory / aggregator / blog post detector.
- * Identifies pages presenting multiple distinct companies, contacts, or listicles.
+ * Phase 8h (W2-04) & Phase 8i (CONTACT-02 / Group D): Enhanced multi-business listing / directory / aggregator / blog post detector.
+ * Identifies pages presenting multiple distinct companies, contacts, or listicles while disambiguating
+ * FAQ question headings, attorney/doctor rosters, and legal/regulatory authority mentions.
  */
 export function detectMultiBusinessPage(
   content: string,
@@ -2182,16 +2507,30 @@ export function detectMultiBusinessPage(
     }
   }
 
-  // 1. Numbered listicle headings (e.g. <h2>1. Apex... <h2>2. Kathmandu... <h2>3. Smart...)
+  // 1. Numbered listicle headings (e.g. <h2>1. Apex Hotel... <h2>2. Kathmandu Guest House...)
+  // Exclude FAQ questions (e.g. "1. How much does it cost?", "2. Can a foreign company..."), steps, services
   const listicleMatches =
-    content.match(/(?:<h[1-6][^>]*>|^|\n|\.\s+)\s*\d{1,2}\.?\s+(?:Top|Best|[A-Z])[A-Za-z0-9\s&'-]{3,40}/gi) || [];
-  const realListicles = listicleMatches.filter((m) => !/\bbranch\b/i.test(m));
+    content.match(/(?:<h[1-6][^>]*>|^|\n|\.\s+)\s*\d{1,2}\.?\s+(?:Top|Best|[A-Z])[A-Za-z0-9\s&'-]{3,60}/gi) || [];
+
+  const realListicles = listicleMatches.filter((m) => {
+    const cleaned = m.replace(/^[^A-Za-z0-9]+/, '').replace(/^\d{1,2}\.?\s*/, '').trim();
+    if (cleaned.endsWith('?')) return false;
+    if (QUESTION_STARTER_WORDS.test(cleaned)) return false;
+    if (/\b(branch|office|step|faq|question|practice|service|publication|attorney|lawyer|doctor|teacher|team)\b/i.test(cleaned)) return false;
+    return true;
+  });
+
   if (realListicles.length >= 3) {
     return true;
   }
 
   // 2. Distinct standalone corporate entities (e.g. "X Pvt Ltd", "Y Suppliers", "Z Traders", "W Enterprises")
-  const text = content.replace(/<[^>]+>/g, ' ');
+  // Strip team rosters and FAQ sections first
+  const sanitizedContent = content
+    .replace(/(?:##?\s*(?:Meet Our|Our Team|Attorneys?|Lawyers?|Doctors?|Faculty|Staff|Leadership|Board)[\s\S]*?(?=\n##|$))/gi, ' ')
+    .replace(/(?:##?\s*(?:Frequently Asked Questions|FAQ|Q&A)[\s\S]*?(?=\n##|$))/gi, ' ');
+
+  const text = sanitizedContent.replace(/<[^>]+>/g, ' ');
   const entityMatches =
     text.match(
       /\b[A-Z][A-Za-z0-9\s&'-]{2,35}\s+(?:Pvt\.?\s*Ltd\.?|Suppliers?|Traders?|Enterprises?|Pvt\b|Limited\b)\b/gi
@@ -2200,15 +2539,17 @@ export function detectMultiBusinessPage(
   const bTokens = businessName
     ? businessName.toLowerCase().split(/\s+/).filter((t) => t.length > 2)
     : [];
+
   const filteredEntities = entityMatches.filter((e) => {
-    const lower = e.toLowerCase();
+    const lower = e.toLowerCase().trim();
     if (lower.includes('branch') || lower.includes('office') || lower.includes('counter')) return false;
+    if (EXCLUDED_LEGAL_AND_GOV_ENTITIES.has(lower)) return false;
     if (bTokens.length > 0 && bTokens.some((t) => lower.includes(t))) return false;
     return true;
   });
 
   const uniqueEntities = new Set(filteredEntities.map((e) => e.trim().toLowerCase()));
-  if (uniqueEntities.size >= 3) {
+  if (uniqueEntities.size >= 4) {
     return true;
   }
 
@@ -2216,10 +2557,10 @@ export function detectMultiBusinessPage(
   const phones = extractPhones(content);
   const mobiles = extractMobiles(content);
   const totalPhones = new Set([...phones, ...mobiles]);
-  if (realListicles.length >= 2 && totalPhones.size >= 3) {
+  if (realListicles.length >= 2 && totalPhones.size >= 4) {
     return true;
   }
-  if (uniqueEntities.size >= 2 && totalPhones.size >= 4) {
+  if (uniqueEntities.size >= 3 && totalPhones.size >= 5) {
     return true;
   }
 
@@ -2345,6 +2686,16 @@ export function extractAllFromPages(
     allPhoneEvidence.push(evidence);
 
     const context = pageText ? extractContextAroundMatch(pageText, raw) : '';
+
+    // Group E (W3-10): Demo / Template placeholder filter
+    if (
+      detectTemplateContent(context) ||
+      detectTemplateContent(raw) ||
+      /(?:\+1[-.\s]?6335\d{3,6}|\+1[-.\s]?234[-.\s]?567[-.\s]?890|\+44[-.\s]?1234[-.\s]?567890|\b1234567890\b|\b0123456789\b)/i.test(raw)
+    ) {
+      return;
+    }
+
     const phoneRole = classifyPhoneRole(raw, context, businessName, classified, pageUrl);
 
     if (classified.type !== 'invalid') {
