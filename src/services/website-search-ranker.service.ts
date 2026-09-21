@@ -11,6 +11,8 @@ import {
   THIRD_PARTY_PLATFORMS,
   extractBusinessNameTokens,
 } from './website-relationship.service';
+import { extractEtldPlusOne, isDirectoryIssuedSubdomain } from './url-filter.service';
+import { incrementTelemetry } from './telemetry.service';
 
 // ============================================================================
 // Website Search Result Ranker — Zero-HTTP deterministic URL scoring (Task 4)
@@ -72,8 +74,8 @@ export const RANK_WEIGHTS = {
   rootOrShortPath: 6,
   contactOrAboutPath: 4,
   deepPathPenalty: -6,
-  /** Strictly larger in magnitude than tldBest, satisfying risk mitigation #3. */
-  thirdPartyPenalty: -50,
+  /** Strictly larger in magnitude than any positive bonus combination. */
+  thirdPartyPenalty: -100,
   unrelatedPenalty: -40,
 } as const;
 
@@ -119,6 +121,7 @@ export interface RankWebsiteSearchResultsParams {
   results: RankedUrl[];
   businessName: string;
   location?: string;
+  categoryContext?: string | string[];
   /** Hard gate applied BEFORE scoring (default: accept any http(s) URL). */
   isUsable?: (candidate: RankedUrl) => boolean;
 }
@@ -148,9 +151,87 @@ export interface SelectFirstPartyWebsiteResult {
   reason: string;
 }
 
-/** Distinctive tokens of a business name (canonical extractor + region-noise filter). */
-export function distinctiveNameTokens(businessName: string): string[] {
-  return extractBusinessNameTokens(businessName).filter((t) => !REGION_NOISE_TOKENS.has(t));
+/** Bounded universal legal and administrative tokens that never count as distinctive brand names. */
+export const UNIVERSAL_LEGAL_BASELINE = new Set([
+  'shop',
+  'shops',
+  'store',
+  'stores',
+  'center',
+  'centre',
+  'centers',
+  'centres',
+  'service',
+  'services',
+  'enterprise',
+  'enterprises',
+  'pvt',
+  'ltd',
+  'private',
+  'limited',
+  'hub',
+  'station',
+  'group',
+  'groups',
+  'point',
+  'mart',
+  'marts',
+  'home',
+  'homes',
+  'house',
+  'houses',
+  'nepal',
+  'kathmandu',
+  'pokhara',
+  'lalitpur',
+  'bhaktapur',
+  'himalayan',
+  'national',
+  'global',
+  'international',
+  'official',
+]);
+
+import { INDUSTRY_GENERIC_TOKENS } from './business-extractor.service';
+
+/**
+ * Dynamically resolves generic category tokens from industry vocabularies, candidate's category context
+ * (e.g. 'Gym', 'Fitness Center', 'Real Estate Agency', 'Grocery Store') plus the universal legal baseline.
+ */
+export function resolveDynamicGenericTokens(categoryContext?: string | string[]): Set<string> {
+  const dynamicSet = new Set<string>([
+    ...UNIVERSAL_LEGAL_BASELINE,
+    ...INDUSTRY_GENERIC_TOKENS,
+  ]);
+  if (!categoryContext) return dynamicSet;
+
+  const contexts = Array.isArray(categoryContext) ? categoryContext : [categoryContext];
+  for (const ctx of contexts) {
+    if (!ctx || typeof ctx !== 'string') continue;
+    const words = ctx
+      .toLowerCase()
+      .replace(/[^\w\s]/g, ' ')
+      .split(/\s+/)
+      .filter((w) => w.length >= 3);
+    for (const w of words) {
+      dynamicSet.add(w);
+      if (w.endsWith('s') && w.length > 3) {
+        dynamicSet.add(w.slice(0, -1));
+      }
+    }
+  }
+  return dynamicSet;
+}
+
+/** Distinctive tokens of a business name (canonical extractor + dynamic category stopwords filter). */
+export function distinctiveNameTokens(
+  businessName: string,
+  categoryContext?: string | string[]
+): string[] {
+  const allTokens = extractBusinessNameTokens(businessName).filter((t) => !REGION_NOISE_TOKENS.has(t));
+  const genericTokens = resolveDynamicGenericTokens(categoryContext);
+  const nonGeneric = allTokens.filter((t) => !genericTokens.has(t.toLowerCase()));
+  return nonGeneric.length > 0 ? nonGeneric : allTokens;
 }
 
 /** Location tokens (length >= 3), excluding generic country noise. */
@@ -163,34 +244,6 @@ export function locationTokens(location?: string): string[] {
     .filter((t) => t.length >= 3 && t !== 'nepal');
 }
 
-const GENERIC_CATEGORY_WORDS = new Set([
-  'school',
-  'schools',
-  'college',
-  'colleges',
-  'institute',
-  'institutes',
-  'academy',
-  'hotel',
-  'hotels',
-  'restaurant',
-  'restaurants',
-  'restro',
-  'cafe',
-  'kitchen',
-  'hub',
-  'hospital',
-  'clinic',
-  'dental',
-  'store',
-  'shop',
-  'services',
-  'service',
-  'directory',
-  'listing',
-  'portal',
-]);
-
 export function isThirdPartyDomain(domain: string): boolean {
   if (!domain) return false;
   const lower = domain.toLowerCase();
@@ -200,6 +253,13 @@ export function isThirdPartyDomain(domain: string): boolean {
     lower.includes('tripadvisor') ||
     lower.includes('restaurantguru')
   ) {
+    return true;
+  }
+  if (isDirectoryIssuedSubdomain(lower)) {
+    return true;
+  }
+  const { rootDomain } = extractEtldPlusOne(lower);
+  if (THIRD_PARTY_DOMAINS.has(rootDomain)) {
     return true;
   }
   for (const blocked of THIRD_PARTY_DOMAINS) {
@@ -333,17 +393,27 @@ export function scoreCandidate(
   }
 
   const brandDistinctiveTokens = distinctiveTokens.filter(
-    (t) => !GENERIC_CATEGORY_WORDS.has(t.toLowerCase())
+    (t) => !UNIVERSAL_LEGAL_BASELINE.has(t.toLowerCase())
   );
   const hasDistinctiveInDomain =
     brandDistinctiveTokens.length > 0 &&
     brandDistinctiveTokens.some((t) => domainLower.includes(t));
 
+  const isDirSubdomain = isDirectoryIssuedSubdomain(domain);
+  if (isDirSubdomain) {
+    incrementTelemetry('directorySubdomainPenalties');
+  }
+
   const looksDir = looksThirdPartyUrl(url);
-  const thirdParty = isThirdPartyDomain(domain) || (looksDir && !hasDistinctiveInDomain);
+  const thirdParty = isThirdPartyDomain(domain) || isDirSubdomain || (looksDir && !hasDistinctiveInDomain);
+  let eligible = !thirdParty;
   if (thirdParty) {
     score += RANK_WEIGHTS.thirdPartyPenalty;
-    reasons.push(`third-party/directory signal (${RANK_WEIGHTS.thirdPartyPenalty})`);
+    reasons.push(
+      isDirSubdomain
+        ? `directory-issued subdomain (${RANK_WEIGHTS.thirdPartyPenalty})`
+        : `third-party/directory signal (${RANK_WEIGHTS.thirdPartyPenalty})`
+    );
   }
 
   if (distinctiveTokens.length > 0 && nameOverlapCount === 0 && !locationMatch) {
@@ -351,23 +421,42 @@ export function scoreCandidate(
     reasons.push(`no name or location evidence (${RANK_WEIGHTS.unrelatedPenalty})`);
   }
 
-  // Name-eligibility rule (Phase 7a Residual 2, refined: strict majority, min 2).
-  let eligible = true;
-  if (distinctiveTokens.length >= 2) {
+  // Tiered Corroboration Name-Eligibility Rule (Phase 8i Group A)
+  if (distinctiveTokens.length === 0 || nameOverlapCount === 0) {
+    eligible = false;
+    reasons.push(`ineligible: zero distinctive business name tokens matched (0-token match)`);
+    incrementTelemetry('tieredCorroborationRejections');
+  } else if (distinctiveTokens.length === 1) {
+    const singleToken = distinctiveTokens[0];
+    const sld = extractEtldPlusOne(domain).sld.toLowerCase();
+    const genericSet = resolveDynamicGenericTokens();
+    const sldWithoutGeneric = sld
+      .split(/[-_0-9]/)
+      .filter((w) => w.length >= 2 && !genericSet.has(w))
+      .join('');
+    const sldMatches = sld === singleToken || sldWithoutGeneric === singleToken;
+    const strongTldMatch =
+      (tldTier === 'best' || tldTier === 'good') &&
+      (sld === singleToken || sldWithoutGeneric === singleToken);
+    const snippetText = `${candidate.description || ''} ${(candidate.extraSnippets || []).join(' ')}`;
+    const phoneCorroboration = /\+?977[- ]?\d{7,10}|\b98\d{8}\b|\b01\d{6,7}\b/.test(snippetText);
+
+    const isCorroborated = locationMatch || sldMatches || strongTldMatch || phoneCorroboration;
+    if (!isCorroborated) {
+      eligible = false;
+      reasons.push(
+        'ineligible: single-token name match requires corroboration (location, domain SLD, verified TLD, or phone)'
+      );
+      incrementTelemetry('tieredCorroborationRejections');
+    }
+  } else if (distinctiveTokens.length >= 2) {
     const requiredOverlap = requiredNameOverlap(distinctiveTokens.length);
     if (nameOverlapCount < requiredOverlap) {
       eligible = false;
       reasons.push(
         `ineligible: ${nameOverlapCount}/${distinctiveTokens.length} distinctive tokens (strict majority, min ${requiredOverlap} required)`
       );
-    }
-  } else if (distinctiveTokens.length === 1) {
-    if (nameOverlapCount < 1) {
-      eligible = false;
-      reasons.push('ineligible: the single distinctive token is absent');
-    } else if (locTokens.length > 0 && !locationMatch) {
-      eligible = false;
-      reasons.push('ineligible: single-token name requires a location match');
+      incrementTelemetry('tieredCorroborationRejections');
     }
   }
 
@@ -394,8 +483,8 @@ export function scoreCandidate(
 export function rankWebsiteSearchResults(
   params: RankWebsiteSearchResultsParams
 ): ScoredUrlCandidate[] {
-  const { results, businessName, location, isUsable } = params;
-  const distinctiveTokens = distinctiveNameTokens(businessName);
+  const { results, businessName, location, categoryContext, isUsable } = params;
+  const distinctiveTokens = distinctiveNameTokens(businessName, categoryContext);
   const locTokens = locationTokens(location);
   const gateFn = isUsable ?? (() => true);
 
