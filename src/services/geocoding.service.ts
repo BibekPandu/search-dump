@@ -267,10 +267,19 @@ export async function geocodeLocality(
     if (first.name) aliasesSet.add(normalizeLocalityString(first.name));
 
     if (first.address) {
-      for (const val of Object.values(first.address)) {
+      for (const [addrKey, val] of Object.entries(first.address)) {
+        // Exclude broad parent administrative fields (municipality, county, state, country)
+        // when building aliases for a specific sub-locality or ward
+        if (['municipality', 'county', 'state_district', 'state', 'country', 'country_code'].includes(addrKey)) {
+          continue;
+        }
         if (typeof val === 'string' && val.length > 2 && val.length < 30) {
           const normVal = normalizeLocalityString(val);
-          if (normVal && !['nepal', 'bagmati', 'gandaki', 'district'].includes(normVal)) {
+          if (
+            normVal &&
+            !['nepal', 'bagmati', 'gandaki', 'district', 'municipality', 'province'].includes(normVal) &&
+            !normVal.includes('municipality')
+          ) {
             aliasesSet.add(normVal);
           }
         }
