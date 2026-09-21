@@ -35,6 +35,21 @@ export const REGISTERED_LOCALITY_CLUSTERS: Record<string, LocalityClusterConfig>
       'naikap',
     ],
   },
+  anamnagar: {
+    canonicalName: 'anamnagar',
+    // Centroid: Anamnagar / Singha Durbar North-East / Ghattekulo border (KMC Ward 29)
+    centroid: { lat: 27.6928, lng: 85.3284 },
+    maxRadiusKm: 2.0,
+    administrativeExtent: 'KMC Ward 29 (Anamnagar, Singha Durbar East, Ghattekulo border)',
+    aliases: [
+      'anamnagar',
+      'anamnagar kathmandu',
+      'kathmandu-29',
+      'kathmandu 29',
+      'kmc-29',
+      'kmc 29',
+    ],
+  },
   kirtipur: {
     canonicalName: 'kirtipur',
     // Centroid: Kirtipur Municipality Center / TU Gate area
