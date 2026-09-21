@@ -562,16 +562,23 @@ export async function runWebsiteDiscoveryGate(
         other?: Record<string, string>;
       } = {};
       for (const u of record.candidateUrlsReviewed) {
-        const classified = classifySocialProfile(u, undefined, representative.title);
+        const categoryCtx = [representative.category, representative.type].filter(Boolean) as string[];
+        const classified = classifySocialProfile(u, undefined, representative.title, undefined, categoryCtx, 'serp');
+        const canonical = classified.canonicalUrl || u;
         if (classified.status === 'accepted' && classified.profileType === 'business_page') {
           if (classified.platform === 'facebook' && !discoveredSocials.facebook) {
-            discoveredSocials.facebook = u;
+            discoveredSocials.facebook = canonical;
           } else if (classified.platform === 'instagram' && !discoveredSocials.instagram) {
-            discoveredSocials.instagram = u;
+            discoveredSocials.instagram = canonical;
           } else if (classified.platform === 'tiktok' && !discoveredSocials.tiktok) {
-            discoveredSocials.tiktok = u;
+            discoveredSocials.tiktok = canonical;
           } else if (classified.platform === 'linkedin' && !discoveredSocials.linkedin) {
-            discoveredSocials.linkedin = u;
+            discoveredSocials.linkedin = canonical;
+          } else if (classified.platform === 'youtube') {
+            discoveredSocials.other = discoveredSocials.other || {};
+            if (!discoveredSocials.other.youtube) {
+              discoveredSocials.other.youtube = canonical;
+            }
           }
         }
       }
