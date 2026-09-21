@@ -1051,17 +1051,15 @@ export function detectCrossListingConflicts(listings: ConflictCheckListing[]): C
 /**
  * Phase 8g: Automated Same-Domain Entity Deduplication
  *
- * When 2+ listings share an official website domain and trigger POSSIBLY_SAME_ENTITY,
- * merges them using a 4-tier deterministic tie-breaker:
- * 1. Confidence score (highest wins)
- * 2. Total verified contact channels (phones + mobiles + emails + social links count)
- * 3. Origin authority (google_maps wins over web fallback)
- * 4. Alphabetical tie-breaker on business name
+ * Phase 8j Task 3 (Group H) & Phase 8e Master: Multi-Signal Duplicate Entity Merging.
+ * Automatically merges candidate listings when:
+ * 1. They share a first-party domain, verified phone number, or verified social profile, AND
+ * 2. They have strong entity alignment (POSSIBLY_SAME_ENTITY, DUPLICATE_MAPS_LISTING, or RELATED_BRAND with name similarity >= 0.5).
  *
  * The primary listing absorbs contacts, while the merged secondary listing
  * is tracked in `otherDetails.mergedAliases`.
  */
-export function mergeDuplicateDomainEntities<T extends ConflictCheckListing>(
+export function mergeDuplicateEntities<T extends ConflictCheckListing>(
   listings: T[]
 ): { mergedListings: T[]; mergedCount: number; autoMergedCount: number } {
   if (!listings || listings.length <= 1) {
@@ -1069,13 +1067,20 @@ export function mergeDuplicateDomainEntities<T extends ConflictCheckListing>(
   }
 
   const { conflicts } = detectCrossListingConflicts(listings);
-  // Find pairs with shared first-party domain and entity alignment (POSSIBLY_SAME_ENTITY or RELATED_BRAND with name alignment)
+  // Find pairs with shared first-party domain, phone, or social AND entity alignment
   const mergePairs = conflicts.filter((c) => {
     const isDomainShared =
       c.conflict.sharedContacts.domains.length > 0 &&
       c.conflict.sharedContacts.domains.some((d: string) => isUsableOfficialWebsite(`https://${d}`));
 
-    if (!isDomainShared) return false;
+    const isPhoneShared =
+      c.conflict.sharedContacts.phones.length > 0 || (c.conflict.sharedContacts as any).mobiles?.length > 0;
+
+    const isSocialShared =
+      c.conflict.sharedContacts.socials && c.conflict.sharedContacts.socials.length > 0;
+
+    const hasSharedContact = isDomainShared || isPhoneShared || isSocialShared;
+    if (!hasSharedContact) return false;
 
     if (
       c.conflict.conflictType === 'POSSIBLY_SAME_ENTITY' ||
@@ -1220,3 +1225,6 @@ export function mergeDuplicateDomainEntities<T extends ConflictCheckListing>(
     autoMergedCount: mergedCount,
   };
 }
+
+/** Backward-compatible alias for mergeDuplicateEntities */
+export const mergeDuplicateDomainEntities = mergeDuplicateEntities;
