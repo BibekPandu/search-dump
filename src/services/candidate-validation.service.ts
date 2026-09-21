@@ -8,7 +8,11 @@
  * deep extraction, contact attribution, and consensus synthesis.
  */
 
-import { evaluateGeographicLocality, type GeographicDecision } from './geographic-evaluator.service';
+import {
+  evaluateGeographicLocality,
+  evaluateGeographicLocalityWithEscalation,
+  type GeographicDecision,
+} from './geographic-evaluator.service';
 import type { LocalityClusterConfig } from '../config/geo-localities.config.js';
 import type { ResearchCandidate } from '../mastra/agents/research-agent/schema';
 
@@ -136,15 +140,15 @@ export interface ExtractedAddressRevalidationResult {
 }
 
 /**
- * Phase 8h (W2-03): Re-validates the candidate's actual extracted address from Step 2 against the target location.
- * Directly reuses Group B geocoding and evaluateGeographicLocality() as single source of truth.
+ * Phase 8h (W2-03) & Phase 8i (GEO-02): Re-validates the candidate's actual extracted address from Step 2 against the target location.
+ * Directly reuses Group B geocoding and evaluateGeographicLocalityWithEscalation() as single source of truth.
  */
-export function revalidateExtractedCandidateAddress(
+export async function revalidateExtractedCandidateAddress(
   candidate: ResearchCandidate,
   extractedAddress: string,
   targetLocation?: string,
   dynamicCluster?: LocalityClusterConfig | null
-): ExtractedAddressRevalidationResult {
+): Promise<ExtractedAddressRevalidationResult> {
   if (!targetLocation || !targetLocation.trim() || !extractedAddress || !extractedAddress.trim()) {
     return {
       isValid: true,
@@ -161,7 +165,11 @@ export function revalidateExtractedCandidateAddress(
     longitude: candidate.coordinates?.lng,
   };
 
-  const geoDecision = evaluateGeographicLocality(geoInput, targetLocation, dynamicCluster);
+  const geoDecision = await evaluateGeographicLocalityWithEscalation(
+    geoInput,
+    targetLocation,
+    dynamicCluster
+  );
 
   if (geoDecision.status === 'outside') {
     return {
