@@ -73,6 +73,19 @@ export const DIRECTORY_DOMAINS = new Set<string>([
   'prolinknepal.com',
   'hamrobazaar.com',
   'volza.com',
+  'collegenp.com',
+  'suvidhasewa.com.np',
+  'aarohnepal.org',
+  'virtualedufairnepal.com',
+  'merokirana.com',
+  'nepalhomesearch.com',
+  'bihebazaar.com',
+  'playo.co',
+  'cybo.com',
+  'turantcall.com',
+  'findallnepal.com',
+  'scorchdeal.com',
+  'hospitalnepal.com',
 ]);
 
 export const DIRECTORY_LISTING_PATHS: RegExp[] = [
@@ -245,11 +258,14 @@ export function extractBusinessNameTokens(businessName: string): string[] {
     'technology',
   ]);
 
-  return businessName
+  const normalized = businessName
+    .replace(/([A-Za-z0-9])\s*[.&/]\s*([A-Za-z0-9])/g, '$1$2')
     .toLowerCase()
-    .replace(/[^\w\s]/g, ' ')
+    .replace(/[^\w\s]/g, ' ');
+
+  return normalized
     .split(/\s+/)
-    .filter((t) => t.length >= 3 && !STOP_WORDS.has(t));
+    .filter((t) => t.length >= 2 && !STOP_WORDS.has(t));
 }
 
 /**
