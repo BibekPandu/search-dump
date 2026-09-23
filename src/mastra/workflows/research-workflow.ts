@@ -95,6 +95,10 @@ import {
   type ClassifiedContact,
 } from '../agents/research-agent/contact.schema';
 import {
+  attributeMultiBranchContacts,
+  isAllContactsUnattributed,
+} from '../../services/entity-resolution.service';
+import {
   buildResearchCandidates,
   toUnifiedCandidates,
 } from '../../services/research-candidate.service';
@@ -2353,37 +2357,76 @@ export function sanitizeListingWithEvidence(
   // Deduplicate and aggregate cross-page signals across all collected contacts
   const deduplicatedContacts = deduplicateClassifiedContacts(allClassifiedContacts);
 
-  // Branch separation and aggregation
-  for (const c of deduplicatedContacts) {
-    if (c.role === 'branch_contact') {
-      let branchName = 'Branch';
-      const locMatch = c.context?.match(/\b(chabahil|naikap|bardibas|banasthali|chapagaun|jawalakhel|koteshwor|kumaripati|pokhara|biratnagar|birgunj|dharan|hetauda|nepalgunj|butwal)\b/i);
-      if (locMatch) {
-        const cap = locMatch[1].charAt(0).toUpperCase() + locMatch[1].slice(1).toLowerCase();
-        branchName = `${cap} Branch`;
-      } else if (c.context) {
-        branchName = `${c.context.slice(0, 30)} Branch`;
+  // Phase 8k Component 3 — Four-Tier Branch Attribution
+  // Replace fragile hardcoded locality regex with evidence-driven geo evaluator logic.
+  const candidateCoords = candidate.coordinates;
+  const candidateCoordsForBranching =
+    candidateCoords &&
+    typeof candidateCoords.lat === 'number' &&
+    typeof candidateCoords.lng === 'number'
+      ? { lat: candidateCoords.lat, lng: candidateCoords.lng }
+      : undefined;
+
+  const targetLocStr =
+    (typeof listing.location === 'string' && listing.location) ||
+    (typeof candidate.location === 'string' && candidate.location) ||
+    'Satungal';
+
+  const branchAttributions = attributeMultiBranchContacts(
+    deduplicatedContacts,
+    targetLocStr,
+    candidate.phone,
+    candidateCoordsForBranching,
+    null
+  );
+
+  // Build branches[] from 'branch_contact' tier attributions
+  for (const attr of branchAttributions) {
+    if (attr.attribution !== 'branch_contact') continue;
+    const c = attr.contact;
+    const branchName = attr.branchLabel || 'Branch';
+    const cleanAddr = c.context
+      ? c.context
+          .replace(/!\[.*?\]\(.*?\)/g, '')
+          .replace(/\[(.*?)\]\(.*?\)/g, '$1')
+          .replace(/<[^>]*>?/g, '')
+          .replace(/https?:\/\/\S+/g, '')
+          .replace(/#+/g, '')
+          .replace(/^[a-zA-Z0-9_\-\.\/]*\.(?:png|jpe?g|webp|gif|svg)\)?\s*/i, '')
+          .replace(/^[^a-zA-Z0-9]+/, '')
+          .replace(/(?:\+977[-.\s]?)?(?:\(?\d{2,4}\)?[-.\s]?)?\d{6,10}/g, '')
+          .replace(/\b(?:Kantipur Dent\w*|Rotary[- ]\s*Kanti\w*|alt)\b/gi, '')
+          .replace(/\bRorary\b/gi, 'Rotary')
+          .replace(/\s+/g, ' ')
+          .trim()
+      : undefined;
+    const existing = branchesMap.get(branchName) || {
+      name: branchName,
+      address: cleanAddr && cleanAddr.length >= 3 ? cleanAddr : undefined,
+      phones: [],
+      mobiles: [],
+      emails: [],
+    };
+    if (c.type === 'phone') {
+      if (c.phoneType === 'mobile') {
+        if (!existing.mobiles.includes(c.value)) existing.mobiles.push(c.value);
+      } else {
+        if (!existing.phones.includes(c.value)) existing.phones.push(c.value);
       }
-      const existing = branchesMap.get(branchName) || {
-        name: branchName,
-        address: c.context,
-        phones: [],
-        mobiles: [],
-        emails: [],
-      };
-      if (c.type === 'phone') {
-        if (c.phoneType === 'mobile') {
-          if (!existing.mobiles.includes(c.value)) existing.mobiles.push(c.value);
-        } else {
-          if (!existing.phones.includes(c.value)) existing.phones.push(c.value);
-        }
-      } else if (c.type === 'email') {
-        if (!existing.emails.includes(c.value)) existing.emails.push(c.value);
-      }
-      branchesMap.set(branchName, existing);
+    } else if (c.type === 'email') {
+      if (!existing.emails.includes(c.value)) existing.emails.push(c.value);
     }
+    branchesMap.set(branchName, existing);
   }
   const branches = [...branchesMap.values()];
+
+  // Unattributed-Only Policy: if ALL non-Maps contacts are unattributed, note it for
+  // confidence penalty and empty phones[] downstream.
+  const mapsPhoneCanonical = candidate.phone ? classifyNepalPhone(candidate.phone).digits : undefined;
+  const allContactsUnattributed = isAllContactsUnattributed(branchAttributions, mapsPhoneCanonical);
+  if (allContactsUnattributed) {
+    incrementTelemetry('unattributedOnlyListings');
+  }
 
   const mapsPhoneDigits = [candidate.phone]
     .filter(Boolean)
@@ -2408,7 +2451,22 @@ export function sanitizeListingWithEvidence(
       return;
     }
 
-    // 2. Non-Maps phones: consult accumulated multi-signal evidence from deduplicatedContacts
+    // 2. Non-Maps phones: consult branch attributions from Phase 8k Component 3
+    const attr = branchAttributions.find(
+      (a) => a.contact.canonicalDigits === classified.digits
+    );
+
+    if (attr) {
+      // Branch contacts belong in branches[], never at top-level
+      if (attr.attribution === 'branch_contact') {
+        return;
+      }
+      // Unattributed contacts without Maps corroboration are suppressed
+      if (attr.attribution === 'unattributed') {
+        return;
+      }
+    }
+
     const contactEvidence = deduplicatedContacts.find(
       (c) => c.canonicalDigits === classified.digits
     );
@@ -2419,7 +2477,7 @@ export function sanitizeListingWithEvidence(
         return;
       }
     } else if (allClassifiedContacts.length > 0) {
-      // No evidence found among classified contacts — do not promote bare/unverified numbers (Matrix row 9)
+      // No evidence found among classified contacts — do not promote bare/unverified numbers
       return;
     }
 
@@ -2519,10 +2577,12 @@ export function sanitizeListingWithEvidence(
     if (!url || !isRealSocialProfile(url, plat as any)) return null;
     const categoryCtx = [
       (listing as any).category,
+      (listing as any).businessType,
       candidate.classification?.type,
       (candidate as any).type,
       (candidate as any).types,
       (candidate as any).category,
+      (candidate as any).categories,
     ].flat().filter(Boolean) as string[];
     const classified = classifySocialProfile(
       url,
@@ -2729,6 +2789,27 @@ export function sanitizeListingWithEvidence(
     if (reconciledDiscoveryState === 'DISCOVERY_FOUND_FIRST_PARTY') {
       reconciledDiscoveryState = 'DISCOVERY_FOUND_ONLY_THIRD_PARTY';
       reconciliationReason = 'Provisional discovery URL rejected by downstream verification (unverified)';
+    }
+  }
+
+  // Phase 8k D14 Fix: Synchronize classifiedContacts roles with branchAttributions
+  for (const c of allClassifiedContacts) {
+    const attr = branchAttributions.find(
+      (a) =>
+        (c.canonicalDigits && a.contact.canonicalDigits === c.canonicalDigits) ||
+        (c.value && a.contact.value === c.value)
+    );
+    if (attr) {
+      if (attr.attribution === 'branch_contact') {
+        c.role = 'branch_contact';
+        c.owner = 'branch';
+      } else if (attr.attribution === 'unattributed') {
+        c.role = 'unknown';
+        c.owner = 'unknown';
+      } else if (attr.attribution === 'target_branch' || attr.attribution === 'general_business') {
+        c.role = 'primary_business';
+        c.owner = 'business';
+      }
     }
   }
 

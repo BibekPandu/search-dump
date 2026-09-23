@@ -7,7 +7,13 @@ import {
 } from './candidate-classifier.service';
 import { isSocialOrDirectory, isGoogleMapsUrl } from './url-filter.service';
 import type { SerperPlaceResult } from './serper-places.service';
-import { classifySocialProfile } from './business-extractor.service';
+import { classifySocialProfile, classifyNepalPhone } from './business-extractor.service';
+import {
+  findRegisteredLocalityCluster,
+  normalizeLocalityString,
+  REGISTERED_LOCALITY_CLUSTERS,
+} from '../config/geo-localities.config.js';
+import { NTA_LANDLINE_AREA_CODES } from '../config/nepal-telecom.config.js';
 
 // ============================================================================
 // Types
@@ -1228,3 +1234,271 @@ export function mergeDuplicateEntities<T extends ConflictCheckListing>(
 
 /** Backward-compatible alias for mergeDuplicateEntities */
 export const mergeDuplicateDomainEntities = mergeDuplicateEntities;
+
+// ============================================================================
+// Phase 8k Component 3 — Four-Tier Multi-Branch Contact Attribution
+// ============================================================================
+
+import type {
+  ClassifiedContact,
+  BranchAttributionResult,
+} from '../mastra/agents/research-agent/contact.schema';
+import {
+  calculateHaversineDistanceKm,
+  evaluateGeographicLocality,
+  type CandidateGeoInput,
+} from './geographic-evaluator.service';
+
+/**
+ * Expanded hotline/head-office indicator phrases that mark a contact as belonging
+ * to the whole business rather than a specific branch.
+ */
+const GENERAL_BUSINESS_PHRASES = [
+  'head office', 'head-office', 'headoffice',
+  'main office', 'main-office', 'mainoffice',
+  'central office', 'central-office',
+  'hotline', 'toll free', 'toll-free', 'tollfree',
+  'customer care', 'customer service',
+  'national helpline', 'national contact',
+  'corporate office', 'registered office',
+  'hq', 'headquarters',
+  'general enquiry', 'general inquiry',
+];
+
+/**
+ * Phase 8k Component 3 — Evidence-driven four-tier branch attribution.
+ *
+ * For each classified contact in a multi-branch listing, determines whether it belongs to:
+ *  1. `target_branch`    — matches the queried locality (by GPS haversine or address text)
+ *  2. `general_business` — a national hotline / head-office signal, or intra-district contact
+ *  3. `branch_contact`   — a foreign-district contact (GPS > R from target, or conflicting locality text)
+ *  4. `unattributed`     — not enough evidence to determine branch ownership
+ *
+ * @param contacts         All dedup'd classified contacts from a multi-branch candidate
+ * @param targetLocation   The locality the user searched (e.g. 'Satungal')
+ * @param mapsPhone        The canonical phone from Maps (if any) — Maps phone is always target_branch
+ * @param candidateCoords  GPS of the Maps-anchor place result (if available)
+ * @param dynamicCluster   Pre-resolved locality cluster from the geo evaluator
+ */
+export function attributeMultiBranchContacts(
+  contacts: ClassifiedContact[],
+  targetLocation: string,
+  mapsPhone?: string,
+  candidateCoords?: { lat: number; lng: number },
+  dynamicCluster?: import('../config/geo-localities.config.js').LocalityClusterConfig | null
+): BranchAttributionResult[] {
+  const results: BranchAttributionResult[] = [];
+
+  // Canonicalize the Maps phone digits for identity comparison
+  const mapsPhoneDigits = mapsPhone ? classifyNepalPhone(mapsPhone).digits : undefined;
+
+  for (const contact of contacts) {
+    const ctx = (contact.context || '').toLowerCase();
+    const canonicalDigits = contact.canonicalDigits || '';
+
+    // ── Tier 1: General Business / Hotline Phrases ───────────────────────────
+    // General business/hotline/head-office phrases ALWAYS take precedence over raw phone assignment.
+    const hasGeneralPhrase = GENERAL_BUSINESS_PHRASES.some((phrase) => ctx.includes(phrase));
+    if (hasGeneralPhrase) {
+      results.push({
+        contact,
+        attribution: 'general_business',
+        reason: `General business phrase detected in context: "${ctx.slice(0, 60)}"`,
+      });
+      continue;
+    }
+
+    // ── Tier 2: Locality Conflict Detection in Context ───────────────────────
+    // If context text explicitly specifies a distinct foreign locality (e.g. "7 Banepa", "Patan Branch", "Pokhara"),
+    // it is attributed as branch_contact regardless of whether it is a mobile or landline.
+    if (ctx.trim()) {
+      const lowerCtx = ctx.toLowerCase();
+      const targetClusterObj =
+        dynamicCluster ||
+        findRegisteredLocalityCluster(normalizeLocalityString(targetLocation)) ||
+        REGISTERED_LOCALITY_CLUSTERS['satungal'];
+      const targetCanonical = targetClusterObj?.canonicalName || 'satungal';
+      const targetAliases = new Set([
+        targetCanonical,
+        ...(targetClusterObj?.aliases || []).map((a) => normalizeLocalityString(a)),
+      ]);
+
+      let foreignBranchFound = false;
+      for (const [otherKey, otherCluster] of Object.entries(REGISTERED_LOCALITY_CLUSTERS)) {
+        if (otherKey === targetCanonical || targetAliases.has(otherKey)) continue;
+
+        const otherAliases = [otherKey, ...(otherCluster.aliases || [])].map((a) => normalizeLocalityString(a));
+        const matchesOther = otherAliases.some((alias) => new RegExp(`\\b${alias}\\b`, 'i').test(lowerCtx));
+
+        if (matchesOther) {
+          const rawLabel = otherCluster.administrativeExtent.split('(')[0].trim() || otherCluster.canonicalName;
+          const branchLabel = rawLabel.charAt(0).toUpperCase() + rawLabel.slice(1) + ' Branch';
+          results.push({
+            contact,
+            attribution: 'branch_contact',
+            branchLabel,
+            reason: `Context text specifies foreign locality '${otherKey}' (${otherCluster.administrativeExtent})`,
+          });
+          foreignBranchFound = true;
+          break;
+        }
+      }
+
+      // Amendment 2: Generic fallback for unregistered localities in context (e.g., "Thamel Branch", "Naxal Office")
+      if (!foreignBranchFound && contact.type === 'phone' && contact.phoneType === 'mobile') {
+        const branchMatch = lowerCtx.match(/\b([a-z]+)\s+(branch|office|center|centre)\b/i);
+        if (branchMatch) {
+          const matchedLocality = branchMatch[1].toLowerCase();
+          if (matchedLocality !== targetCanonical && !targetAliases.has(matchedLocality)) {
+            const rawLabel = branchMatch[1];
+            const branchLabel = rawLabel.charAt(0).toUpperCase() + rawLabel.slice(1) + ' Branch';
+            results.push({
+              contact,
+              attribution: 'branch_contact',
+              branchLabel,
+              reason: `Context text implies foreign locality branch: '${rawLabel} ${branchMatch[2]}'`,
+            });
+            foreignBranchFound = true;
+          }
+        }
+      }
+
+      if (foreignBranchFound) {
+        continue;
+      }
+
+      const contextGeoInput: CandidateGeoInput = {
+        title: '',
+        address: ctx,
+      };
+      const geoDecision = evaluateGeographicLocality(contextGeoInput, targetLocation, dynamicCluster);
+
+      if (geoDecision.status === 'outside') {
+        const matchedLocality =
+          geoDecision.evidence.extractedLocality ||
+          ctx.match(/\b([a-z]{4,})\b/i)?.[1] ||
+          'Other';
+        const branchLabel =
+          matchedLocality.charAt(0).toUpperCase() + matchedLocality.slice(1).toLowerCase() + ' Branch';
+
+        results.push({
+          contact,
+          attribution: 'branch_contact',
+          branchLabel,
+          reason: `Context text specifies a distinct non-adjacent locality: ${geoDecision.reason}`,
+        });
+        continue;
+      }
+
+      if (geoDecision.status === 'inside') {
+        results.push({
+          contact,
+          attribution: 'target_branch',
+          reason: `Context text matches target locality: ${geoDecision.reason}`,
+        });
+        continue;
+      }
+    }
+
+    // ── Tier 2b: Telecom Landline STD Area Code Isolation ────────────────────
+    // If contact is a landline, check whether its dialing area code is outside target zone
+    const targetClusterForArea = dynamicCluster || findRegisteredLocalityCluster(normalizeLocalityString(targetLocation));
+    const classifiedLandline = contact.phoneType === 'landline' ? classifyNepalPhone(contact.value) : null;
+    if (classifiedLandline && classifiedLandline.type === 'landline') {
+      const digits = classifiedLandline.digits;
+      const isKathmanduLandline = digits.length === 8 && digits.startsWith('1');
+      const targetIsKathmandu = !targetClusterForArea || [
+        'satungal', 'anamnagar', 'kirtipur', 'sinamangal', 'baneshwor',
+        'thamel', 'chabahil', 'koteshwor', 'kalanki', 'bhaktapur', 'lalitpur'
+      ].includes(targetClusterForArea.canonicalName);
+
+      if (targetIsKathmandu && !isKathmanduLandline && digits.length === 8) {
+        const areaCode = '0' + digits.slice(0, 2);
+        const areaInfo = NTA_LANDLINE_AREA_CODES[areaCode];
+        const branchLabel = (areaInfo?.region || `Area ${areaCode}`) + ' Branch';
+        results.push({
+          contact,
+          attribution: 'branch_contact',
+          branchLabel,
+          reason: `Landline area code ${areaCode} (${areaInfo?.region || 'Regional Nepal'}) is outside target Kathmandu locality`,
+        });
+        continue;
+      }
+    }
+
+    // ── Tier 3: Maps Phone Anchor ───────────────────────────────────────────
+    // If phone matches Maps ground-truth and has no conflicting context, attribute to target_branch.
+    if (mapsPhoneDigits && canonicalDigits && canonicalDigits === mapsPhoneDigits) {
+      results.push({
+        contact,
+        attribution: 'target_branch',
+        reason: 'Maps anchor phone with no conflicting context: target_branch',
+      });
+      continue;
+    }
+
+    // ── Tier 4: GPS-Based Distance Check ────────────────────────────────────
+    const targetCluster = dynamicCluster || findRegisteredLocalityCluster(normalizeLocalityString(targetLocation));
+
+    if (targetCluster && candidateCoords) {
+      const distance = calculateHaversineDistanceKm(
+        targetCluster.centroid.lat,
+        targetCluster.centroid.lng,
+        candidateCoords.lat,
+        candidateCoords.lng
+      );
+
+      if (distance <= targetCluster.maxRadiusKm) {
+        results.push({
+          contact,
+          attribution: 'target_branch',
+          distanceKm: distance,
+          reason: `GPS within target radius: ${distance}km <= ${targetCluster.maxRadiusKm}km for '${targetCluster.canonicalName}'`,
+        });
+        continue;
+      }
+    }
+
+    // ── Tier 4: Intra-District Fallback → General Business ───────────────────
+    // No GPS, no locality conflict, no hotline phrase, but contact is phone/landline.
+    // Intra-district contacts (district-level address, no sub-locality conflict) are
+    // promoted to general_business rather than left unattributed.
+    if (contact.role === 'primary_business' && contact.owner === 'business') {
+      results.push({
+        contact,
+        attribution: 'general_business',
+        reason: 'Primary business role with no locality conflict: treated as general_business (intra-district fallback)',
+      });
+      continue;
+    }
+
+    // ── Tier 4: Unattributed ─────────────────────────────────────────────────
+    results.push({
+      contact,
+      attribution: 'unattributed',
+      reason: 'Insufficient locality evidence to determine branch ownership',
+    });
+  }
+
+  return results;
+}
+
+/**
+ * Phase 8k Component 3 — Unattributed-Only Policy.
+ *
+ * When ALL non-Maps contacts are unattributed, the listing ships with phones: [].
+ * The website and Maps phone (if present) remain intact.
+ * A confidence penalty of -0.12 is applied to the listing metadata.
+ *
+ * @returns Whether all non-Maps contacts were unattributed
+ */
+export function isAllContactsUnattributed(
+  attributions: BranchAttributionResult[],
+  mapsPhoneDigits?: string
+): boolean {
+  const nonMapsAttributions = attributions.filter(
+    (a) => !(mapsPhoneDigits && a.contact.canonicalDigits === mapsPhoneDigits)
+  );
+  if (nonMapsAttributions.length === 0) return false;
+  return nonMapsAttributions.every((a) => a.attribution === 'unattributed');
+}

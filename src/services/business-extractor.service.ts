@@ -437,7 +437,8 @@ const INSTAGRAM_RESERVED_PATHS = new Set([
  * Note: This list is maintained, not derived. Additions should be reviewed for false-positive risk.
  */
 export const INDUSTRY_GENERIC_TOKENS = new Set([
-  'dental', 'clinic', 'care', 'hospital', 'health', 'healthcare', 'medical', 'med',
+  'dental', 'dentist', 'dentistry', 'orthodontic', 'orthodontics', 'oral', 'smile',
+  'clinic', 'care', 'hospital', 'health', 'healthcare', 'medical', 'med',
   'pharma', 'pharmacy', 'diagnostic', 'pathology', 'lab', 'laboratory', 'center',
   'centre', 'institute', 'poly', 'polyclinic', 'nursing', 'home',
   'realtors', 'realestate', 'properties', 'property', 'homes', 'builders', 'developers',
@@ -459,6 +460,111 @@ export const INDUSTRY_GENERIC_TOKENS = new Set([
   'balkhu', 'anamnagar', 'sinamangal', 'tinkune', 'kupondole', 'jawalakhel', 'sanepa',
   'kumaripati', 'satdobato', 'gongabu', 'balaju',
 ]);
+
+/**
+ * Phase 8k — Category-scoped generic tokens map.
+ * Used by the website ranker and social alignment gate to build per-category stop-lists.
+ * Keys are normalized category slugs derived from Maps categories[] or user query tokens.
+ * UNIVERSAL_STOPWORDS (in website-search-ranker.service.ts) are applied first, then this map.
+ */
+export const CATEGORY_GENERIC_TOKENS: Record<string, string[]> = {
+  dental: ['dental', 'dentist', 'dentistry', 'orthodontic', 'orthodontics', 'oral', 'smile',
+    'clinic', 'care', 'hospital', 'center', 'centre', 'health', 'healthcare'],
+  medical: ['clinic', 'hospital', 'health', 'healthcare', 'polyclinic', 'pharmacy', 'medical',
+    'care', 'center', 'centre', 'nursing', 'diagnostic', 'lab', 'laboratory'],
+  education: ['school', 'secondary', 'primary', 'academy', 'college', 'vidyalaya', 'shiksha',
+    'institute', 'campus', 'vidya', 'mandir', 'gyanpeeth', 'higher'],
+  hospitality: ['hotel', 'resort', 'lodge', 'inn', 'stay', 'guest', 'house', 'restaurant', 'cafe',
+    'coffee', 'bakery', 'kitchen'],
+  legal: ['law', 'lawyer', 'advocate', 'legal', 'associates', 'chambers', 'attorney', 'solicitors'],
+  fitness: ['gym', 'fitness', 'club', 'center', 'centre', 'workout', 'training', 'health'],
+  retail: ['store', 'shop', 'mart', 'kirana', 'pasal', 'center', 'centre', 'enterprise',
+    'market', 'bazaar', 'mart'],
+  beauty: [
+    'beauty', 'salon', 'parlour', 'parlor', 'hair', 'makeup', 'cosmetic', 'cosmetics',
+    'spa', 'nail', 'wellness', 'skin', 'skincare', 'grooming', 'threading', 'waxing',
+    'facial', 'pedicure', 'manicure', 'bridal', 'studio', 'care', 'center', 'centre',
+    'style', 'styling', 'look', 'glam', 'glamour', 'fashion',
+    // additional generic terms surfaced by Checkpoint 1 analysis (D16-D22)
+    'unisex', 'ladies', 'gents', 'royal', 'hub', 'collection', 'classic', 'elegant',
+  ],
+  services: ['service', 'services', 'repair', 'cleaning', 'plumbing', 'solutions', 'works'],
+};
+
+/**
+ * Phase 8k — Normalizes a Maps category string (e.g. 'Dental clinic') to a CATEGORY_GENERIC_TOKENS key.
+ * Resolution order:
+ *  1. Maps categories[] / businessType → normalized key
+ *  2. User query token match
+ *  3. Default to 'services' (most permissive) and increment CATEGORY_UNRESOLVED telemetry
+ */
+export function resolveCategoryKey(
+  categoryContext: string | string[] | undefined,
+  userQuery?: string
+): string {
+  const CATEGORY_KEYWORD_MAP: Record<string, string> = {
+    dental: 'dental', dentist: 'dental', dentistry: 'dental', orthodontic: 'dental', oral: 'dental',
+    clinic: 'medical', hospital: 'medical', pharmacy: 'medical', medical: 'medical',
+    school: 'education', college: 'education', academy: 'education', institute: 'education',
+    hotel: 'hospitality', resort: 'hospitality', restaurant: 'hospitality', cafe: 'hospitality',
+    law: 'legal', lawyer: 'legal', advocate: 'legal', legal: 'legal', attorney: 'legal',
+    gym: 'fitness', fitness: 'fitness', workout: 'fitness',
+    store: 'retail', shop: 'retail', mart: 'retail', kirana: 'retail', grocery: 'retail',
+    beauty: 'beauty', salon: 'beauty', parlour: 'beauty', parlor: 'beauty',
+    hair: 'beauty', spa: 'beauty', cosmetic: 'beauty', makeup: 'beauty',
+    barber: 'beauty', barbershop: 'beauty', unisex: 'beauty',
+    service: 'services', repair: 'services', cleaning: 'services', plumbing: 'services',
+  };
+
+  const contexts = [
+    ...(Array.isArray(categoryContext) ? categoryContext : categoryContext ? [categoryContext] : []),
+    ...(userQuery ? [userQuery] : []),
+  ];
+
+  for (const ctx of contexts) {
+    if (!ctx) continue;
+    const normalized = ctx.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/);
+    for (const word of normalized) {
+      if (CATEGORY_KEYWORD_MAP[word]) return CATEGORY_KEYWORD_MAP[word];
+    }
+  }
+
+  return 'services';
+}
+
+/**
+ * Phase 8k Component 5 — Negative patterns for person name extraction garbage filtering.
+ * Phrases that look structurally like schedules, business instructions, or CTA text
+ * are rejected before being set as `associatedPerson`.
+ */
+export const SCHEDULE_GARBAGE_PATTERNS: RegExp[] = [
+  /during\s+opening\s+hours/i,
+  /\bworking\s+hours/i,
+  /\boffice\s+hours/i,
+  /\bbusiness\s+hours/i,
+  /\bopening\s+hours/i,
+  /\bsun\s*[-–]\s*fri/i,
+  /\bmon\s*[-–]\s*fri/i,
+  /\bsun\s*[-–]\s*sat/i,
+  /\bsaturday\s+closed/i,
+  /\bam\s*[-–to]+\s*pm/i,
+  /\bopen\s+now/i,
+  /\bclosed\s+now/i,
+  /\bavailable\s+during/i,
+  /\bcontact\s+us\s+during/i,
+  /\bbook\s+(?:an\s+)?appointment/i,
+  /\bcall\s+us\s+today/i,
+  /\d{1,2}\s*(?:am|pm)/i,
+  /\b(?:ions|hours|here|gap|start)\b/i,
+  /\bdirections?\b/i,
+  /\bhours\s+here\b/i,
+  /\bstart\s+gap\b/i,
+  /\bdirections\s+and\s+hours\b/i,
+  /\btimings?\b/i,
+  /\bschedule\b/i,
+  /\bemergency\s+services?\b/i,
+  /\bquick\s+links?\b/i,
+];
 
 export const FACEBOOK_NON_CANONICAL_SUBPATHS = new Set([
   'mentions',
@@ -1041,8 +1147,22 @@ export function classifySocialProfile(
 
   // Decompose cleanHandle by removing generic tokens to isolate distinctive brand parts
   // Sort generic tokens descending by length so longer terms match first
-  const categoryGenericTokens = new Set<string>(INDUSTRY_GENERIC_TOKENS);
+  //
+  // Phase 8L fix (D16-D22 root cause): previously only INDUSTRY_GENERIC_TOKENS + raw category-string
+  // words were merged here, meaning curated beauty-specific tokens like 'unisex', 'royal', 'studio'
+  // were never added → treated as distinctive → wrong socials accepted.
+  // Fix: resolve the category key (same as website ranker) and merge the full CATEGORY_GENERIC_TOKENS list.
+  const resolvedCategoryKey = resolveCategoryKey(categoryContext);
+  const resolvedCategoryTokens = CATEGORY_GENERIC_TOKENS[resolvedCategoryKey] ?? CATEGORY_GENERIC_TOKENS['services'];
+
+  const categoryGenericTokens = new Set<string>([
+    ...INDUSTRY_GENERIC_TOKENS,
+    ...resolvedCategoryTokens,
+  ]);
+
   if (categoryContext) {
+    // Also add raw words from the Maps category strings (e.g. 'Beauty salon', 'Hair salon')
+    // as additional coverage for category-specific terms not in the curated map.
     const contexts = Array.isArray(categoryContext) ? categoryContext : [categoryContext];
     for (const ctx of contexts) {
       if (!ctx || typeof ctx !== 'string') continue;
@@ -1101,6 +1221,23 @@ export function classifySocialProfile(
     distinctiveBusinessTokens.push(...domainWords);
   }
 
+  // Support initialisms at the start of business name (e.g. "R S Dental" -> "rs", "D I Dental" -> "di", "N K Shop" -> "nk")
+  const initialismMatch = (businessName || '').match(/^([a-zA-Z])\s*([a-zA-Z])(?:\s*([a-zA-Z]))?\b/);
+  const initialism = initialismMatch
+    ? (initialismMatch[1] + initialismMatch[2] + (initialismMatch[3] || '')).toLowerCase()
+    : '';
+  if (initialism && initialism.length >= 2) {
+    // Prevent false positives on 2-3 char initialisms (like "ab" matching inside "fabulous")
+    // by requiring the handle to start with it or contain it as a distinct word
+    if (
+      cleanHandle === initialism ||
+      cleanHandle.startsWith(initialism) ||
+      allHandleWords.includes(initialism)
+    ) {
+      distinctiveBusinessTokens.push(initialism);
+    }
+  }
+
   const uniqueDistinctiveBusinessTokens = Array.from(new Set(distinctiveBusinessTokens));
 
   // Check Acronym Match (>= 3 chars)
@@ -1137,6 +1274,51 @@ export function classifySocialProfile(
   );
 
   if (matchingDistinctive.length >= 1) {
+    // Phase 8L Component 8 (D21 Initialism Corroboration Rule):
+    // If the only matching distinctive tokens are short (<= 3 characters, e.g. "apf", "rs", "nk", "ab"),
+    // an initialism alone is ambiguous. Require at least one corroborating signal:
+    //  1. A category token from the vertical (e.g. "dental", "clinic" for dental; "salon", "parlour", "nail", "beauty" for beauty)
+    //  2. Another distinctive business token with length >= 4
+    const onlyShortTokens = matchingDistinctive.every((t) => t.length <= 3);
+    if (onlyShortTokens) {
+      const hasCategoryCorroboration = resolvedCategoryTokens.some((catToken) =>
+        catToken.length >= 3 && (cleanHandle.includes(catToken) || allHandleWords.includes(catToken))
+      );
+      const hasLongDistinctiveOverlap = uniqueDistinctiveBusinessTokens.some(
+        (bt) => bt.length >= 4 && (cleanHandle.includes(bt) || allHandleWords.includes(bt))
+      );
+
+      if (!hasCategoryCorroboration && !hasLongDistinctiveOverlap) {
+        // Handle only has a short initialism without vertical or brand corroboration (e.g. "nepalapfhospital" for "Apf satugal" in Nail salon)
+        if (distinctiveHandleTokens.length >= 1) {
+          return {
+            url,
+            canonicalUrl,
+            platform: plat,
+            handle,
+            profileType: 'business_page',
+            owner: 'unknown',
+            status: 'rejected',
+            confidence: 0.9,
+            rejectionReason: 'BUSINESS_NAME_MISMATCH',
+            distinctiveTokensFound: [],
+          };
+        }
+        return {
+          url,
+          canonicalUrl,
+          platform: plat,
+          handle,
+          profileType: 'business_page',
+          owner: 'unknown',
+          status: 'unknown',
+          confidence: 0.5,
+          rejectionReason: 'INSUFFICIENT_EVIDENCE',
+          distinctiveTokensFound: [],
+        };
+      }
+    }
+
     return {
       url,
       canonicalUrl,
@@ -1517,24 +1699,68 @@ export function classifyEmailRole(
     }
   }
 
-  // 4. Consumer provider personal signal: domain is consumer provider AND (prefix contains digits, dots, or underscores)
+  // 4. Consumer provider personal signal: domain is consumer provider AND prefix looks personal
   if (CONSUMER_EMAIL_DOMAINS.has(domain)) {
+    // Phase 8k CONTACT-06: If consumer email prefix matches >= 2 brand name tokens, classify as business
+    // (e.g. gurjudhara.dentalcare@gmail.com matches 'gurjudhara' and 'dental' from brand)
+    if (businessName) {
+      const brandTokens = businessName.toLowerCase().split(/[\s,.-]+/).filter((t) => t.length >= 3);
+      const matchCount = brandTokens.filter((token) => prefix.includes(token)).length;
+      if (matchCount >= 2) {
+        return { role: 'primary_business', owner: 'business' };
+      }
+      // Single-token match with no digits/dots in prefix is still a business signal
+      if (matchCount >= 1 && !/\d/.test(prefix) && !prefix.includes('_')) {
+        return { role: 'primary_business', owner: 'business' };
+      }
+    }
+    // Personal signal: digits, dots, or underscores in prefix strongly indicate personal email
     if (/\d/.test(prefix) || prefix.includes('.') || prefix.includes('_')) {
       return { role: 'staff_person', owner: 'person' };
     }
-    // If consumer email matches business name brand token e.g. narayanilaw@gmail.com
-    if (businessName) {
-      const brandTokens = businessName.toLowerCase().split(/[\s,.-]+/).filter((t) => t.length >= 3);
-      if (brandTokens.some((token) => prefix.includes(token))) {
-        return { role: 'primary_business', owner: 'business' };
-      }
+  }
+
+  const lowerContext = context.toLowerCase();
+
+  // Phase 8k Component 4 (CONTACT-06): Schema-aware & structured metadata email classification
+  if (
+    lowerContext.includes('schema.org') ||
+    lowerContext.includes('jsonld') ||
+    lowerContext.includes('json-ld') ||
+    lowerContext.includes('@type')
+  ) {
+    if (/\b(person|physician|employee|author|founder|member)\b/i.test(lowerContext)) {
+      return { role: 'staff_person', owner: 'person' };
+    }
+    if (
+      /\b(localbusiness|organization|dentist|medicalbusiness|hospital|clinic|store|corporation|educationalorganization)\b/i.test(
+        lowerContext
+      )
+    ) {
+      return { role: 'primary_business', owner: 'business' };
     }
   }
 
   // 5. Personal honorifics / markers in context: "Dr.", "Mr.", "Mrs.", "Director", etc.
-  const lowerContext = context.toLowerCase();
   if (/\b(dr\.|dr\s|mr\.|mrs\.|ms\.|prof\.|director|founder|doctor|owner:)/i.test(lowerContext)) {
     return { role: 'staff_person', owner: 'person' };
+  }
+
+  // Initialism / Acronym matching (e.g. KDCH / kdchktm for Kantipur Dental College Hospital)
+  if (businessName) {
+    const rawTokens = businessName.toLowerCase().split(/[\s,.-]+/).filter(Boolean);
+    const nonStopTokens = rawTokens.filter((t) => !['and', 'the', 'of', 'in', '&'].includes(t));
+    const fullAcronym = rawTokens.map((t) => t[0]).join('');
+    const shortAcronym = nonStopTokens.map((t) => t[0]).join('');
+    const cleanPrefix = prefix.replace(/[^a-z]/g, '');
+
+    if (
+      (shortAcronym.length >= 3 && cleanPrefix.startsWith(shortAcronym)) ||
+      (fullAcronym.length >= 3 && cleanPrefix.startsWith(fullAcronym)) ||
+      (shortAcronym.length >= 3 && cleanPrefix.includes(shortAcronym))
+    ) {
+      return { role: 'primary_business', owner: 'business' };
+    }
   }
 
   // 6. Personal name pattern in prefix: e.g. "first.last" on business domain
@@ -1802,12 +2028,31 @@ export function classifyPhoneRole(
   }
 
   // Extract person name if present in markdown team cues or direct contact cues
+  const NON_PERSON_WORDS = new Set([
+    'and', 'or', 'the', 'of', 'in', 'at', 'on', 'for', 'to', 'with', 'from', 'by',
+    'hours', 'hour', 'here', 'start', 'gap', 'direction', 'directions', 'ions',
+    'open', 'close', 'closed', 'opening', 'closing', 'time', 'timing', 'timings',
+    'appointment', 'appointments', 'day', 'days', 'week', 'month', 'year',
+    'location', 'locations', 'details', 'detail', 'info', 'information', 'about',
+    'service', 'services', 'clinic', 'hospital', 'center', 'centre', 'branch',
+    'home', 'page', 'site', 'website', 'call', 'contact', 'email', 'phone', 'mobile'
+  ]);
+
   const personMatch =
-    context.match(/(?:###|\*\*|##)?\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})\s+(?:Chairman|Managing Director|Director|Supervisor|Marketing|Front Desk|Design|Executive|Head|Manager|Cleaner|Maid|Technician|Owner|Founder|Advocate|Lawyer|Attorney|Doctor|Principal|Partner)/i) ||
-    context.match(/(?:call|contact|emergency|direct|attorney|lawyer|advocate|dr|mr|mrs|ms|shree)\s*[:\-]?\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})/i) ||
-    context.match(/([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})\s*[-:]\s*(?:\+?[\d\s-]{7,})/);
+    context.match(/(?:###|\*\*|##)?\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})\s+(?:Chairman|Managing Director|Director|Supervisor|Marketing|Front Desk|Design|Executive|Head|Manager|Cleaner|Maid|Technician|Owner|Founder|Advocate|Lawyer|Attorney|Doctor|Principal|Partner)\b/i) ||
+    context.match(/\b(?:call|contact|emergency|direct|attorney|lawyer|advocate|dr|mr|mrs|ms|shree)\b\s*[:\-]?\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})/i) ||
+    context.match(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})\s*[-:]\s*(?:\+?[\d\s-]{7,})/);
   if (personMatch) {
-    associatedPerson = personMatch[1].trim();
+    const candidate = personMatch[1].trim();
+    const candidateTokens = candidate.toLowerCase().split(/\s+/).filter(Boolean);
+    const hasNonPersonWord = candidateTokens.some((t) => NON_PERSON_WORDS.has(t));
+    const isGarbage =
+      hasNonPersonWord ||
+      candidateTokens.length < 2 ||
+      SCHEDULE_GARBAGE_PATTERNS.some((pat) => pat.test(candidate));
+    if (!isGarbage) {
+      associatedPerson = candidate;
+    }
   }
 
   const hasMapsSignal = Boolean(isMapsPhone);

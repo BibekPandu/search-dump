@@ -198,39 +198,8 @@ export function evaluateGeographicLocality(
       }
     }
 
-    // 3. GPS Coordinate Distance Check (if candidate has coordinates)
-    if (coords) {
-      const distance = calculateHaversineDistanceKm(
-        cluster.centroid.lat,
-        cluster.centroid.lng,
-        coords.lat,
-        coords.lng
-      );
-
-      if (distance <= cluster.maxRadiusKm) {
-        return {
-          status: 'inside',
-          reason: `Candidate GPS coordinates are within ${cluster.maxRadiusKm}km locality radius (${distance}km from ${canonicalKey} center)`,
-          matchedRequestedLocality: true,
-          matchedCanonicalLocality: canonicalKey,
-          distanceKm: distance,
-          evidence: { ...baseEvidence, extractedLocality: canonicalKey },
-        };
-      } else {
-        incrementTelemetry('conflictingLocalityExclusions');
-        return {
-          status: 'outside',
-          reason: `Candidate GPS distance (${distance}km) exceeds max boundary radius (${cluster.maxRadiusKm}km) for '${canonicalKey}'`,
-          matchedRequestedLocality: false,
-          matchedCanonicalLocality: canonicalKey,
-          distanceKm: distance,
-          evidence: baseEvidence,
-        };
-      }
-    }
-
-    // 4. Distinct Non-Adjacent Locality Text Conflict (No GPS available)
-    // Check if address explicitly matches another registered cluster
+    // 3. Distinct Non-Adjacent Locality / Municipality Text Conflict
+    // Even if coordinates are near boundary, explicit address naming a distinct foreign locality/municipality takes precedence.
     for (const [otherKey, otherCluster] of Object.entries(REGISTERED_LOCALITY_CLUSTERS)) {
       if (otherKey === canonicalKey) continue;
       if (
@@ -261,6 +230,37 @@ export function evaluateGeographicLocality(
             evidence: { ...baseEvidence, extractedLocality: alias },
           };
         }
+      }
+    }
+
+    // 4. GPS Coordinate Distance Check (if candidate has coordinates)
+    if (coords) {
+      const distance = calculateHaversineDistanceKm(
+        cluster.centroid.lat,
+        cluster.centroid.lng,
+        coords.lat,
+        coords.lng
+      );
+
+      if (distance <= cluster.maxRadiusKm) {
+        return {
+          status: 'inside',
+          reason: `Candidate GPS coordinates are within ${cluster.maxRadiusKm}km locality radius (${distance}km from ${canonicalKey} center)`,
+          matchedRequestedLocality: true,
+          matchedCanonicalLocality: canonicalKey,
+          distanceKm: distance,
+          evidence: { ...baseEvidence, extractedLocality: canonicalKey },
+        };
+      } else {
+        incrementTelemetry('conflictingLocalityExclusions');
+        return {
+          status: 'outside',
+          reason: `Candidate GPS distance (${distance}km) exceeds max boundary radius (${cluster.maxRadiusKm}km) for '${canonicalKey}'`,
+          matchedRequestedLocality: false,
+          matchedCanonicalLocality: canonicalKey,
+          distanceKm: distance,
+          evidence: baseEvidence,
+        };
       }
     }
 
