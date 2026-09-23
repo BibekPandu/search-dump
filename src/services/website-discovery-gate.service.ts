@@ -333,7 +333,13 @@ export function buildSecondChanceQuery(
   const name = (place.title || '').trim();
   if (!name) return undefined;
   const loc = (options.location || '').trim();
-  const base = loc ? `${name} ${loc}` : name;
+
+  // Phase 8k Component 7 (D10): Exact-identity query bundling
+  if (place.phoneNumber && place.phoneNumber.trim().length >= 6) {
+    return `"${name}" "${place.phoneNumber.trim()}"`;
+  }
+
+  const base = loc ? `"${name}" "${loc}"` : `"${name}"`;
   return isEducationCandidate(place, options.runCategory)
     ? `${base} site:.edu.np`
     : `${base} official`;
