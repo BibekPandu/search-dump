@@ -13,6 +13,7 @@ import {
 } from './website-relationship.service';
 import { extractEtldPlusOne, isDirectoryIssuedSubdomain } from './url-filter.service';
 import { incrementTelemetry } from './telemetry.service';
+import { INDUSTRY_GENERIC_TOKENS, CATEGORY_GENERIC_TOKENS, resolveCategoryKey } from './business-extractor.service';
 
 // ============================================================================
 // Website Search Result Ranker — Zero-HTTP deterministic URL scoring (Task 4)
@@ -151,6 +152,16 @@ export interface SelectFirstPartyWebsiteResult {
   reason: string;
 }
 
+/**
+ * Phase 8k Component 2 — Universal stopwords that are stripped BEFORE category-specific tokens.
+ * Does NOT include 'nepal' (can be a distinctive brand word in a Nepal-local context).
+ * Does NOT include 'services' (handled by CATEGORY_GENERIC_TOKENS.services category entry).
+ */
+export const UNIVERSAL_STOPWORDS = new Set([
+  'and', 'the', 'of', 'in', 'for', 'at', 'by', 'to',
+  '&', 'pvt', 'ltd', 'p', 'l', 'inc', 'co',
+]);
+
 /** Bounded universal legal and administrative tokens that never count as distinctive brand names. */
 export const UNIVERSAL_LEGAL_BASELINE = new Set([
   'shop',
@@ -192,17 +203,33 @@ export const UNIVERSAL_LEGAL_BASELINE = new Set([
   'official',
 ]);
 
-import { INDUSTRY_GENERIC_TOKENS } from './business-extractor.service';
+
 
 /**
- * Dynamically resolves generic category tokens from industry vocabularies, candidate's category context
- * (e.g. 'Gym', 'Fitness Center', 'Real Estate Agency', 'Grocery Store') plus the universal legal baseline.
+ * Phase 8k Component 2 — Dynamically resolves generic category tokens using:
+ *  1. UNIVERSAL_STOPWORDS (applied universally)
+ *  2. UNIVERSAL_LEGAL_BASELINE (existing broad baseline)
+ *  3. CATEGORY_GENERIC_TOKENS keyed by resolved category
+ *  4. Literal category context words (additional fallback)
+ *
+ * Strict Distinctive Rule:
+ *  - When >= 1 distinctive token is resolved from the business name, EVERY candidate
+ *    handle/domain/title must contain at least one distinctive token.
+ *  - Generic-token overlap alone is strictly insufficient for identity matching.
+ *  - When distinctiveTokens.length === 0 (all-generic business name), the generic-only
+ *    fallback path requires: exact full name + locality + (Maps phone match OR first-party domain).
  */
-export function resolveDynamicGenericTokens(categoryContext?: string | string[]): Set<string> {
+export function resolveDynamicGenericTokens(categoryContext?: string | string[], userQuery?: string): Set<string> {
+  const categoryKey = resolveCategoryKey(categoryContext, userQuery);
+  const categoryTokens = CATEGORY_GENERIC_TOKENS[categoryKey] ?? CATEGORY_GENERIC_TOKENS['services'];
+
   const dynamicSet = new Set<string>([
+    ...UNIVERSAL_STOPWORDS,
     ...UNIVERSAL_LEGAL_BASELINE,
     ...INDUSTRY_GENERIC_TOKENS,
+    ...categoryTokens,
   ]);
+
   if (!categoryContext) return dynamicSet;
 
   const contexts = Array.isArray(categoryContext) ? categoryContext : [categoryContext];
@@ -333,6 +360,7 @@ function textContainsToken(text: string, token: string): boolean {
 export function scoreCandidate(
   candidate: RankedUrl,
   index: number,
+  businessName: string,
   distinctiveTokens: string[],
   locTokens: string[]
 ): ScoredUrlCandidate {
@@ -422,9 +450,23 @@ export function scoreCandidate(
   }
 
   // Tiered Corroboration Name-Eligibility Rule (Phase 8i Group A)
-  if (distinctiveTokens.length === 0 || nameOverlapCount === 0) {
+  if (distinctiveTokens.length === 0) {
+    const snippetText = `${candidate.description || ''} ${(candidate.extraSnippets || []).join(' ')}`.toLowerCase();
+    const exactNameMatch = snippetText.includes(businessName.toLowerCase());
+    const phoneCorroboration = /\+?977[- ]?\d{7,10}|\b98\d{8}\b|\b01\d{6,7}\b/.test(snippetText);
+    
+    if (exactNameMatch && locationMatch && (phoneCorroboration || tldTier === 'best')) {
+      eligible = true;
+      reasons.push(`generic-only fallback accepted (exact name + location + phone/tld)`);
+      score += 10;
+    } else {
+      eligible = false;
+      reasons.push(`ineligible: zero distinctive business name tokens matched and generic fallback failed`);
+      incrementTelemetry('tieredCorroborationRejections');
+    }
+  } else if (nameOverlapCount === 0) {
     eligible = false;
-    reasons.push(`ineligible: zero distinctive business name tokens matched (0-token match)`);
+    reasons.push(`ineligible: zero distinctive business name tokens matched in handle/title`);
     incrementTelemetry('tieredCorroborationRejections');
   } else if (distinctiveTokens.length === 1) {
     const singleToken = distinctiveTokens[0];
@@ -491,7 +533,7 @@ export function rankWebsiteSearchResults(
   const scored = (results || [])
     .filter((candidate) => isHttpUrl(candidate.url))
     .map((candidate, index) => {
-      const scoredCandidate = scoreCandidate(candidate, index, distinctiveTokens, locTokens);
+      const scoredCandidate = scoreCandidate(candidate, index, businessName, distinctiveTokens, locTokens);
       if (!gateFn(candidate)) {
         scoredCandidate.eligible = false;
         scoredCandidate.reasons.push('ineligible: rejected by the injected usability gate');
