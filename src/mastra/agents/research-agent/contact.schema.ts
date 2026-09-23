@@ -56,3 +56,35 @@ export type ContactOwner = z.infer<typeof contactOwnerEnum>;
 export type ContactChannel = z.infer<typeof contactChannelEnum>;
 export type ClassifiedContact = z.infer<typeof classifiedContactSchema>;
 export type BranchRecord = z.infer<typeof branchRecordSchema>;
+
+/**
+ * Phase 8k Component 3 — Four-tier branch attribution state machine.
+ *
+ * Attribution order (highest priority first):
+ *  1. `target_branch`   — GPS + address match for the queried locality.
+ *                         Contact belongs to the branch at the searched location.
+ *  2. `general_business` — National hotline, head office, or intra-district contact.
+ *                          Included in top-level phones/mobiles, NOT in branches[].
+ *  3. `branch_contact`   — Foreign-district contact (Haversine distance > R from target).
+ *                          Included in branches[] with locality name.
+ *  4. `unattributed`     — Could not determine branch ownership from evidence.
+ *                          Never placed in top-level contacts or branches[].
+ *                          Audit-logged only. Listing ships with phones: [] if all contacts are unattributed.
+ */
+export type BranchAttributionState =
+  | 'target_branch'
+  | 'general_business'
+  | 'branch_contact'
+  | 'unattributed';
+
+/** Result returned by attributeMultiBranchContacts() for each classified contact. */
+export interface BranchAttributionResult {
+  contact: ClassifiedContact;
+  attribution: BranchAttributionState;
+  /** The locality name/label when attribution === 'branch_contact' */
+  branchLabel?: string;
+  /** Distance from target center in km when GPS available */
+  distanceKm?: number;
+  /** Why this attribution was chosen */
+  reason: string;
+}
