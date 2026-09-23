@@ -55,8 +55,8 @@ export const REGISTERED_LOCALITY_CLUSTERS: Record<string, LocalityClusterConfig>
     // Centroid: Kirtipur Municipality Center / TU Gate area
     centroid: { lat: 27.678, lng: 85.277 },
     maxRadiusKm: 3.0,
-    administrativeExtent: 'Kirtipur Wards 1–10 (Panga, Nayabazar, Chobhar, Tyangla Phant)',
-    aliases: ['kirtipur', 'panga', 'chobhar', 'nayabazar kirtipur', 'tyangla phant'],
+    administrativeExtent: 'Kirtipur Wards 1–10 (Panga, Nayabazar, Chobhar, Tyangla Phant, Chhugaun, Rarahill)',
+    aliases: ['kirtipur', 'panga', 'chobhar', 'nayabazar kirtipur', 'tyangla phant', 'chhugaun', 'rarahill', '44618'],
   },
   sinamangal: {
     canonicalName: 'sinamangal',
@@ -154,7 +154,28 @@ export const REGISTERED_LOCALITY_CLUSTERS: Record<string, LocalityClusterConfig>
     centroid: { lat: 28.2096, lng: 83.9856 },
     maxRadiusKm: 8.0,
     administrativeExtent: 'Pokhara / Kaski District',
-    aliases: ['pokhara', 'lakeside', 'mahendrapool', 'prithvi chowk', 'kaski'],
+    aliases: ['pokhara', 'lakeside', 'mahendrapool', 'prithvi chowk', 'kaski', 'lamachaur'],
+  },
+  chitwan: {
+    canonicalName: 'chitwan',
+    centroid: { lat: 27.6833, lng: 84.4333 },
+    maxRadiusKm: 12.0,
+    administrativeExtent: 'Chitwan District (Bharatpur, Narayanghat, Sauraha)',
+    aliases: ['chitwan', 'bharatpur', 'narayanghat', 'sauraha', 'ratnanagar'],
+  },
+  butwal: {
+    canonicalName: 'butwal',
+    centroid: { lat: 27.7, lng: 83.45 },
+    maxRadiusKm: 10.0,
+    administrativeExtent: 'Rupandehi District (Butwal, Bhalwari, Bhairahawa)',
+    aliases: ['butwal', 'bhalwari', 'rupandehi', 'bhairahawa', 'manigram'],
+  },
+  banepa: {
+    canonicalName: 'banepa',
+    centroid: { lat: 27.63, lng: 85.52 },
+    maxRadiusKm: 6.0,
+    administrativeExtent: 'Kavre District (Banepa, Dhulikhel, Panauti)',
+    aliases: ['banepa', 'dhulikhel', 'panauti', 'kavre'],
   },
 };
 
