@@ -15,12 +15,21 @@ import {
 } from './geographic-evaluator.service';
 import type { LocalityClusterConfig } from '../config/geo-localities.config.js';
 import type { ResearchCandidate } from '../mastra/agents/research-agent/schema';
+import { incrementTelemetry } from './telemetry.service';
 
 export interface CandidateValidationContext {
   targetQuery: string;
   targetLocation?: string;
   categoryIntent?: unknown;
   dynamicCluster?: LocalityClusterConfig | null;
+  /**
+   * Phase 8k Component 1 — Geo Anchoring & Web-Only Locality Gate.
+   * Set to `true` when this candidate came from Google Maps (Serper Places API).
+   * Maps candidates have GPS coordinates and are subject to Haversine distance gate.
+   * Web-only candidates (isMapsAnchor = false or undefined) must have geo status
+   * === 'inside' to pass the eligibility gate. 'ambiguous' is excluded for web-only.
+   */
+  isMapsAnchor?: boolean;
 }
 
 export interface CandidateValidationResult {
@@ -98,11 +107,34 @@ export function validateCandidate(
     }
 
     if (geoDecision.status === 'ambiguous') {
+      // Phase 8k Component 1 — Web-Only Locality Gate:
+      // Web-only candidates (no Maps anchor GPS) that are geo-ambiguous MUST be excluded.
+      // They have no coordinates and no verified locality match; letting them through causes D1/D6.
+      // Maps anchor candidates are retained as 'ambiguous' to allow downstream corroboration.
+      const hasGps = Boolean(
+        candidate.coordinates?.lat !== undefined && candidate.coordinates?.lng !== undefined
+      );
+      const isMapsAnchor = context.isMapsAnchor === true || hasGps;
+
+      if (!isMapsAnchor) {
+        // Web-only ambiguous: exclude as unproven locality
+        incrementTelemetry('webOnlyAmbiguousExclusions');
+        return {
+          status: 'excluded',
+          localityStatus: 'ambiguous',
+          localityAmbiguous: true,
+          reason: `Web-Only Locality Gate: Candidate has no GPS coordinates and no confirmed locality match for '${targetLocation}'. Excluded: ${geoDecision.reason}`,
+          exclusionReason: `WEB_ONLY_UNPROVEN_LOCALITY:${geoDecision.reason}`,
+          candidate,
+        };
+      }
+
+      // Maps-anchored ambiguous: retain for downstream corroboration
       return {
         status: 'ambiguous',
         localityStatus: 'ambiguous',
         localityAmbiguous: true,
-        reason: `Geographic Ambiguity: ${geoDecision.reason}`,
+        reason: `Geographic Ambiguity (Maps anchor retained): ${geoDecision.reason}`,
         candidate: {
           ...candidate,
           // Guarantee: location is NEVER stamped with the query string
