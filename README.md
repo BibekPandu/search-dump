@@ -339,26 +339,26 @@ const response = await run.start({
 console.log('Discovered Businesses:', response.results?.listings);
 ```
 
----
+### Sweep preset (multi-category defect sweeps)
 
-##  Test Suite & Invariant Verification
+When comparing results across categories or localities, pin one config for every run so outputs stay comparable:
 
-The codebase includes **39 zero-API test suites** validating all invariants offline with deterministic fixtures:
-
-```bash
-# Run complete test suite (all 39 suites)
-npm test
-
-# Run specific Phase 8 suites
-npm run test:phase8h                                      # Core Phase 8h defects (W2-01 to W2-06)
-npx tsx scripts/test-phase8h-w207.ts                      # Defect W2-07 (Cascade rejection & social independence)
-npx tsx scripts/test-phase8h-w208.ts                      # Defect W2-08 (Target cap & query normalization)
-npx tsx scripts/test-phase8a-geographic-evaluator.ts      # Geographic boundary & distance tests
-npx tsx scripts/test-phase8b-contact-role-aggregation.ts  # Contact role decision matrix tests
+```typescript
+const sweepPreset = {
+  targetCandidates: 10,
+  maxMapsPages: 3,
+  maxPages: 5,
+  websiteDiscoveryMode: 'benchmark' as const, // all eligible lookups (hard ceiling 50)
+  autoApprove: true,
+};
 ```
 
----
+Notes:
+- **Production** discovery budget stays `10` lookups/run (`PRODUCTION_DEFAULT_WEBSITE_DISCOVERY_LOOKUPS`).
+- **Benchmark** mode evaluates every eligible candidate (clamped to `ABSOLUTE_MAX_WEBSITE_DISCOVERY_LOOKUPS = 50`).
+- Sparse localities (e.g. residential Satungal) may honestly return `[]` or few listings — that is data sparsity, not a pipeline defect. Run defect-hunting sweeps at denser localities (Thamel, Baneshwor, Lazimpat) when you need real candidates.
 
+---
 ##  License
 
 ISC License. Built for agentic business research and extraction.
