@@ -22,18 +22,30 @@ export const REGISTERED_LOCALITY_CLUSTERS: Record<string, LocalityClusterConfig>
     // Centroid: Satungal Chowk / Chandragiri Ward 11 Office (OpenStreetMap Node / Serper Places)
     centroid: { lat: 27.6912, lng: 85.2445 },
     maxRadiusKm: 3.5,
-    administrativeExtent: 'Chandragiri Wards 11, 12, 13 (Satungal, Gurjudhara, Naikap border)',
+    administrativeExtent: 'Chandragiri Ward 11 (Satungal, Gurjudhara, Naikap border)',
     aliases: [
       'satungal',
       'chandragiri-11',
-      'chandragiri-12',
       'chandragiri-13',
       'chandragiri 11',
-      'chandragiri 12',
       'chandragiri 13',
       'gurjudhara',
       'naikap',
     ],
+  },
+  thankot: {
+    canonicalName: 'thankot',
+    centroid: { lat: 27.6944, lng: 85.2340 },
+    maxRadiusKm: 2.5,
+    administrativeExtent: 'Thankot / Chandragiri Wards 1-4',
+    aliases: ['thankot'],
+  },
+  balambu: {
+    canonicalName: 'balambu',
+    centroid: { lat: 27.6950, lng: 85.2440 },
+    maxRadiusKm: 1.5,
+    administrativeExtent: 'Balambu / Chandragiri Ward 12',
+    aliases: ['balambu', 'chandragiri-12', 'chandragiri 12'],
   },
   anamnagar: {
     canonicalName: 'anamnagar',
