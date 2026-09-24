@@ -86,10 +86,29 @@ export const DIRECTORY_DOMAINS = new Set<string>([
   'findallnepal.com',
   'scorchdeal.com',
   'hospitalnepal.com',
+  'nepalcompany.com',
+  'inquirynepal.com',
+  'esscobathware.com',
+  'companynepal.com',
+  'nepalbusinessdirectory.com',
+  'biznepal.com',
+  'ghargharsewa.com',
+  'gamatrain.com',
+  'getyourguide.com',
+  'afnobazar.com.np',
+  'kinbechshop.com',
+  'worldtravelserver.com',
+  'pasaulineskeliones.lt',
+  'bizdirenepal.com',
+  'ypnepal.com',
+  'nepalyp.com',
+  'mysleepwell.com',
+  'furniturehub.com.np',
 ]);
 
 export const DIRECTORY_LISTING_PATHS: RegExp[] = [
-  /\/(restaurant|restaurants|listing|listings|business|businesses|company|companies|places|eatery|profile|catalog|vendor|classifieds?|org|services?)\/[a-z0-9_-]+/i,
+  /\/(restaurant|restaurants|listing|listings|business|businesses|company|companies|places|eatery|profile|catalog|vendor|classifieds?|org|services?|sellers?|seller_details|business-directory|dealer-locator|store-locator|mattress-shop)\/[a-z0-9_-]+/i,
+  /\/(travel|activities|activity|tours?)\//i,
 ];
 
 /** Backward-compatible export combining all third-party platforms */

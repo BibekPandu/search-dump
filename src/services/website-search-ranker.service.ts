@@ -13,7 +13,13 @@ import {
 } from './website-relationship.service';
 import { extractEtldPlusOne, isDirectoryIssuedSubdomain } from './url-filter.service';
 import { incrementTelemetry } from './telemetry.service';
-import { INDUSTRY_GENERIC_TOKENS, CATEGORY_GENERIC_TOKENS, resolveCategoryKey } from './business-extractor.service';
+import {
+  INDUSTRY_GENERIC_TOKENS,
+  CATEGORY_GENERIC_TOKENS,
+  resolveCategoryKey,
+  UNIVERSAL_STOPWORDS,
+} from './business-extractor.service';
+export { UNIVERSAL_STOPWORDS };
 
 // ============================================================================
 // Website Search Result Ranker — Zero-HTTP deterministic URL scoring (Task 4)
@@ -98,10 +104,11 @@ const THIRD_PARTY_DOMAINS = new Set<string>([
 ]);
 
 const DIRECTORY_PATH_PATTERNS: RegExp[] = [
-  /\/(schools?|colleges?|institutes?|listings?|directory|places?|businesses?|eatery|eateries|restaurants?|menu\/restaurant|restaurant-review|services?)\//i,
-  /\/(search|results|category|categories|browse|tag)\b/i,
-  /[?&](q|query|search|s)=/i,
-  /\/(c|biz|company|profile)\/\d+/i,
+  /\/(schools?|colleges?|institutes?|listings?|directory|places?|businesses?|companies?|eatery|eateries|restaurants?|menu\/restaurant|restaurant-review|services?|sellers?|seller_details|business-directory)\//i,
+  /\/(search|results|category|categories|browse|tag|dealers?|dealerships?|dealer-locator|find-dealership|find-a-dealer|driving-schools?|driving-centers?|furnitures?|mattress-shop|store-locator)\b/i,
+  /\/(travel|activities|activity|tours?)\//i,
+  /[?&](q|query|search|s|category|district|page)=/i,
+  /\/(c|biz|company|profile)\/[a-z0-9_-]+/i,
 ];
 
 const ARTICLE_PATH_PATTERNS: RegExp[] = [
@@ -157,10 +164,7 @@ export interface SelectFirstPartyWebsiteResult {
  * Does NOT include 'nepal' (can be a distinctive brand word in a Nepal-local context).
  * Does NOT include 'services' (handled by CATEGORY_GENERIC_TOKENS.services category entry).
  */
-export const UNIVERSAL_STOPWORDS = new Set([
-  'and', 'the', 'of', 'in', 'for', 'at', 'by', 'to',
-  '&', 'pvt', 'ltd', 'p', 'l', 'inc', 'co',
-]);
+
 
 /** Bounded universal legal and administrative tokens that never count as distinctive brand names. */
 export const UNIVERSAL_LEGAL_BASELINE = new Set([
@@ -201,6 +205,16 @@ export const UNIVERSAL_LEGAL_BASELINE = new Set([
   'global',
   'international',
   'official',
+  'trade',
+  'trading',
+  'traders',
+  'trader',
+  'link',
+  'udhyog',
+  'supplier',
+  'suppliers',
+  'supply',
+  'supplies',
 ]);
 
 

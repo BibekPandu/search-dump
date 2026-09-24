@@ -3,7 +3,8 @@ import {
   domainFromUrlOrHost,
   detectBusinessCategory,
   isUsableOfficialWebsite,
-} from './entity-resolution.service';
+} from './entity-resolution.service.js';
+import { isThirdPartyDomain } from './website-search-ranker.service.js';
 import { extractPhones, extractMobiles, classifySocialProfile } from './business-extractor.service';
 
 // ============================================================================
@@ -444,6 +445,8 @@ export async function runWebsiteDiscoveryGate(
       duplicatesMerged: duplicates,
     };
 
+    let lookupResult: DiscoveryLookupResult | null = null;
+
     if (groupsLookedUp >= budget) {
       groupsNotAttempted++;
       if (group.hasWebsite) {
@@ -458,7 +461,7 @@ export async function runWebsiteDiscoveryGate(
     } else {
       groupsLookedUp++;
       record.searchAttempted = true;
-      let lookupResult = await safeLookup(lookup, representative, record);
+      lookupResult = (await safeLookup(lookup, representative, record)) ?? null;
 
       if (group.hasWebsite) {
         // Budget spent on phone enrichment; the Maps website stays authoritative.
@@ -541,17 +544,20 @@ export async function runWebsiteDiscoveryGate(
       if (lookupResult && selectPhone) {
         const businessDomain =
           domainFromUrlOrHost(record.selectedUrl ?? (representative.website || '')) || undefined;
-        const attributedPhone = selectPhone({
-          place: representative,
-          results: lookupResult.results,
-          businessDomain,
-        });
-        if (attributedPhone) {
-          record.phone = attributedPhone;
-          record.phoneSourceDomain = businessDomain;
-          for (const member of group.members) {
-            if (!member.phoneNumber || member.phoneNumber.trim().length === 0) {
-              member.phoneNumber = attributedPhone;
+        const isThirdParty = businessDomain ? isThirdPartyDomain(businessDomain) : false;
+        if (!isThirdParty) {
+          const attributedPhone = selectPhone({
+            place: representative,
+            results: lookupResult.results,
+            businessDomain,
+          });
+          if (attributedPhone) {
+            record.phone = attributedPhone;
+            record.phoneSourceDomain = businessDomain;
+            for (const member of group.members) {
+              if (!member.phoneNumber || member.phoneNumber.trim().length === 0) {
+                member.phoneNumber = attributedPhone;
+              }
             }
           }
         }
@@ -584,6 +590,44 @@ export async function runWebsiteDiscoveryGate(
             discoveredSocials.other = discoveredSocials.other || {};
             if (!discoveredSocials.other.youtube) {
               discoveredSocials.other.youtube = canonical;
+            }
+          }
+        } else if (classified.platform === 'facebook' && !discoveredSocials.facebook && classified.status !== 'rejected') {
+          // Phase 8N Amendment 1: Corroborated Numeric-ID Facebook Page Rule (Option B)
+          // Accept numeric-ID Facebook page only if:
+          // (a) Query was an exact-name quoted query or second-chance search
+          // (b) Corroborating signal: SERP search result title or snippet contains a distinctive business token
+          // (c) No other non-numeric Facebook profile was rejected for this business
+          const isNumericFb = /facebook\.com\/(?:p\/)?(?:profile\.php\?id=)?\d{8,}/i.test(u);
+          if (isNumericFb) {
+            const hasExactQuotedQuery =
+              Boolean(record.secondChanceAttempted) ||
+              record.queries.some((q) => q.includes('"') && q.toLowerCase().includes(representative.title.toLowerCase().trim()));
+
+            // Find matching search result
+            const matchingResult = lookupResult?.results.find((r) => r.url === u || r.url.replace(/\/$/, '') === u.replace(/\/$/, ''));
+            const textToCorroborate = `${matchingResult?.title || ''} ${matchingResult?.description || ''} ${(matchingResult?.extraSnippets || []).join(' ')}`.toLowerCase();
+
+            // Distinctive tokens from business name
+            const rawTokens = representative.title
+              .toLowerCase()
+              .replace(/[^a-z0-9\s]/g, ' ')
+              .split(/\s+/)
+              .filter((t) => t.length >= 3 && !['pvt', 'ltd', 'and', 'the', 'school', 'driving', 'center', 'centre', 'service', 'services', 'nepal'].includes(t));
+
+            const hasCorroboration = rawTokens.some((t) => textToCorroborate.includes(t));
+
+            // Check if any named Facebook page was explicitly rejected with BUSINESS_NAME_MISMATCH
+            const hasConflictingRejectedNamedFb = record.candidateUrlsReviewed.some((candidateUrl) => {
+              if (candidateUrl === u) return false;
+              if (!candidateUrl.includes('facebook.com')) return false;
+              if (/facebook\.com\/(?:p\/)?(?:profile\.php\?id=)?\d{8,}/i.test(candidateUrl)) return false;
+              const cl = classifySocialProfile(candidateUrl, undefined, representative.title, undefined, categoryCtx, 'serp');
+              return cl.status === 'rejected' && cl.rejectionReason === 'BUSINESS_NAME_MISMATCH';
+            });
+
+            if (hasExactQuotedQuery && hasCorroboration && !hasConflictingRejectedNamedFb) {
+              discoveredSocials.facebook = canonical;
             }
           }
         }

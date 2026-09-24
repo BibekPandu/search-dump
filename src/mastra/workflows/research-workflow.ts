@@ -43,6 +43,7 @@ import {
   checkCategoryRelevance,
 } from '../../services/candidate-classifier.service';
 import { evaluateGeographicLocality } from '../../services/geographic-evaluator.service';
+import { findRegisteredLocalityCluster } from '../../config/geo-localities.config';
 import { geocodeLocality } from '../../services/geocoding.service';
 import {
   validateCandidate,
@@ -2297,11 +2298,16 @@ export function sanitizeListingWithEvidence(
     contactsCascadeRejected += web.extractedClassifiedContacts.length;
   }
 
+  const candidateBizName = candidate.name || (candidate as any).title || listing.name;
+
   // Process candidate.phone into allClassifiedContacts if not already present
-  if (candidate.phone) {
+  const phoneSourceDomain = (candidate as any).phoneSourceDomain || (listing.otherDetails as any)?.discoveryProvenance?.phoneSourceDomain;
+  const isPhoneFromRejectedDiscovery = Boolean(phoneSourceDomain && relationship !== 'first_party');
+
+  if (candidate.phone && !isPhoneFromRejectedDiscovery) {
     const candidateClassified = classifyNepalPhone(candidate.phone);
     if (candidateClassified.type !== 'invalid') {
-      const candidateRole = classifyPhoneRole(candidate.phone, candidate.name, candidate.name, candidateClassified, undefined, true);
+      const candidateRole = classifyPhoneRole(candidate.phone, candidateBizName, candidateBizName, candidateClassified, undefined, true);
       const isAlreadyClassified = allClassifiedContacts.some((c) => c.canonicalDigits === candidateClassified.digits);
       if (!isAlreadyClassified) {
         allClassifiedContacts.push({
@@ -2312,7 +2318,7 @@ export function sanitizeListingWithEvidence(
           role: candidateRole.role,
           owner: candidateRole.owner,
           channels: candidateRole.channels,
-          context: candidate.name,
+          context: candidateBizName,
         });
       }
     }
@@ -2323,7 +2329,7 @@ export function sanitizeListingWithEvidence(
     for (const m of web?.extractedMobiles || []) {
       const classified = classifyNepalPhone(m);
       if (classified.type !== 'invalid' && !allClassifiedContacts.some((c) => c.canonicalDigits === classified.digits)) {
-        const role = classifyPhoneRole(m, candidate.name, candidate.name, classified, web?.url || '');
+        const role = classifyPhoneRole(m, candidateBizName, candidateBizName, classified, web?.url || '');
         allClassifiedContacts.push({
           value: classified.normalized || m,
           canonicalDigits: classified.digits,
@@ -2339,7 +2345,7 @@ export function sanitizeListingWithEvidence(
     for (const p of web?.extractedPhones || []) {
       const classified = classifyNepalPhone(p);
       if (classified.type !== 'invalid' && !allClassifiedContacts.some((c) => c.canonicalDigits === classified.digits)) {
-        const role = classifyPhoneRole(p, candidate.name, candidate.name, classified, web?.url || '');
+        const role = classifyPhoneRole(p, candidateBizName, candidateBizName, classified, web?.url || '');
         allClassifiedContacts.push({
           value: classified.normalized || p,
           canonicalDigits: classified.digits,
@@ -2367,17 +2373,21 @@ export function sanitizeListingWithEvidence(
       ? { lat: candidateCoords.lat, lng: candidateCoords.lng }
       : undefined;
 
-  const targetLocStr =
+  let targetLocStr =
     (typeof listing.location === 'string' && listing.location) ||
     (typeof candidate.location === 'string' && candidate.location) ||
-    'Satungal';
+    'Satungal, Kathmandu';
+  if (!findRegisteredLocalityCluster(targetLocStr)) {
+    targetLocStr = 'Satungal, Kathmandu';
+  }
 
   const branchAttributions = attributeMultiBranchContacts(
     deduplicatedContacts,
     targetLocStr,
     candidate.phone,
     candidateCoordsForBranching,
-    null
+    null,
+    candidateBizName
   );
 
   // Build branches[] from 'branch_contact' tier attributions
@@ -2593,6 +2603,16 @@ export function sanitizeListingWithEvidence(
       origin
     );
     if (classified.status === 'accepted' && (classified.owner === 'business' || classified.owner === 'person')) {
+      return classified.canonicalUrl || url;
+    }
+    // Phase 8N Amendment 1: Promoted by SERP discovery gate with exact-query & SERP snippet corroboration
+    if (
+      plat === 'facebook' &&
+      classified.status !== 'rejected' &&
+      (candidate.discoveryProvenance?.discoveredSocials?.facebook === url ||
+        candidate.discoveryProvenance?.discoveredSocials?.facebook === classified.canonicalUrl) &&
+      /facebook\.com\/(?:p\/)?(?:profile\.php\?id=)?\d{8,}/i.test(url)
+    ) {
       return classified.canonicalUrl || url;
     }
     rejectedProfiles.push({

@@ -452,7 +452,9 @@ export const INDUSTRY_GENERIC_TOKENS = new Set([
   // Phase 8i additions: commercial, retail, trade, medical, education
   'shop', 'shops', 'stores', 'marts', 'market', 'bazaar',
   'drug', 'drugs', 'chemist', 'dispensary',
-  'repair', 'repairs', 'mobile', 'electronics', 'supplier', 'suppliers', 'hardware',
+  'repair', 'repairs', 'mobile', 'electronics', 'supplier', 'suppliers', 'supply', 'supplies', 'hardware',
+  'trade', 'trading', 'traders', 'trader', 'link', 'udhyog', 'enterprises', 'enterprise',
+  'machinery', 'tools', 'sanitary', 'steel', 'metal', 'iron', 'cement', 'paint', 'paints', 'pipes', 'fittings',
   'school', 'schools', 'college', 'colleges', 'academy', 'vidya', 'mandir', 'gyanpeeth', 'secondary', 'higher',
   // Nepal administrative localities (must not count as distinctive brand tokens)
   'satungal', 'chandragiri', 'thamel', 'patan', 'kirtipur', 'baneshwor', 'thankot', 'naikap',
@@ -462,7 +464,26 @@ export const INDUSTRY_GENERIC_TOKENS = new Set([
 ]);
 
 /**
- * Phase 8k — Category-scoped generic tokens map.
+ * Universal stopwords that are stripped across all categories before distinctive matching.
+ */
+export const UNIVERSAL_STOPWORDS = new Set<string>([
+  'and', 'the', 'of', 'in', 'for', 'at', 'by', 'to',
+  '&', 'pvt', 'ltd', 'p', 'l', 'inc', 'co',
+  'international', 'global',
+]);
+
+/**
+ * Administrative localities used for social profile location corroboration (D23).
+ */
+export const NEPAL_LOCALITY_TOKENS = new Set<string>([
+  'satungal', 'chandragiri', 'thamel', 'patan', 'kirtipur', 'baneshwor', 'thankot', 'naikap',
+  'gurjudhara', 'chabahil', 'kalanki', 'koteshwor', 'dillibazar', 'lazimpat', 'maharajgunj',
+  'balkhu', 'anamnagar', 'sinamangal', 'tinkune', 'kupondole', 'jawalakhel', 'sanepa',
+  'kumaripati', 'satdobato', 'gongabu', 'balaju', 'kathmandu', 'pokhara', 'lalitpur', 'bhaktapur',
+]);
+
+/**
+ * Phase 8k/8M — Category-scoped generic tokens map.
  * Used by the website ranker and social alignment gate to build per-category stop-lists.
  * Keys are normalized category slugs derived from Maps categories[] or user query tokens.
  * UNIVERSAL_STOPWORDS (in website-search-ranker.service.ts) are applied first, then this map.
@@ -488,31 +509,77 @@ export const CATEGORY_GENERIC_TOKENS: Record<string, string[]> = {
     // additional generic terms surfaced by Checkpoint 1 analysis (D16-D22)
     'unisex', 'ladies', 'gents', 'royal', 'hub', 'collection', 'classic', 'elegant',
   ],
+  hardware: [
+    'hardware', 'machinery', 'machine', 'supplier', 'suppliers', 'supply', 'supplies',
+    'tools', 'steel', 'metal', 'iron', 'heavy', 'sanitary', 'sanitation', 'tiles',
+    'pipe', 'pipes', 'fittings', 'electric', 'electrical', 'paints', 'paint', 'cement',
+    'construction', 'materials', 'plywood', 'glass', 'aluminum', 'distributor', 'distributors',
+    'dealers', 'dealer', 'wholesale', 'retail', 'udhyog', 'enterprises', 'enterprise',
+    'trade', 'trading', 'link', 'traders', 'trader', 'ware', 'multitrade',
+  ],
+  driving: [
+    'driving', 'driver', 'drivers', 'motor', 'motors', 'training', 'school',
+    'institute', 'academy', 'center', 'centre', 'vehicle', 'vehicles', 'car',
+    'bike', 'scooter', 'scooty', 'license', 'licence', 'trial', 'transport',
+    'auto', 'learners', 'instructor', 'riding', 'heavy', 'trail',
+  ],
+  furniture: [
+    'furniture', 'furnishing', 'furnishings', 'interior', 'interiors', 'sofa',
+    'bed', 'table', 'chair', 'wood', 'wooden', 'decor', 'home', 'living',
+    'store', 'shop', 'house', 'handicraft', 'kitchen', 'mattress', 'design',
+    'udhyog', 'plywood', 'almirah', 'wardrobe', 'cabinet', 'fixture', 'fixtures',
+  ],
   services: ['service', 'services', 'repair', 'cleaning', 'plumbing', 'solutions', 'works'],
 };
 
 /**
- * Phase 8k — Normalizes a Maps category string (e.g. 'Dental clinic') to a CATEGORY_GENERIC_TOKENS key.
+ * Phase 8O (D36 — Amendment 2) — Cross-Category Social Rejection Map.
+ * Prevents handles with explicit alien category tokens from attaching to disjoint business types.
+ */
+export const CONFLICTING_VERTICAL_TOKENS: Record<string, string[]> = {
+  furniture: ['food', 'cafe', 'restaurant', 'kitchen', 'bakery'],
+  dental: ['furniture', 'sofa', 'food', 'cafe'],
+  beauty: ['furniture', 'sofa', 'food', 'cafe'],
+  hardware: ['food', 'cafe', 'restaurant'],
+  driving: ['furniture', 'sofa', 'food', 'cafe'],
+};
+
+/**
+ * Phase 8k/8M/8N — Normalizes a Maps category string (e.g. 'Dental clinic', 'Hardware store', 'Driving school') to a CATEGORY_GENERIC_TOKENS key.
  * Resolution order:
- *  1. Maps categories[] / businessType → normalized key
- *  2. User query token match
- *  3. Default to 'services' (most permissive) and increment CATEGORY_UNRESOLVED telemetry
+ *  1. Priority category-specific keywords (e.g. 'driving', 'dental', 'furniture', 'hardware', 'beauty')
+ *  2. General institutional keywords (e.g. 'school' -> education, 'clinic' -> medical, 'store' -> retail)
+ *  3. User query token match
+ *  4. Default to 'services' (most permissive) and increment CATEGORY_UNRESOLVED telemetry
  */
 export function resolveCategoryKey(
   categoryContext: string | string[] | undefined,
   userQuery?: string
 ): string {
-  const CATEGORY_KEYWORD_MAP: Record<string, string> = {
+  // Specific vertical keywords take strict priority over generic institutional nouns like 'school' or 'store'
+  const PRIORITY_KEYWORD_MAP: Record<string, string> = {
+    driving: 'driving', driver: 'driving', drivers: 'driving', motor: 'driving', motors: 'driving',
+    license: 'driving', licence: 'driving', vehicle: 'driving', vehicles: 'driving', trial: 'driving',
+    furniture: 'furniture', furnishing: 'furniture', furnishings: 'furniture',
+    interior: 'furniture', interiors: 'furniture', sofa: 'furniture', wood: 'furniture',
+    wooden: 'furniture', decor: 'furniture', mattress: 'furniture',
     dental: 'dental', dentist: 'dental', dentistry: 'dental', orthodontic: 'dental', oral: 'dental',
+    beauty: 'beauty', salon: 'beauty', parlour: 'beauty', parlor: 'beauty',
+    hair: 'beauty', spa: 'beauty', cosmetic: 'beauty', makeup: 'beauty',
+    barber: 'beauty', barbershop: 'beauty', unisex: 'beauty',
+    hardware: 'hardware', machinery: 'hardware', tools: 'hardware', sanitary: 'hardware',
+    tiles: 'hardware', paint: 'hardware', paints: 'hardware', cement: 'hardware',
+    construction: 'hardware', steel: 'hardware', metal: 'hardware', pipe: 'hardware',
+    pipes: 'hardware', plywood: 'hardware',
+    gym: 'fitness', fitness: 'fitness', workout: 'fitness',
+  };
+
+  const GENERAL_KEYWORD_MAP: Record<string, string> = {
     clinic: 'medical', hospital: 'medical', pharmacy: 'medical', medical: 'medical',
     school: 'education', college: 'education', academy: 'education', institute: 'education',
     hotel: 'hospitality', resort: 'hospitality', restaurant: 'hospitality', cafe: 'hospitality',
     law: 'legal', lawyer: 'legal', advocate: 'legal', legal: 'legal', attorney: 'legal',
-    gym: 'fitness', fitness: 'fitness', workout: 'fitness',
     store: 'retail', shop: 'retail', mart: 'retail', kirana: 'retail', grocery: 'retail',
-    beauty: 'beauty', salon: 'beauty', parlour: 'beauty', parlor: 'beauty',
-    hair: 'beauty', spa: 'beauty', cosmetic: 'beauty', makeup: 'beauty',
-    barber: 'beauty', barbershop: 'beauty', unisex: 'beauty',
     service: 'services', repair: 'services', cleaning: 'services', plumbing: 'services',
   };
 
@@ -521,11 +588,21 @@ export function resolveCategoryKey(
     ...(userQuery ? [userQuery] : []),
   ];
 
+  // Pass 1: Check high-priority vertical keywords
   for (const ctx of contexts) {
     if (!ctx) continue;
     const normalized = ctx.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/);
     for (const word of normalized) {
-      if (CATEGORY_KEYWORD_MAP[word]) return CATEGORY_KEYWORD_MAP[word];
+      if (PRIORITY_KEYWORD_MAP[word]) return PRIORITY_KEYWORD_MAP[word];
+    }
+  }
+
+  // Pass 2: Check general institutional keywords
+  for (const ctx of contexts) {
+    if (!ctx) continue;
+    const normalized = ctx.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/);
+    for (const word of normalized) {
+      if (GENERAL_KEYWORD_MAP[word]) return GENERAL_KEYWORD_MAP[word];
     }
   }
 
@@ -1156,6 +1233,7 @@ export function classifySocialProfile(
   const resolvedCategoryTokens = CATEGORY_GENERIC_TOKENS[resolvedCategoryKey] ?? CATEGORY_GENERIC_TOKENS['services'];
 
   const categoryGenericTokens = new Set<string>([
+    ...UNIVERSAL_STOPWORDS,
     ...INDUSTRY_GENERIC_TOKENS,
     ...resolvedCategoryTokens,
   ]);
@@ -1191,8 +1269,40 @@ export function classifySocialProfile(
   const handleWordsFromStripped = strippedHandle.split(/\s+/).filter(Boolean);
   const allHandleWords = Array.from(new Set([...handleWordsFromSeparators, ...handleWordsFromStripped]));
   const distinctiveHandleTokens = handleWordsFromStripped.filter(
-    (w) => w.length >= 2 && !categoryGenericTokens.has(w)
+    (w) => w.length >= 2 && !/^\d+$/.test(w) && !categoryGenericTokens.has(w)
   );
+
+  // Phase 8O (D36 — Amendment 2): Category-Inverse Cross-Vertical Collision Check
+  const conflictingVerticalTokens = CONFLICTING_VERTICAL_TOKENS[resolvedCategoryKey] || [];
+  if (conflictingVerticalTokens.length > 0) {
+    const bizLower = (businessName || '').toLowerCase();
+    const ctxLower = Array.isArray(categoryContext)
+      ? categoryContext.join(' ').toLowerCase()
+      : (categoryContext || '').toLowerCase();
+
+    const hasConflictingToken = conflictingVerticalTokens.some((tok) => {
+      const appearsInHandle = allHandleWords.includes(tok) || cleanHandle.includes(tok);
+      if (!appearsInHandle) return false;
+      // Do not reject if the target business name or category context itself contains the token
+      if (bizLower.includes(tok) || ctxLower.includes(tok)) return false;
+      return true;
+    });
+
+    if (hasConflictingToken) {
+      return {
+        url,
+        canonicalUrl,
+        platform: plat,
+        handle,
+        profileType: 'business_page',
+        owner: 'unknown',
+        status: 'rejected',
+        confidence: 0.95,
+        rejectionReason: 'BUSINESS_NAME_MISMATCH',
+        distinctiveTokensFound: [],
+      };
+    }
+  }
 
   // Derive business tokens (full and distinctive)
   const fullBusinessTokens = (businessName || '')
@@ -1221,8 +1331,8 @@ export function classifySocialProfile(
     distinctiveBusinessTokens.push(...domainWords);
   }
 
-  // Support initialisms at the start of business name (e.g. "R S Dental" -> "rs", "D I Dental" -> "di", "N K Shop" -> "nk")
-  const initialismMatch = (businessName || '').match(/^([a-zA-Z])\s*([a-zA-Z])(?:\s*([a-zA-Z]))?\b/);
+  // Support initialisms at the start of business name (e.g. "J. B Machinery" -> "jb", "R S Dental" -> "rs", "D.I. Dental" -> "di")
+  const initialismMatch = (businessName || '').match(/^([a-zA-Z])[\s.]*([a-zA-Z])(?:[\s.]*([a-zA-Z]))?\b/);
   const initialism = initialismMatch
     ? (initialismMatch[1] + initialismMatch[2] + (initialismMatch[3] || '')).toLowerCase()
     : '';
@@ -1284,11 +1394,14 @@ export function classifySocialProfile(
       const hasCategoryCorroboration = resolvedCategoryTokens.some((catToken) =>
         catToken.length >= 3 && (cleanHandle.includes(catToken) || allHandleWords.includes(catToken))
       );
+      const hasLocationCorroboration = Array.from(NEPAL_LOCALITY_TOKENS).some((locToken) =>
+        locToken.length >= 3 && (cleanHandle.includes(locToken) || allHandleWords.includes(locToken))
+      );
       const hasLongDistinctiveOverlap = uniqueDistinctiveBusinessTokens.some(
         (bt) => bt.length >= 4 && (cleanHandle.includes(bt) || allHandleWords.includes(bt))
       );
 
-      if (!hasCategoryCorroboration && !hasLongDistinctiveOverlap) {
+      if (!hasCategoryCorroboration && !hasLocationCorroboration && !hasLongDistinctiveOverlap) {
         // Handle only has a short initialism without vertical or brand corroboration (e.g. "nepalapfhospital" for "Apf satugal" in Nail salon)
         if (distinctiveHandleTokens.length >= 1) {
           return {
@@ -1995,7 +2108,19 @@ export function classifyPhoneRole(
     /\b(head office|main office|central office|contact us|email us)\b/i.test(lowerContext);
 
   // 2. Branch Signals
-  const hasBranchKeyword = /\b(branch|branches|outlet|outlets|our branches)\b/i.test(lowerContext);
+  const lowerBizName = (businessName || '').toLowerCase().trim();
+  const lowerCtxTrim = lowerContext.trim();
+  let hasBranchKeyword = /\b(branch|branches|outlet|outlets|our branches)\b/i.test(lowerContext);
+
+  // Phase 8O (D40): If branch keyword is part of businessName itself (e.g. "Shrestha Brothers Furniture Satungal Outlet"),
+  // self-context must NOT trigger a branch signal.
+  if (hasBranchKeyword && lowerBizName) {
+    const branchWordInBiz = ['outlet', 'outlets', 'branch', 'branches', 'center', 'centre', 'showroom'].some((w) => lowerBizName.includes(w));
+    if (branchWordInBiz && (lowerCtxTrim === lowerBizName || lowerBizName.includes(lowerCtxTrim) || lowerCtxTrim.includes(lowerBizName))) {
+      hasBranchKeyword = false;
+    }
+  }
+
   const hasLocationCues = /\b(clinic|center|centre|office|outlet)\b/i.test(lowerContext);
   const hasLocalities = /\b(chabahil|naikap|bardibas|banasthali|chapagaun|jawalakhel|koteshwor|kumaripati|pokhara|biratnagar|birgunj|dharan|hetauda|nepalgunj|butwal)\b/i.test(lowerContext);
   const hasAddressCues = /\b(chowk|marga|street|road|ward|tole)\b/i.test(lowerContext);

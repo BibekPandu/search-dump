@@ -7,7 +7,12 @@ import {
 } from './candidate-classifier.service';
 import { isSocialOrDirectory, isGoogleMapsUrl } from './url-filter.service';
 import type { SerperPlaceResult } from './serper-places.service';
-import { classifySocialProfile, classifyNepalPhone } from './business-extractor.service';
+import {
+  classifySocialProfile,
+  classifyNepalPhone,
+  UNIVERSAL_STOPWORDS,
+  CATEGORY_GENERIC_TOKENS,
+} from './business-extractor.service';
 import {
   findRegisteredLocalityCluster,
   normalizeLocalityString,
@@ -1285,12 +1290,28 @@ export function attributeMultiBranchContacts(
   targetLocation: string,
   mapsPhone?: string,
   candidateCoords?: { lat: number; lng: number },
-  dynamicCluster?: import('../config/geo-localities.config.js').LocalityClusterConfig | null
+  dynamicCluster?: import('../config/geo-localities.config.js').LocalityClusterConfig | null,
+  businessName?: string
 ): BranchAttributionResult[] {
   const results: BranchAttributionResult[] = [];
 
   // Canonicalize the Maps phone digits for identity comparison
   const mapsPhoneDigits = mapsPhone ? classifyNepalPhone(mapsPhone).digits : undefined;
+
+  const allGenericCategoryTokens = new Set<string>([
+    ...UNIVERSAL_STOPWORDS,
+    ...Object.values(CATEGORY_GENERIC_TOKENS).flat(),
+  ]);
+
+  const GENERIC_BRANCH_NOUNS = new Set(['branch', 'office', 'center', 'centre', 'outlet', 'outlets']);
+
+  // Distinctive tokens from the business name
+  const businessTokens = (businessName || '')
+    .toLowerCase()
+    .replace(/\(.*?\)/g, ' ')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter((w) => w.length >= 2 && !allGenericCategoryTokens.has(w));
 
   for (const contact of contacts) {
     const ctx = (contact.context || '').toLowerCase();
@@ -1313,6 +1334,35 @@ export function attributeMultiBranchContacts(
     // it is attributed as branch_contact regardless of whether it is a mobile or landline.
     if (ctx.trim()) {
       const lowerCtx = ctx.toLowerCase();
+
+      // Phase 8N Amendment 2: Precise Self-Context Rule
+      // Skip branch classification if, after stripping parens, stopwords, category tokens, and business tokens,
+      // the remaining context is empty OR contains only generic branch nouns.
+      const strippedCtx = lowerCtx
+        .replace(/\(.*?\)/g, ' ')
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .trim();
+
+      const ctxWords = strippedCtx
+        .split(/\s+/)
+        .filter((w) => w.length >= 2);
+
+      const nonSelfWords = ctxWords.filter(
+        (w) =>
+          !allGenericCategoryTokens.has(w) &&
+          !businessTokens.includes(w) &&
+          !GENERIC_BRANCH_NOUNS.has(w)
+      );
+
+      if (ctxWords.length > 0 && nonSelfWords.length === 0) {
+        results.push({
+          contact,
+          attribution: 'target_branch',
+          reason: `Context is self-referential to primary business name/category: "${ctx.slice(0, 60)}"`,
+        });
+        continue;
+      }
+
       const targetClusterObj =
         dynamicCluster ||
         findRegisteredLocalityCluster(normalizeLocalityString(targetLocation)) ||
@@ -1331,7 +1381,7 @@ export function attributeMultiBranchContacts(
         const matchesOther = otherAliases.some((alias) => new RegExp(`\\b${alias}\\b`, 'i').test(lowerCtx));
 
         if (matchesOther) {
-          const rawLabel = otherCluster.administrativeExtent.split('(')[0].trim() || otherCluster.canonicalName;
+          const rawLabel = otherCluster.canonicalName || otherCluster.administrativeExtent.split('(')[0].trim();
           const branchLabel = rawLabel.charAt(0).toUpperCase() + rawLabel.slice(1) + ' Branch';
           results.push({
             contact,
@@ -1344,12 +1394,18 @@ export function attributeMultiBranchContacts(
         }
       }
 
-      // Amendment 2: Generic fallback for unregistered localities in context (e.g., "Thamel Branch", "Naxal Office")
+      // Amendment 2: Generic fallback for unregistered localities in context (e.g., "Thamel Branch", "Naxal Center")
       if (!foreignBranchFound && contact.type === 'phone' && contact.phoneType === 'mobile') {
-        const branchMatch = lowerCtx.match(/\b([a-z]+)\s+(branch|office|center|centre)\b/i);
+        const branchMatch = lowerCtx.match(/\b([a-z]+)\s+(branch|office|center|centre|outlet)\b/i);
         if (branchMatch) {
           const matchedLocality = branchMatch[1].toLowerCase();
-          if (matchedLocality !== targetCanonical && !targetAliases.has(matchedLocality)) {
+          if (
+            matchedLocality !== targetCanonical &&
+            !targetAliases.has(matchedLocality) &&
+            !allGenericCategoryTokens.has(matchedLocality) &&
+            !businessTokens.includes(matchedLocality) &&
+            !GENERIC_BRANCH_NOUNS.has(matchedLocality)
+          ) {
             const rawLabel = branchMatch[1];
             const branchLabel = rawLabel.charAt(0).toUpperCase() + rawLabel.slice(1) + ' Branch';
             results.push({
