@@ -42,7 +42,23 @@ export interface CandidateValidationResult {
 }
 
 /**
+ * Maps artifacts that are not real businesses (e.g. "Stretching equipment (Open)").
+ * Cheap deterministic guard so they never become candidates.
+ */
+export function isNonBusinessArtifactName(name?: string): boolean {
+  if (!name || typeof name !== 'string') return false;
+  const trimmed = name.trim();
+  if (!trimmed) return false;
+  if (/\(open\)\s*$/i.test(trimmed)) return true;
+  if (/^(stretching equipment|exercise equipment|treadmill|dumbbell|weight bench)\b/i.test(trimmed)) {
+    return true;
+  }
+  return false;
+}
+
+/**
  * Validates any candidate (Maps or Web) through the 4-stage validation pipeline:
+ * 0. Non-business artifact name guard
  * 1. Country & TLD Guard (reject foreign ccTLDs unless explicitly requested)
  * 2. Geographic Locality (inside -> pass, outside -> exclude, ambiguous -> flag for Step 2)
  * 3. Ground-truth address integrity (remove query string stamping)
@@ -53,6 +69,19 @@ export function validateCandidate(
   context: CandidateValidationContext
 ): CandidateValidationResult {
   const { targetLocation, targetQuery, dynamicCluster } = context;
+
+  // Stage 0: Non-business artifact name guard (Maps data quality)
+  const artifactName = candidate.name || (candidate as { title?: string }).title || '';
+  if (isNonBusinessArtifactName(artifactName)) {
+    return {
+      status: 'excluded',
+      localityStatus: 'outside',
+      localityAmbiguous: false,
+      reason: `Non-business artifact name rejected: "${artifactName}"`,
+      exclusionReason: 'NON_BUSINESS_ARTIFACT',
+      candidate,
+    };
+  }
 
   // Stage 1: Country & TLD Guard
   const url = candidate.website || (candidate as any).url || '';

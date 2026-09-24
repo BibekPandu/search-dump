@@ -3375,7 +3375,7 @@ export const researchWorkflow = createWorkflow({
     maxDeepVerifyCandidates: z
       .number()
       .optional()
-      .describe('Maximum candidates to deep-verify with Tavily (default 3 — demo-safe cost guard)'),
+      .describe('Maximum candidates to deep-verify with Tavily (defaults to max(targetCandidates, 10) or 10)'),
   }),
   outputSchema: z.object({
     listings: z.array(businessListingSchema),
