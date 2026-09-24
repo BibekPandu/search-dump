@@ -452,7 +452,9 @@ export const INDUSTRY_GENERIC_TOKENS = new Set([
   // Phase 8i additions: commercial, retail, trade, medical, education
   'shop', 'shops', 'stores', 'marts', 'market', 'bazaar',
   'drug', 'drugs', 'chemist', 'dispensary',
-  'repair', 'repairs', 'mobile', 'electronics', 'supplier', 'suppliers', 'hardware',
+  'repair', 'repairs', 'mobile', 'electronics', 'supplier', 'suppliers', 'supply', 'supplies', 'hardware',
+  'trade', 'trading', 'traders', 'trader', 'link', 'udhyog', 'enterprises', 'enterprise',
+  'machinery', 'tools', 'sanitary', 'steel', 'metal', 'iron', 'cement', 'paint', 'paints', 'pipes', 'fittings',
   'school', 'schools', 'college', 'colleges', 'academy', 'vidya', 'mandir', 'gyanpeeth', 'secondary', 'higher',
   // Nepal administrative localities (must not count as distinctive brand tokens)
   'satungal', 'chandragiri', 'thamel', 'patan', 'kirtipur', 'baneshwor', 'thankot', 'naikap',
@@ -462,7 +464,26 @@ export const INDUSTRY_GENERIC_TOKENS = new Set([
 ]);
 
 /**
- * Phase 8k — Category-scoped generic tokens map.
+ * Universal stopwords that are stripped across all categories before distinctive matching.
+ */
+export const UNIVERSAL_STOPWORDS = new Set<string>([
+  'and', 'the', 'of', 'in', 'for', 'at', 'by', 'to',
+  '&', 'pvt', 'ltd', 'p', 'l', 'inc', 'co',
+  'international', 'global',
+]);
+
+/**
+ * Administrative localities used for social profile location corroboration (D23).
+ */
+export const NEPAL_LOCALITY_TOKENS = new Set<string>([
+  'satungal', 'chandragiri', 'thamel', 'patan', 'kirtipur', 'baneshwor', 'thankot', 'naikap',
+  'gurjudhara', 'chabahil', 'kalanki', 'koteshwor', 'dillibazar', 'lazimpat', 'maharajgunj',
+  'balkhu', 'anamnagar', 'sinamangal', 'tinkune', 'kupondole', 'jawalakhel', 'sanepa',
+  'kumaripati', 'satdobato', 'gongabu', 'balaju', 'kathmandu', 'pokhara', 'lalitpur', 'bhaktapur',
+]);
+
+/**
+ * Phase 8k/8M — Category-scoped generic tokens map.
  * Used by the website ranker and social alignment gate to build per-category stop-lists.
  * Keys are normalized category slugs derived from Maps categories[] or user query tokens.
  * UNIVERSAL_STOPWORDS (in website-search-ranker.service.ts) are applied first, then this map.
@@ -488,11 +509,19 @@ export const CATEGORY_GENERIC_TOKENS: Record<string, string[]> = {
     // additional generic terms surfaced by Checkpoint 1 analysis (D16-D22)
     'unisex', 'ladies', 'gents', 'royal', 'hub', 'collection', 'classic', 'elegant',
   ],
+  hardware: [
+    'hardware', 'machinery', 'machine', 'supplier', 'suppliers', 'supply', 'supplies',
+    'tools', 'steel', 'metal', 'iron', 'heavy', 'sanitary', 'sanitation', 'tiles',
+    'pipe', 'pipes', 'fittings', 'electric', 'electrical', 'paints', 'paint', 'cement',
+    'construction', 'materials', 'plywood', 'glass', 'aluminum', 'distributor', 'distributors',
+    'dealers', 'dealer', 'wholesale', 'retail', 'udhyog', 'enterprises', 'enterprise',
+    'trade', 'trading', 'link', 'traders', 'trader', 'ware', 'multitrade',
+  ],
   services: ['service', 'services', 'repair', 'cleaning', 'plumbing', 'solutions', 'works'],
 };
 
 /**
- * Phase 8k — Normalizes a Maps category string (e.g. 'Dental clinic') to a CATEGORY_GENERIC_TOKENS key.
+ * Phase 8k/8M — Normalizes a Maps category string (e.g. 'Dental clinic', 'Hardware store') to a CATEGORY_GENERIC_TOKENS key.
  * Resolution order:
  *  1. Maps categories[] / businessType → normalized key
  *  2. User query token match
@@ -509,6 +538,10 @@ export function resolveCategoryKey(
     hotel: 'hospitality', resort: 'hospitality', restaurant: 'hospitality', cafe: 'hospitality',
     law: 'legal', lawyer: 'legal', advocate: 'legal', legal: 'legal', attorney: 'legal',
     gym: 'fitness', fitness: 'fitness', workout: 'fitness',
+    hardware: 'hardware', machinery: 'hardware', tools: 'hardware', sanitary: 'hardware',
+    tiles: 'hardware', paint: 'hardware', paints: 'hardware', cement: 'hardware',
+    construction: 'hardware', steel: 'hardware', metal: 'hardware', pipe: 'hardware',
+    pipes: 'hardware', plywood: 'hardware',
     store: 'retail', shop: 'retail', mart: 'retail', kirana: 'retail', grocery: 'retail',
     beauty: 'beauty', salon: 'beauty', parlour: 'beauty', parlor: 'beauty',
     hair: 'beauty', spa: 'beauty', cosmetic: 'beauty', makeup: 'beauty',
@@ -1156,6 +1189,7 @@ export function classifySocialProfile(
   const resolvedCategoryTokens = CATEGORY_GENERIC_TOKENS[resolvedCategoryKey] ?? CATEGORY_GENERIC_TOKENS['services'];
 
   const categoryGenericTokens = new Set<string>([
+    ...UNIVERSAL_STOPWORDS,
     ...INDUSTRY_GENERIC_TOKENS,
     ...resolvedCategoryTokens,
   ]);
@@ -1221,8 +1255,8 @@ export function classifySocialProfile(
     distinctiveBusinessTokens.push(...domainWords);
   }
 
-  // Support initialisms at the start of business name (e.g. "R S Dental" -> "rs", "D I Dental" -> "di", "N K Shop" -> "nk")
-  const initialismMatch = (businessName || '').match(/^([a-zA-Z])\s*([a-zA-Z])(?:\s*([a-zA-Z]))?\b/);
+  // Support initialisms at the start of business name (e.g. "J. B Machinery" -> "jb", "R S Dental" -> "rs", "D.I. Dental" -> "di")
+  const initialismMatch = (businessName || '').match(/^([a-zA-Z])[\s.]*([a-zA-Z])(?:[\s.]*([a-zA-Z]))?\b/);
   const initialism = initialismMatch
     ? (initialismMatch[1] + initialismMatch[2] + (initialismMatch[3] || '')).toLowerCase()
     : '';
@@ -1284,11 +1318,14 @@ export function classifySocialProfile(
       const hasCategoryCorroboration = resolvedCategoryTokens.some((catToken) =>
         catToken.length >= 3 && (cleanHandle.includes(catToken) || allHandleWords.includes(catToken))
       );
+      const hasLocationCorroboration = Array.from(NEPAL_LOCALITY_TOKENS).some((locToken) =>
+        locToken.length >= 3 && (cleanHandle.includes(locToken) || allHandleWords.includes(locToken))
+      );
       const hasLongDistinctiveOverlap = uniqueDistinctiveBusinessTokens.some(
         (bt) => bt.length >= 4 && (cleanHandle.includes(bt) || allHandleWords.includes(bt))
       );
 
-      if (!hasCategoryCorroboration && !hasLongDistinctiveOverlap) {
+      if (!hasCategoryCorroboration && !hasLocationCorroboration && !hasLongDistinctiveOverlap) {
         // Handle only has a short initialism without vertical or brand corroboration (e.g. "nepalapfhospital" for "Apf satugal" in Nail salon)
         if (distinctiveHandleTokens.length >= 1) {
           return {
