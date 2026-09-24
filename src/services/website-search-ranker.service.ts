@@ -105,7 +105,7 @@ const THIRD_PARTY_DOMAINS = new Set<string>([
 
 const DIRECTORY_PATH_PATTERNS: RegExp[] = [
   /\/(schools?|colleges?|institutes?|listings?|directory|places?|businesses?|companies?|eatery|eateries|restaurants?|menu\/restaurant|restaurant-review|services?)\//i,
-  /\/(search|results|category|categories|browse|tag|dealers?|dealerships?|dealer-locator|find-dealership|find-a-dealer)\b/i,
+  /\/(search|results|category|categories|browse|tag|dealers?|dealerships?|dealer-locator|find-dealership|find-a-dealer|driving-schools?|driving-centers?|furnitures?)\b/i,
   /[?&](q|query|search|s|category|district|page)=/i,
   /\/(c|biz|company|profile)\/[a-z0-9_-]+/i,
 ];

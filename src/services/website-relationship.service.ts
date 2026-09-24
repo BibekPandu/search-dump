@@ -92,6 +92,8 @@ export const DIRECTORY_DOMAINS = new Set<string>([
   'companynepal.com',
   'nepalbusinessdirectory.com',
   'biznepal.com',
+  'ghargharsewa.com',
+  'gamatrain.com',
 ]);
 
 export const DIRECTORY_LISTING_PATHS: RegExp[] = [
