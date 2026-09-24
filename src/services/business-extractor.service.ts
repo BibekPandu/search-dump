@@ -533,6 +533,18 @@ export const CATEGORY_GENERIC_TOKENS: Record<string, string[]> = {
 };
 
 /**
+ * Phase 8O (D36 — Amendment 2) — Cross-Category Social Rejection Map.
+ * Prevents handles with explicit alien category tokens from attaching to disjoint business types.
+ */
+export const CONFLICTING_VERTICAL_TOKENS: Record<string, string[]> = {
+  furniture: ['food', 'cafe', 'restaurant', 'kitchen', 'bakery'],
+  dental: ['furniture', 'sofa', 'food', 'cafe'],
+  beauty: ['furniture', 'sofa', 'food', 'cafe'],
+  hardware: ['food', 'cafe', 'restaurant'],
+  driving: ['furniture', 'sofa', 'food', 'cafe'],
+};
+
+/**
  * Phase 8k/8M/8N — Normalizes a Maps category string (e.g. 'Dental clinic', 'Hardware store', 'Driving school') to a CATEGORY_GENERIC_TOKENS key.
  * Resolution order:
  *  1. Priority category-specific keywords (e.g. 'driving', 'dental', 'furniture', 'hardware', 'beauty')
@@ -1259,6 +1271,38 @@ export function classifySocialProfile(
   const distinctiveHandleTokens = handleWordsFromStripped.filter(
     (w) => w.length >= 2 && !/^\d+$/.test(w) && !categoryGenericTokens.has(w)
   );
+
+  // Phase 8O (D36 — Amendment 2): Category-Inverse Cross-Vertical Collision Check
+  const conflictingVerticalTokens = CONFLICTING_VERTICAL_TOKENS[resolvedCategoryKey] || [];
+  if (conflictingVerticalTokens.length > 0) {
+    const bizLower = (businessName || '').toLowerCase();
+    const ctxLower = Array.isArray(categoryContext)
+      ? categoryContext.join(' ').toLowerCase()
+      : (categoryContext || '').toLowerCase();
+
+    const hasConflictingToken = conflictingVerticalTokens.some((tok) => {
+      const appearsInHandle = allHandleWords.includes(tok) || cleanHandle.includes(tok);
+      if (!appearsInHandle) return false;
+      // Do not reject if the target business name or category context itself contains the token
+      if (bizLower.includes(tok) || ctxLower.includes(tok)) return false;
+      return true;
+    });
+
+    if (hasConflictingToken) {
+      return {
+        url,
+        canonicalUrl,
+        platform: plat,
+        handle,
+        profileType: 'business_page',
+        owner: 'unknown',
+        status: 'rejected',
+        confidence: 0.95,
+        rejectionReason: 'BUSINESS_NAME_MISMATCH',
+        distinctiveTokensFound: [],
+      };
+    }
+  }
 
   // Derive business tokens (full and distinctive)
   const fullBusinessTokens = (businessName || '')
@@ -2064,7 +2108,19 @@ export function classifyPhoneRole(
     /\b(head office|main office|central office|contact us|email us)\b/i.test(lowerContext);
 
   // 2. Branch Signals
-  const hasBranchKeyword = /\b(branch|branches|outlet|outlets|our branches)\b/i.test(lowerContext);
+  const lowerBizName = (businessName || '').toLowerCase().trim();
+  const lowerCtxTrim = lowerContext.trim();
+  let hasBranchKeyword = /\b(branch|branches|outlet|outlets|our branches)\b/i.test(lowerContext);
+
+  // Phase 8O (D40): If branch keyword is part of businessName itself (e.g. "Shrestha Brothers Furniture Satungal Outlet"),
+  // self-context must NOT trigger a branch signal.
+  if (hasBranchKeyword && lowerBizName) {
+    const branchWordInBiz = ['outlet', 'outlets', 'branch', 'branches', 'center', 'centre', 'showroom'].some((w) => lowerBizName.includes(w));
+    if (branchWordInBiz && (lowerCtxTrim === lowerBizName || lowerBizName.includes(lowerCtxTrim) || lowerCtxTrim.includes(lowerBizName))) {
+      hasBranchKeyword = false;
+    }
+  }
+
   const hasLocationCues = /\b(clinic|center|centre|office|outlet)\b/i.test(lowerContext);
   const hasLocalities = /\b(chabahil|naikap|bardibas|banasthali|chapagaun|jawalakhel|koteshwor|kumaripati|pokhara|biratnagar|birgunj|dharan|hetauda|nepalgunj|butwal)\b/i.test(lowerContext);
   const hasAddressCues = /\b(chowk|marga|street|road|ward|tole)\b/i.test(lowerContext);
