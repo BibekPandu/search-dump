@@ -517,35 +517,57 @@ export const CATEGORY_GENERIC_TOKENS: Record<string, string[]> = {
     'dealers', 'dealer', 'wholesale', 'retail', 'udhyog', 'enterprises', 'enterprise',
     'trade', 'trading', 'link', 'traders', 'trader', 'ware', 'multitrade',
   ],
+  driving: [
+    'driving', 'driver', 'drivers', 'motor', 'motors', 'training', 'school',
+    'institute', 'academy', 'center', 'centre', 'vehicle', 'vehicles', 'car',
+    'bike', 'scooter', 'scooty', 'license', 'licence', 'trial', 'transport',
+    'auto', 'learners', 'instructor', 'riding', 'heavy', 'trail',
+  ],
+  furniture: [
+    'furniture', 'furnishing', 'furnishings', 'interior', 'interiors', 'sofa',
+    'bed', 'table', 'chair', 'wood', 'wooden', 'decor', 'home', 'living',
+    'store', 'shop', 'house', 'handicraft', 'kitchen', 'mattress', 'design',
+    'udhyog', 'plywood', 'almirah', 'wardrobe', 'cabinet', 'fixture', 'fixtures',
+  ],
   services: ['service', 'services', 'repair', 'cleaning', 'plumbing', 'solutions', 'works'],
 };
 
 /**
- * Phase 8k/8M — Normalizes a Maps category string (e.g. 'Dental clinic', 'Hardware store') to a CATEGORY_GENERIC_TOKENS key.
+ * Phase 8k/8M/8N — Normalizes a Maps category string (e.g. 'Dental clinic', 'Hardware store', 'Driving school') to a CATEGORY_GENERIC_TOKENS key.
  * Resolution order:
- *  1. Maps categories[] / businessType → normalized key
- *  2. User query token match
- *  3. Default to 'services' (most permissive) and increment CATEGORY_UNRESOLVED telemetry
+ *  1. Priority category-specific keywords (e.g. 'driving', 'dental', 'furniture', 'hardware', 'beauty')
+ *  2. General institutional keywords (e.g. 'school' -> education, 'clinic' -> medical, 'store' -> retail)
+ *  3. User query token match
+ *  4. Default to 'services' (most permissive) and increment CATEGORY_UNRESOLVED telemetry
  */
 export function resolveCategoryKey(
   categoryContext: string | string[] | undefined,
   userQuery?: string
 ): string {
-  const CATEGORY_KEYWORD_MAP: Record<string, string> = {
+  // Specific vertical keywords take strict priority over generic institutional nouns like 'school' or 'store'
+  const PRIORITY_KEYWORD_MAP: Record<string, string> = {
+    driving: 'driving', driver: 'driving', drivers: 'driving', motor: 'driving', motors: 'driving',
+    license: 'driving', licence: 'driving', vehicle: 'driving', vehicles: 'driving', trial: 'driving',
+    furniture: 'furniture', furnishing: 'furniture', furnishings: 'furniture',
+    interior: 'furniture', interiors: 'furniture', sofa: 'furniture', wood: 'furniture',
+    wooden: 'furniture', decor: 'furniture', mattress: 'furniture',
     dental: 'dental', dentist: 'dental', dentistry: 'dental', orthodontic: 'dental', oral: 'dental',
-    clinic: 'medical', hospital: 'medical', pharmacy: 'medical', medical: 'medical',
-    school: 'education', college: 'education', academy: 'education', institute: 'education',
-    hotel: 'hospitality', resort: 'hospitality', restaurant: 'hospitality', cafe: 'hospitality',
-    law: 'legal', lawyer: 'legal', advocate: 'legal', legal: 'legal', attorney: 'legal',
-    gym: 'fitness', fitness: 'fitness', workout: 'fitness',
+    beauty: 'beauty', salon: 'beauty', parlour: 'beauty', parlor: 'beauty',
+    hair: 'beauty', spa: 'beauty', cosmetic: 'beauty', makeup: 'beauty',
+    barber: 'beauty', barbershop: 'beauty', unisex: 'beauty',
     hardware: 'hardware', machinery: 'hardware', tools: 'hardware', sanitary: 'hardware',
     tiles: 'hardware', paint: 'hardware', paints: 'hardware', cement: 'hardware',
     construction: 'hardware', steel: 'hardware', metal: 'hardware', pipe: 'hardware',
     pipes: 'hardware', plywood: 'hardware',
+    gym: 'fitness', fitness: 'fitness', workout: 'fitness',
+  };
+
+  const GENERAL_KEYWORD_MAP: Record<string, string> = {
+    clinic: 'medical', hospital: 'medical', pharmacy: 'medical', medical: 'medical',
+    school: 'education', college: 'education', academy: 'education', institute: 'education',
+    hotel: 'hospitality', resort: 'hospitality', restaurant: 'hospitality', cafe: 'hospitality',
+    law: 'legal', lawyer: 'legal', advocate: 'legal', legal: 'legal', attorney: 'legal',
     store: 'retail', shop: 'retail', mart: 'retail', kirana: 'retail', grocery: 'retail',
-    beauty: 'beauty', salon: 'beauty', parlour: 'beauty', parlor: 'beauty',
-    hair: 'beauty', spa: 'beauty', cosmetic: 'beauty', makeup: 'beauty',
-    barber: 'beauty', barbershop: 'beauty', unisex: 'beauty',
     service: 'services', repair: 'services', cleaning: 'services', plumbing: 'services',
   };
 
@@ -554,11 +576,21 @@ export function resolveCategoryKey(
     ...(userQuery ? [userQuery] : []),
   ];
 
+  // Pass 1: Check high-priority vertical keywords
   for (const ctx of contexts) {
     if (!ctx) continue;
     const normalized = ctx.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/);
     for (const word of normalized) {
-      if (CATEGORY_KEYWORD_MAP[word]) return CATEGORY_KEYWORD_MAP[word];
+      if (PRIORITY_KEYWORD_MAP[word]) return PRIORITY_KEYWORD_MAP[word];
+    }
+  }
+
+  // Pass 2: Check general institutional keywords
+  for (const ctx of contexts) {
+    if (!ctx) continue;
+    const normalized = ctx.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/);
+    for (const word of normalized) {
+      if (GENERAL_KEYWORD_MAP[word]) return GENERAL_KEYWORD_MAP[word];
     }
   }
 
@@ -1225,7 +1257,7 @@ export function classifySocialProfile(
   const handleWordsFromStripped = strippedHandle.split(/\s+/).filter(Boolean);
   const allHandleWords = Array.from(new Set([...handleWordsFromSeparators, ...handleWordsFromStripped]));
   const distinctiveHandleTokens = handleWordsFromStripped.filter(
-    (w) => w.length >= 2 && !categoryGenericTokens.has(w)
+    (w) => w.length >= 2 && !/^\d+$/.test(w) && !categoryGenericTokens.has(w)
   );
 
   // Derive business tokens (full and distinctive)

@@ -111,6 +111,8 @@ export const DIRECTORY_DOMAINS = new Set([
   'companynepal.com',
   'nepalbusinessdirectory.com',
   'biznepal.com',
+  'ghargharsewa.com',
+  'gamatrain.com',
 ]);
 
 export const SOCIAL_DOMAINS = new Set([
