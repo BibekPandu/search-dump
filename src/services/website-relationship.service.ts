@@ -86,6 +86,12 @@ export const DIRECTORY_DOMAINS = new Set<string>([
   'findallnepal.com',
   'scorchdeal.com',
   'hospitalnepal.com',
+  'nepalcompany.com',
+  'inquirynepal.com',
+  'esscobathware.com',
+  'companynepal.com',
+  'nepalbusinessdirectory.com',
+  'biznepal.com',
 ]);
 
 export const DIRECTORY_LISTING_PATHS: RegExp[] = [
