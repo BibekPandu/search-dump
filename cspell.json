@@ -783,7 +783,12 @@
     "nepalapfhospital",
     "satugal",
     "Kanti",
-    "Rorary"
+    "Rorary",
+    "scooty",
+    "almirah",
+    "ghargharsewa",
+    "gamatrain",
+    "furnitures"
   ],
   "ignorePaths": [
     "node_modules/**",

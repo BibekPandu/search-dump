@@ -2377,7 +2377,8 @@ export function sanitizeListingWithEvidence(
     targetLocStr,
     candidate.phone,
     candidateCoordsForBranching,
-    null
+    null,
+    candidate.name
   );
 
   // Build branches[] from 'branch_contact' tier attributions
@@ -2593,6 +2594,16 @@ export function sanitizeListingWithEvidence(
       origin
     );
     if (classified.status === 'accepted' && (classified.owner === 'business' || classified.owner === 'person')) {
+      return classified.canonicalUrl || url;
+    }
+    // Phase 8N Amendment 1: Promoted by SERP discovery gate with exact-query & SERP snippet corroboration
+    if (
+      plat === 'facebook' &&
+      classified.status !== 'rejected' &&
+      (candidate.discoveryProvenance?.discoveredSocials?.facebook === url ||
+        candidate.discoveryProvenance?.discoveredSocials?.facebook === classified.canonicalUrl) &&
+      /facebook\.com\/(?:p\/)?(?:profile\.php\?id=)?\d{8,}/i.test(url)
+    ) {
       return classified.canonicalUrl || url;
     }
     rejectedProfiles.push({
