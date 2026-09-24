@@ -86,8 +86,13 @@ export const RANK_WEIGHTS = {
   unrelatedPenalty: -40,
 } as const;
 
-/** Minimum score for a candidate to be attached as a first-party website. */
-export const MIN_FIRST_PARTY_SCORE = 15;
+/**
+ * Minimum score for a candidate to be attached as a first-party website.
+ * Satungal sweep (Class A): defect band was 16-32 (SERP-text-only token
+ * matches + TLD/path bonuses). Floor raised so weak text-only scores cannot
+ * clear the gate even if the host-only rule is bypassed.
+ */
+export const MIN_FIRST_PARTY_SCORE = 40;
 
 const TLD_BEST = ['.edu.np', '.gov.np', '.ac.np', '.edu'];
 const TLD_GOOD = ['.com.np', '.org.np', '.net.np', '.mil.np'];
@@ -104,7 +109,7 @@ const THIRD_PARTY_DOMAINS = new Set<string>([
 ]);
 
 const DIRECTORY_PATH_PATTERNS: RegExp[] = [
-  /\/(schools?|colleges?|institutes?|listings?|directory|places?|businesses?|companies?|eatery|eateries|restaurants?|menu\/restaurant|restaurant-review|services?|sellers?|seller_details|business-directory)\//i,
+  /\/(schools?|colleges?|institutes?|listings?|directory|places?|businesses?|companies?|eatery|eateries|restaurants?|menu\/restaurant|restaurant-review|services?|sellers?|seller_details|business-directory|venues?)\//i,
   /\/(search|results|category|categories|browse|tag|dealers?|dealerships?|dealer-locator|find-dealership|find-a-dealer|driving-schools?|driving-centers?|furnitures?|mattress-shop|store-locator)\b/i,
   /\/(travel|activities|activity|tours?)\//i,
   /[?&](q|query|search|s|category|district|page)=/i,
@@ -398,6 +403,10 @@ export function scoreCandidate(
     reasons.push(`name tokens matched: [${matchedTokens.join(', ')}] (+${bonus})`);
   }
 
+  // Host-only identity evidence (Satungal sweep Class A): brand tokens that
+  // appear only in SERP title/description never count as first-party proof.
+  const hostMatchedTokens = distinctiveTokens.filter((token) => domainLower.includes(token));
+
   const allTokensInDomain =
     distinctiveTokens.length > 0 && distinctiveTokens.every((t) => domainLower.includes(t));
   if (allTokensInDomain) {
@@ -514,6 +523,16 @@ export function scoreCandidate(
       );
       incrementTelemetry('tieredCorroborationRejections');
     }
+  }
+
+  // Host-only identity rule — runs AFTER the tiered corroboration checks so a
+  // candidate that already failed those keeps its original reason. SERP-text-only
+  // or path-only brand matches (chaudharygroup/slideshare/yopoho/iconicgymbahal)
+  // can never qualify as first-party.
+  if (eligible && distinctiveTokens.length > 0 && hostMatchedTokens.length === 0) {
+    eligible = false;
+    reasons.push('ineligible: no distinctive brand token in host (host-only identity rule)');
+    incrementTelemetry('tieredCorroborationRejections');
   }
 
   return {

@@ -461,6 +461,8 @@ export const INDUSTRY_GENERIC_TOKENS = new Set([
   'gurjudhara', 'chabahil', 'kalanki', 'koteshwor', 'dillibazar', 'lazimpat', 'maharajgunj',
   'balkhu', 'anamnagar', 'sinamangal', 'tinkune', 'kupondole', 'jawalakhel', 'sanepa',
   'kumaripati', 'satdobato', 'gongabu', 'balaju',
+  // Satungal sweep Class B: cross-category generic gym/venue words
+  'active', 'station',
 ]);
 
 /**
@@ -470,6 +472,8 @@ export const UNIVERSAL_STOPWORDS = new Set<string>([
   'and', 'the', 'of', 'in', 'for', 'at', 'by', 'to',
   '&', 'pvt', 'ltd', 'p', 'l', 'inc', 'co',
   'international', 'global',
+  // Glue words that must never count as distinctive brand tokens (Satungal sweep).
+  'with', 'without', 'via', 'near', 'upon', 'into', 'from',
 ]);
 
 /**
@@ -498,7 +502,9 @@ export const CATEGORY_GENERIC_TOKENS: Record<string, string[]> = {
   hospitality: ['hotel', 'resort', 'lodge', 'inn', 'stay', 'guest', 'house', 'restaurant', 'cafe',
     'coffee', 'bakery', 'kitchen'],
   legal: ['law', 'lawyer', 'advocate', 'legal', 'associates', 'chambers', 'attorney', 'solicitors'],
-  fitness: ['gym', 'fitness', 'club', 'center', 'centre', 'workout', 'training', 'health'],
+  fitness: ['gym', 'fitness', 'club', 'center', 'centre', 'workout', 'training', 'health',
+    // Satungal sweep Class B (D-2.3 Active Fitness Gym)
+    'active', 'station', 'zone', 'body', 'physique', 'exercise'],
   retail: ['store', 'shop', 'mart', 'kirana', 'pasal', 'center', 'centre', 'enterprise',
     'market', 'bazaar', 'mart'],
   beauty: [
@@ -508,6 +514,15 @@ export const CATEGORY_GENERIC_TOKENS: Record<string, string[]> = {
     'style', 'styling', 'look', 'glam', 'glamour', 'fashion',
     // additional generic terms surfaced by Checkpoint 1 analysis (D16-D22)
     'unisex', 'ladies', 'gents', 'royal', 'hub', 'collection', 'classic', 'elegant',
+    // Satungal sweep Class B (D-3.1 Santosh Hair cutting)
+    'cutting', 'cut', 'saloon', 'barber', 'barbershop', 'haircut', 'haircuts',
+    'shave', 'shaving', 'clipper', 'clippers',
+  ],
+  venue: [
+    'banquet', 'banquets', 'hall', 'halls', 'party', 'palace', 'venue', 'venues',
+    'reception', 'community', 'function', 'functions', 'programme', 'program',
+    'auditorium', 'marriage', 'wedding', 'event', 'events', 'celebration',
+    'ceremony', 'party palace', 'garden', 'banquet hall',
   ],
   hardware: [
     'hardware', 'machinery', 'machine', 'supplier', 'suppliers', 'supply', 'supplies',
@@ -545,6 +560,27 @@ export const CONFLICTING_VERTICAL_TOKENS: Record<string, string[]> = {
 };
 
 /**
+ * Strict-majority overlap threshold for social handles (mirrors ranker requiredNameOverlap).
+ * Defined locally to avoid a circular import with website-search-ranker.service.ts.
+ * Table: 0->0, 1->1, 2->2, 3->2, 4->3, 5->3, 6->4, ...
+ */
+function requiredSocialNameOverlap(distinctiveTokenCount: number): number {
+  if (distinctiveTokenCount <= 0) return 0;
+  if (distinctiveTokenCount === 1) return 1;
+  return Math.max(2, Math.floor(distinctiveTokenCount / 2) + 1);
+}
+
+/**
+ * Brand segment for title-style Maps/SERP names: "R S Dental: Multispeciality Clinic"
+ * → "R S Dental". Used for social distinctive-token matching so descriptor words after
+ * `:` / ` | ` / ` - ` do not inflate the strict-majority denominator.
+ */
+function brandSegmentFromBusinessName(name: string): string {
+  const brand = name.split(/\s*[:|]\s*|\s+[-–—]\s+/)[0]?.trim() || '';
+  return brand.length >= 2 ? brand : name;
+}
+
+/**
  * Phase 8k/8M/8N — Normalizes a Maps category string (e.g. 'Dental clinic', 'Hardware store', 'Driving school') to a CATEGORY_GENERIC_TOKENS key.
  * Resolution order:
  *  1. Priority category-specific keywords (e.g. 'driving', 'dental', 'furniture', 'hardware', 'beauty')
@@ -572,6 +608,8 @@ export function resolveCategoryKey(
     construction: 'hardware', steel: 'hardware', metal: 'hardware', pipe: 'hardware',
     pipes: 'hardware', plywood: 'hardware',
     gym: 'fitness', fitness: 'fitness', workout: 'fitness',
+    banquet: 'venue', venue: 'venue', reception: 'venue',
+    palace: 'venue', party: 'venue', hall: 'venue',
   };
 
   const GENERAL_KEYWORD_MAP: Record<string, string> = {
@@ -1304,8 +1342,11 @@ export function classifySocialProfile(
     }
   }
 
-  // Derive business tokens (full and distinctive)
-  const fullBusinessTokens = (businessName || '')
+  // Derive business tokens (full and distinctive) from the brand segment so
+  // title descriptors ("R S Dental: Multispeciality Clinic") do not add
+  // non-matching distinctive tokens that break strict-majority overlap.
+  const brandBusinessName = brandSegmentFromBusinessName(businessName || '');
+  const fullBusinessTokens = brandBusinessName
     .toLowerCase()
     .split(/[^a-z0-9]+/)
     .filter((t) => t.length >= 2);
@@ -1314,7 +1355,7 @@ export function classifySocialProfile(
   const businessAcronym = fullBusinessTokens.map((t) => t[0]).join('');
 
   // Distinctive business tokens (generic terms filtered out)
-  const distinctiveBusinessTokens: string[] = (businessName || '')
+  const distinctiveBusinessTokens: string[] = brandBusinessName
     .toLowerCase()
     .split(/[^a-z0-9]+/)
     .filter((t) => t.length >= 2 && !categoryGenericTokens.has(t));
@@ -1332,7 +1373,7 @@ export function classifySocialProfile(
   }
 
   // Support initialisms at the start of business name (e.g. "J. B Machinery" -> "jb", "R S Dental" -> "rs", "D.I. Dental" -> "di")
-  const initialismMatch = (businessName || '').match(/^([a-zA-Z])[\s.]*([a-zA-Z])(?:[\s.]*([a-zA-Z]))?\b/);
+  const initialismMatch = brandBusinessName.match(/^([a-zA-Z])[\s.]*([a-zA-Z])(?:[\s.]*([a-zA-Z]))?\b/);
   const initialism = initialismMatch
     ? (initialismMatch[1] + initialismMatch[2] + (initialismMatch[3] || '')).toLowerCase()
     : '';
@@ -1375,6 +1416,32 @@ export function classifySocialProfile(
     };
   }
 
+  // Exact normalized full-name handle match (Satungal sweep Class B structural path).
+  // All-generic business names like "Chandragiri Party Palace" / "B&L Fitness Station"
+  // have an empty distinctive set — equality on the normalized name still attaches
+  // the correct page without requiring a distinctive-token majority.
+  // Also try the brand segment so "Brand: Descriptor" titles match shortened handles.
+  const normalizedBusinessName = (businessName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const normalizedBrandName = brandBusinessName.toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (
+    normalizedBusinessName.length >= 4 &&
+    (cleanHandle === normalizedBusinessName ||
+      (normalizedBrandName.length >= 4 && cleanHandle === normalizedBrandName))
+  ) {
+    return {
+      url,
+      canonicalUrl,
+      platform: plat,
+      handle,
+      profileType: 'business_page',
+      owner: 'business',
+      status: 'accepted',
+      confidence: 1.0,
+      rejectionReason: 'NONE',
+      distinctiveTokensFound: fullBusinessTokens,
+    };
+  }
+
   // Check Distinctive Token Overlap
   const matchingDistinctive = uniqueDistinctiveBusinessTokens.filter(
     (token) =>
@@ -1384,6 +1451,11 @@ export function classifySocialProfile(
   );
 
   if (matchingDistinctive.length >= 1) {
+    // Strict-majority overlap (mirrors website ranker requiredNameOverlap).
+    // Single distinctive token still needs exactly 1 match; multi-token names
+    // require a strict majority so partial generic-facade handles cannot attach.
+    const requiredOverlap = requiredSocialNameOverlap(uniqueDistinctiveBusinessTokens.length);
+
     // Phase 8L Component 8 (D21 Initialism Corroboration Rule):
     // If the only matching distinctive tokens are short (<= 3 characters, e.g. "apf", "rs", "nk", "ab"),
     // an initialism alone is ambiguous. Require at least one corroborating signal:
@@ -1430,6 +1502,35 @@ export function classifySocialProfile(
           distinctiveTokensFound: [],
         };
       }
+    }
+
+    if (matchingDistinctive.length < requiredOverlap) {
+      if (distinctiveHandleTokens.length >= 1) {
+        return {
+          url,
+          canonicalUrl,
+          platform: plat,
+          handle,
+          profileType: 'business_page',
+          owner: 'unknown',
+          status: 'rejected',
+          confidence: 0.9,
+          rejectionReason: 'BUSINESS_NAME_MISMATCH',
+          distinctiveTokensFound: matchingDistinctive,
+        };
+      }
+      return {
+        url,
+        canonicalUrl,
+        platform: plat,
+        handle,
+        profileType: 'business_page',
+        owner: 'unknown',
+        status: 'unknown',
+        confidence: 0.5,
+        rejectionReason: 'INSUFFICIENT_EVIDENCE',
+        distinctiveTokensFound: matchingDistinctive,
+      };
     }
 
     return {
