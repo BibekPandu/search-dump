@@ -3,7 +3,8 @@ import {
   domainFromUrlOrHost,
   detectBusinessCategory,
   isUsableOfficialWebsite,
-} from './entity-resolution.service';
+} from './entity-resolution.service.js';
+import { isThirdPartyDomain } from './website-search-ranker.service.js';
 import { extractPhones, extractMobiles, classifySocialProfile } from './business-extractor.service';
 
 // ============================================================================
@@ -543,17 +544,20 @@ export async function runWebsiteDiscoveryGate(
       if (lookupResult && selectPhone) {
         const businessDomain =
           domainFromUrlOrHost(record.selectedUrl ?? (representative.website || '')) || undefined;
-        const attributedPhone = selectPhone({
-          place: representative,
-          results: lookupResult.results,
-          businessDomain,
-        });
-        if (attributedPhone) {
-          record.phone = attributedPhone;
-          record.phoneSourceDomain = businessDomain;
-          for (const member of group.members) {
-            if (!member.phoneNumber || member.phoneNumber.trim().length === 0) {
-              member.phoneNumber = attributedPhone;
+        const isThirdParty = businessDomain ? isThirdPartyDomain(businessDomain) : false;
+        if (!isThirdParty) {
+          const attributedPhone = selectPhone({
+            place: representative,
+            results: lookupResult.results,
+            businessDomain,
+          });
+          if (attributedPhone) {
+            record.phone = attributedPhone;
+            record.phoneSourceDomain = businessDomain;
+            for (const member of group.members) {
+              if (!member.phoneNumber || member.phoneNumber.trim().length === 0) {
+                member.phoneNumber = attributedPhone;
+              }
             }
           }
         }

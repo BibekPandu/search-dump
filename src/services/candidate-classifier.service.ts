@@ -113,6 +113,16 @@ export const DIRECTORY_DOMAINS = new Set([
   'biznepal.com',
   'ghargharsewa.com',
   'gamatrain.com',
+  'getyourguide.com',
+  'afnobazar.com.np',
+  'kinbechshop.com',
+  'worldtravelserver.com',
+  'pasaulineskeliones.lt',
+  'bizdirenepal.com',
+  'ypnepal.com',
+  'nepalyp.com',
+  'mysleepwell.com',
+  'furniturehub.com.np',
 ]);
 
 export const SOCIAL_DOMAINS = new Set([
