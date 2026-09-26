@@ -1,4 +1,4 @@
-import { withTimeout, extractDomain } from './search-fallback.service';
+import { extractDomain } from './search-fallback.service';
 import { domainFromUrlOrHost } from './entity-resolution.service';
 
 // ============================================================================
@@ -272,22 +272,25 @@ export function extractContactLinksFromMarkdown(content: string): string[] {
  * extracts anchor hrefs. Returns [] on any failure (degradation is designed in).
  */
 async function fetchHomepageHrefs(baseUrl: string, timeoutMs: number): Promise<string[]> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await withTimeout(
-      fetch(baseUrl, {
-        redirect: 'follow',
-        headers: {
-          'User-Agent': DEFAULT_USER_AGENT,
-          Accept: 'text/html,application/xhtml+xml',
-        },
-      }),
-      timeoutMs,
-      'website-discovery-fetch'
-    );
+    const response = await fetch(baseUrl, {
+      signal: controller.signal,
+      redirect: 'follow',
+      headers: {
+        'User-Agent': DEFAULT_USER_AGENT,
+        Accept: 'text/html,application/xhtml+xml',
+      },
+    });
 
-    if (!response.ok) return [];
+    if (!response.ok) {
+      clearTimeout(timer);
+      return [];
+    }
 
-    const html = await withTimeout(response.text(), timeoutMs, 'website-discovery-text');
+    const html = await response.text();
+    clearTimeout(timer);
     const anchors: string[] = [];
     const regex = /<a[^>]*href=["']([^"']+)["'][^>]*>/gi;
     let match: RegExpExecArray | null;
@@ -296,6 +299,7 @@ async function fetchHomepageHrefs(baseUrl: string, timeoutMs: number): Promise<s
     }
     return anchors;
   } catch (err) {
+    clearTimeout(timer);
     console.warn(`[WebsiteDiscovery] Homepage fetch failed for ${baseUrl}:`, (err as Error).message);
     return [];
   }
