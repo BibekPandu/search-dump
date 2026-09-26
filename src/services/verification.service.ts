@@ -1,12 +1,12 @@
 import type {
   ResearchCandidate,
-} from '../mastra/agents/research-agent/schema';
+} from '@/types/research-candidate.js';
 import type {
   VerificationResult,
   VerifiedBusinessEvidence,
   WebsiteEvidence,
   WebsitePageEvidence,
-} from '../mastra/agents/research-agent/verification.schema';
+} from '@/types/verification.js';
 import {
   normalizePhoneDigits,
   normalizeNameKey,

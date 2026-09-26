@@ -7,7 +7,7 @@ import {
 import type {
   ResearchDecision,
   ResearchCandidate,
-} from '../mastra/agents/research-agent/schema';
+} from '@/types/research-candidate.js';
 import {
   resolveEntityPair,
   dedupeByEntity,

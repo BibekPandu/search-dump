@@ -14,7 +14,7 @@ import {
   type GeographicDecision,
 } from './geographic-evaluator.service';
 import type { LocalityClusterConfig } from '../config/geo-localities.config.js';
-import type { ResearchCandidate } from '../mastra/agents/research-agent/schema';
+import type { ResearchCandidate } from '@/types/research-candidate.js';
 import { incrementTelemetry } from './telemetry.service';
 
 export interface CandidateValidationContext {

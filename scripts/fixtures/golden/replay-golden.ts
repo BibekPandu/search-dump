@@ -319,10 +319,14 @@ function main(): void {
 
     for (const table of staticLock.tables) {
       const locked = lockedStatic.tables.find((entry) => entry.id === table.id);
-      const ok = locked !== undefined && locked.tableSha256 === table.tableSha256 && locked.sourceSha256 === table.sourceSha256;
+      // R2 invariant: the TABLE CONTENT hash must match. `sourceSha256` is only
+      // provenance of the hosting file — a Phase N refactor may rewrite imports
+      // without touching a single table entry, which is not contract drift.
+      const ok = locked !== undefined && locked.tableSha256 === table.tableSha256;
+      const sourceDrift = locked !== undefined && locked.sourceSha256 !== table.sourceSha256;
       if (!ok) differences += 1;
       lines.push(
-        `${ok ? 'PASS' : 'FAIL'} static-table ${table.id} (${table.size} entries, sha256 ${table.tableSha256.slice(0, 16)})`
+        `${ok ? 'PASS' : 'FAIL'} static-table ${table.id} (${table.size} entries, sha256 ${table.tableSha256.slice(0, 16)})${sourceDrift ? ` [source bytes drifted, provenance only: ${table.sourceFile}]` : ''}`
       );
     }
 

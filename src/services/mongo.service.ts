@@ -29,6 +29,7 @@
  */
 import 'dotenv/config';
 import { MongoClient, type AnyBulkWriteOperation, type Db, type Document } from 'mongodb';
+import type { BusinessListing } from '@/types/business-listing.js';
 import {
   normalizeNameKey,
   normalizePhoneDigits,
@@ -36,7 +37,12 @@ import {
 } from './entity-resolution.service';
 import { extractCanonicalLocality } from './geocoding.service';
 import { DEFAULT_MAX_AGE_DAYS, normalizeQueryKeyPart } from '../config/freshness.config';
-import type { BusinessListing } from '../mastra/workflows/research-workflow';
+import type {
+  CacheKeys,
+  MongoRunRecord,
+  RunRecordStatus,
+  SaveRunRecordInput,
+} from '@/types/runs.js';
 
 // ============================================================================
 // Constants & Types
@@ -53,36 +59,17 @@ export const CACHEABLE_RUN_STATUSES = ['success', 'empty'] as const;
  * Run-record statuses. 'empty' means: the pipeline completed honestly and found
  * zero listings (e.g. SPA & Sauna in Satungal). It is cacheable, which is what
  * makes repeat empty queries free instead of a full re-run.
+ *
+ * Phase 1: canonical definition lives in '@/types/runs.js'; re-exported here
+ * for backward compatibility (R5 shim, retained until Phase 9).
  */
-export type RunRecordStatus = 'success' | 'empty' | 'failed' | 'cache-hit';
+export type { RunRecordStatus } from '@/types/runs.js';
 
 export type MongoConnectionState = 'unknown' | 'connected' | 'disabled' | 'unreachable';
 
-export interface RunInputConfig {
-  maxMapsPages?: number;
-  maxPages?: number;
-  websiteDiscoveryMode?: string;
-  maxWebsiteDiscoveryLookups?: number;
-  targetCandidates?: number;
-  maxCacheAgeDays?: number;
-}
+export type { RunInputConfig } from '@/types/runs.js';
 
-export interface MongoRunRecord {
-  _id: string;
-  query: string;
-  queryKey: string;
-  location: string;
-  locationKey: string;
-  localityKey: string;
-  completedAt: Date;
-  status: RunRecordStatus;
-  servedFromCache: boolean;
-  refreshRequested: boolean;
-  inputConfig: RunInputConfig;
-  listingCount: number;
-  canonicalKeys: string[];
-  listings: BusinessListing[];
-}
+export type { MongoRunRecord } from '@/types/runs.js';
 
 export interface UpsertContext {
   query: string;
@@ -125,31 +112,9 @@ export interface MongoDocParts {
  */
 export type RunRecordDocument = Document & { _id: string };
 
-export interface CacheKeys {
-  queryKey: string;
-  locationKey: string;
-  localityKey: string;
-}
+export type { CacheKeys } from '@/types/runs.js';
 
-/**
- * Caller-facing input for `saveRunRecord`. Deliberately decoupled from the stored
- * document shape: keys, counts and canonical keys are DERIVED inside the service so
- * a caller can never write an inconsistent run record.
- */
-export interface SaveRunRecordInput {
-  /** Mongo `_id` of the run record (the run-session id). */
-  runId: string;
-  query: string;
-  location?: string;
-  status: RunRecordStatus;
-  listings: BusinessListing[];
-  servedFromCache?: boolean;
-  refreshRequested?: boolean;
-  inputConfig?: RunInputConfig;
-  completedAt?: Date;
-  /** Immutable run origin, written only on insert. Defaults to completedAt. */
-  startedAt?: Date;
-}
+export type { SaveRunRecordInput } from '@/types/runs.js';
 
 // ============================================================================
 // Pure helpers (unit-testable without a live database)

@@ -1247,7 +1247,7 @@ export const mergeDuplicateDomainEntities = mergeDuplicateEntities;
 import type {
   ClassifiedContact,
   BranchAttributionResult,
-} from '../mastra/agents/research-agent/contact.schema';
+} from '@/types/contact.js';
 import {
   calculateHaversineDistanceKm,
   evaluateGeographicLocality,

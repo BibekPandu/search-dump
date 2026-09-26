@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { getProjectRootDir } from './db.service';
+import type { RunSummaryData } from '@/types/run-summary.js';
 
 function slugify(text: string, maxLen: number = 50): string {
   return text
@@ -149,43 +150,12 @@ export function saveStageOutput(
   }
 }
 
-export interface RunSummaryData {
-  query: string;
-  location?: string;
-  timestamp?: string;
-  totalBusinesses: number;
-  requestedTarget?: number;
-  discovered?: number;
-  accepted?: number;
-  finalized?: number;
-  persisted?: number;
-  shortfall?: number;
-  reasonCounts?: Record<string, number>;
-  conflictsDetected?: number;
-  executionTimeMs?: number;
-  sources?: {
-    googleMaps?: number;
-    webSearch?: number;
-    officialWebsitesCrawled?: number;
-  };
-  contactsFound?: {
-    withPhone?: number;
-    withEmail?: number;
-    withWebsite?: number;
-    withSocialLinks?: number;
-  };
-  status?: 'success' | 'partial' | 'failed' | 'empty';
-  synthesisMethod?: string;
-  /**
-   * M1 cache diagnostic — deliberately never conflated:
-   *   'hit'                → snapshot served from `runs`, zero API calls
-   *   'miss'               → lookup ran, nothing fresh was stored
-   *   'skipped_mongo_down' → lookup could not run (no URI / unreachable server)
-   */
-  cacheLookupStatus?: 'hit' | 'miss' | 'skipped_mongo_down';
-  telemetry?: Record<string, unknown>;
-  notes?: string[];
-}
+/**
+ * Phase 1 (R5 shim): the canonical `RunSummaryData` type lives in
+ * `src/types/run-summary.ts`. Re-exported here until Phase 9 so callers of
+ * `saveSummaryReport()` keep their import path.
+ */
+export type { RunSummaryData } from '@/types/run-summary.js';
 
 /**
  * Saves a high-level, human-readable summary report to:

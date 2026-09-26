@@ -1,5 +1,5 @@
 import { domainFromUrlOrHost } from './entity-resolution.service';
-import type { WebsiteRelationship, WebsiteLifecycle } from '../mastra/agents/research-agent/verification.schema';
+import type { WebsiteRelationship, WebsiteLifecycle } from '@/types/verification.js';
 import { SHARED_DIRECTORY_DOMAINS } from '../config/directory-domains.config';
 
 /**

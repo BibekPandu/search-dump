@@ -21,7 +21,6 @@ import {
   runWebsiteDiscoveryGate,
   selectPhoneFromOwnDomain,
   buildSecondChanceQuery,
-  discoveryStateEnum,
   getDiscoveryTelemetryCounters,
   type DiscoveryLookupResult,
   type WebsiteDiscoveryArtifact,
@@ -58,7 +57,6 @@ import { mergeDuplicateEntities } from '../../services/entity-resolution.service
 import {
   researchReportSchema,
   researchCandidateSchema,
-  discoveryProvenanceSchema,
   type ResearchReport,
   type ResearchCandidate,
   type ResearchDecision,
@@ -91,26 +89,10 @@ import {
   cleanBranchAddress,
 } from '../../services/business-extractor.service';
 import {
-  branchRecordSchema,
-  classifiedContactSchema,
   type BranchRecord,
   type ClassifiedContact,
 } from '../agents/research-agent/contact.schema';
 
-export const ledgerStatusEnum = z.enum([
-  'persisted',
-  'synthesis_omission',
-  'verification_failed',
-  'zero_actionable_fields',
-  'geography_rejected',
-  'provider_exhausted',
-  'deduplicated',
-  'category_rejected',
-  'budget_skipped',
-  'upsert_failed',
-]);
-
-export type LedgerStatus = z.infer<typeof ledgerStatusEnum>;
 import {
   attributeMultiBranchContacts,
   isAllContactsUnattributed,
@@ -140,7 +122,6 @@ import {
 } from '../../services/verification.service';
 import {
   verifiedBusinessEvidenceSchema,
-  confidenceBreakdownSchema,
   type VerifiedBusinessEvidence,
   type WebsitePageEvidence,
 } from '../agents/research-agent/verification.schema';
@@ -149,6 +130,26 @@ import {
   validateConfidenceIntegrity,
   type ConfidenceInputs,
 } from '../../services/confidence.service';
+
+// Phase 1 (R5 shim): canonical domain contracts imported from the type layer.
+// Consumers may use the `@/types` barrel; the type modules themselves import
+// sibling contracts directly (never through the barrel).
+import {
+  businessListingSchema,
+  ledgerStatusEnum,
+  type BusinessListing,
+  type LedgerStatus,
+  type RunResearchDiscoveryInput,
+} from '@/types/index.js';
+
+// Phase 1 (R5 shim): re-exported for backward compatibility until Phase 9.
+export {
+  businessListingSchema,
+  ledgerStatusEnum,
+  type BusinessListing,
+  type LedgerStatus,
+  type RunResearchDiscoveryInput,
+};
 
 const candidateSchema = unifiedSearchResultSchema;
 
@@ -159,69 +160,6 @@ const extractionSchema = z.object({
   success: z.boolean(),
   error: z.string().optional(),
 });
-
-export const businessListingSchema = z.object({
-  name: z.string().default('Unknown Name'),
-  location: z.string().default(''),
-  emails: z.array(z.string()).default([]),
-  phones: z.array(z.string()).default([]),
-  mobiles: z.array(z.string()).default([]),
-  websites: z.array(z.string()).default([]),
-  icon: z.string().default(''),
-  socialLinks: z
-    .object({
-      facebook: z.string().default(''),
-      tiktok: z.string().default(''),
-      instagram: z.string().default(''),
-      other: z.record(z.string(), z.string()).default({}),
-    })
-    .default({
-      facebook: '',
-      tiktok: '',
-      instagram: '',
-      other: {},
-    }),
-  otherDetails: z
-    .object({
-      branches: z.array(branchRecordSchema).optional(),
-      classifiedContacts: z.array(classifiedContactSchema).optional(),
-      websiteRelationship: z.string().optional(),
-      discoveryState: discoveryStateEnum.optional(),
-      reconciliationReason: z.string().optional(),
-      discoveryProvenance: discoveryProvenanceSchema.optional(),
-      categories: z.array(z.string()).optional(),
-      hours: z.string().optional(),
-      priceRange: z.string().optional(),
-      businessDescription: z.string().optional(),
-      thumbnailUrl: z.string().optional(),
-      bookingLinks: z.any().optional(),
-    })
-    .passthrough()
-    .default({}),
-  metadata: z
-    .object({
-      source: z.string().default('web'),
-      extractedAt: z.string().default(() => new Date().toISOString()),
-      runStartedAt: z.string().optional(),
-      confidence: z.number().default(0),
-      confidenceBreakdown: confidenceBreakdownSchema.optional(),
-    })
-    .passthrough(),
-  process: z.string().default('Verified via Google + Web search'),
-  links: z.array(z.string()).default([]),
-  gpsCoordinates: z
-    .object({
-      latitude: z.number().optional(),
-      longitude: z.number().optional(),
-    })
-    .optional(),
-  rating: z.number().optional(),
-  ratingCount: z.number().optional(),
-  businessType: z.string().optional(),
-  placeId: z.string().optional(),
-});
-
-export type BusinessListing = z.infer<typeof businessListingSchema>;
 
 /**
  * M1 cache passthrough fragment.
@@ -281,39 +219,6 @@ function takeCachePassthrough(input: unknown): CachePassthroughFields {
     refreshRequested: source.refreshRequested,
     runConfig: source.runConfig,
   };
-}
-
-export interface RunResearchDiscoveryInput {
-  query: string;
-  location?: string;
-  autoApprove?: boolean;
-  agentId?: string;
-  targetCandidates?: number;
-  maxPages?: number;
-  maxMapsPages?: number;
-  /**
-   * Phase 7a Task 2: website discovery budget mode.
-   * 'benchmark' = every eligible candidate (hard-capped per run),
-   * 'production' = default 10 lookups per run.
-   * Precedence: this input > env DISCOVERY_MODE > 'production'.
-   */
-  websiteDiscoveryMode?: string;
-  /**
-   * Phase 7a Task 2: explicit per-run lookup budget override.
-   * Still clamped by the hard ceiling and by the eligible candidate count.
-   * Independent of targetCandidates.
-   */
-  maxWebsiteDiscoveryLookups?: number;
-  /**
-   * M1: explicit cache bypass. When true the Step 1 cache-first guard is skipped
-   * and a full pipeline run executes, then the fresh snapshot replaces the cache.
-   */
-  refresh?: boolean;
-  /**
-   * M1: override the freshness window for this run (days). Precedence:
-   * this input > env CACHE_MAX_AGE_DAYS > category policy > default 30.
-   */
-  maxCacheAgeDays?: number;
 }
 
 export async function runResearchDiscovery(

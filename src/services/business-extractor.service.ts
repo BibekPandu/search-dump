@@ -1,13 +1,13 @@
 import { extractDomain } from './search-fallback.service';
-import type { WebsitePageEvidence, WebsiteEvidence, PhoneEvidenceRecord } from '../mastra/agents/research-agent/verification.schema';
+import type { WebsitePageEvidence, WebsiteEvidence, PhoneEvidenceRecord } from '@/types/verification.js';
 import { NTA_MOBILE_PREFIXES, NTA_LANDLINE_AREA_CODES } from '../config/nepal-telecom.config';
 import {
   type ContactRole,
   type ContactOwner,
   type ContactChannel,
   type ClassifiedContact,
-} from '../mastra/agents/research-agent/contact.schema';
-import type { ClassifiedSocialProfile } from '../mastra/agents/research-agent/social.schema';
+} from '@/types/contact.js';
+import type { ClassifiedSocialProfile } from '@/types/social.js';
 import { incrementTelemetry } from './telemetry.service';
 
 function domainFromUrlOrHost(value: string): string {

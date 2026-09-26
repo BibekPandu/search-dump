@@ -1,4 +1,4 @@
-import type { ResearchCandidate } from '../mastra/agents/research-agent/schema';
+import type { ResearchCandidate } from '@/types/research-candidate.js';
 import { searchSerperPlaces, type SerperPlaceResult } from './serper-places.service';
 import { buildResearchCandidates } from './research-candidate.service';
 

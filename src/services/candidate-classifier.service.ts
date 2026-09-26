@@ -2,7 +2,7 @@ import { type UnifiedSearchResult, type CategoryIntent } from './search-fallback
 import {
   type CandidateType,
   type ResearchDecision,
-} from '../mastra/agents/research-agent/schema';
+} from '@/types/research-candidate.js';
 import { SHARED_DIRECTORY_DOMAINS } from '../config/directory-domains.config';
 
 // ============================================================================
