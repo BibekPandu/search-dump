@@ -31,7 +31,7 @@ function domainFromUrlOrHost(value: string): string {
 // facts (emails, phones, mobiles, socials, favicon, services, hours) are
 // extracted via regex/rules and used as EVIDENCE-BACKED authority downstream.
 
-const EMAIL_REGEX = /\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:\.[a-zA-Z]{2,})?\b(?!\.[a-zA-Z])/g;
+const EMAIL_REGEX = /\b[a-zA-Z0-9_.%+-]{1,64}@[a-zA-Z0-9-]{1,63}(?:\.[a-zA-Z0-9-]{1,63})+\b/g;
 
 // Placeholder / throwaway addresses that must never be treated as real evidence.
 const PLACEHOLDER_EMAIL_PATTERNS = [
@@ -1667,9 +1667,9 @@ export function stripVendorAttribution(content: string): string {
 function stripHtmlTags(content: string): string {
   if (!content) return '';
   return content
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, ' ')
-    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, ' ')
-    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, ' ')
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<iframe\b[^>]*>[\s\S]*?<\/iframe>/gi, ' ')
     .replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;/gi, ' ');
 }
@@ -2678,6 +2678,28 @@ function extractUrlsFromHtml(content: string): string[] {
   return urls;
 }
 
+/**
+ * Harvests social URLs from structures that Markdown conversion commonly hides:
+ * nested image links, rel="me" anchors, and social metadata tags.
+ */
+function extractStructuredSocialUrls(content: string): string[] {
+  if (!content) return [];
+  const urls: string[] = [];
+
+  const markdownImageLink = /\[[^\]]*!\[[^\]]*\]\([^)]*\)\]\((https?:\/\/[^)\s]+)\)/gi;
+  let match: RegExpExecArray | null;
+  while ((match = markdownImageLink.exec(content)) !== null) urls.push(match[1]);
+
+  const metaTags = content.match(/<meta\b[^>]*>/gi) || [];
+  for (const tag of metaTags) {
+    if (!/(?:property|name)=["'](?:og:see_also|social:[^"']+)["']/i.test(tag)) continue;
+    const urlMatch = tag.match(/content=["'](https?:\/\/[^"']+)["']/i);
+    if (urlMatch) urls.push(urlMatch[1]);
+  }
+
+  return urls;
+}
+
 export interface ExtractedSocialLinks {
   facebook: string;
   instagram: string;
@@ -2700,6 +2722,7 @@ export function extractSocialLinks(
   const structuredUrls = [
     ...extractUrlsFromMarkdown(content),
     ...extractUrlsFromHtml(content),
+    ...extractStructuredSocialUrls(content),
     ...liftBareHandles(content),
   ];
   const rawUrls = content.match(/https?:\/\/[^\s<>")\]]+/gi) || [];
@@ -2715,14 +2738,21 @@ export function extractSocialLinks(
   const bName = context?.businessName;
   const wDomain = context?.websiteDomain;
 
-  const rawFacebook = fbMatches.map(cleanTrailingPunctuation).find((u) => isBusinessOwnedSocialProfile(u, 'facebook', bName, wDomain)) || '';
-  const rawInstagram = igMatches.map(cleanTrailingPunctuation).find((u) => isBusinessOwnedSocialProfile(u, 'instagram', bName, wDomain)) || '';
-  const rawTiktok = ttMatches.map(cleanTrailingPunctuation).find((u) => isBusinessOwnedSocialProfile(u, 'tiktok', bName, wDomain)) || '';
+  const selectCanonicalSocial = (matches: string[], platform: ClassifiedSocialProfile['platform']) => {
+    const accepted = matches
+      .map(cleanTrailingPunctuation)
+      .find((u) => isBusinessOwnedSocialProfile(u, platform, bName, wDomain));
+    return accepted ? computeCanonicalSocialUrl(accepted, platform) : '';
+  };
+
+  const rawFacebook = selectCanonicalSocial(fbMatches, 'facebook');
+  const rawInstagram = selectCanonicalSocial(igMatches, 'instagram');
+  const rawTiktok = selectCanonicalSocial(ttMatches, 'tiktok');
 
   const other: Record<string, string> = {};
-  const xTwitter = xMatches.map(cleanTrailingPunctuation).find((u) => isBusinessOwnedSocialProfile(u, 'twitter', bName, wDomain));
-  const youtube = ytMatches.map(cleanTrailingPunctuation).find((u) => isBusinessOwnedSocialProfile(u, 'youtube', bName, wDomain));
-  const linkedin = liMatches.map(cleanTrailingPunctuation).find((u) => isBusinessOwnedSocialProfile(u, 'linkedin', bName, wDomain));
+  const xTwitter = selectCanonicalSocial(xMatches, 'twitter');
+  const youtube = selectCanonicalSocial(ytMatches, 'youtube');
+  const linkedin = selectCanonicalSocial(liMatches, 'linkedin');
   if (xTwitter) other.x = xTwitter;
   if (youtube) other.youtube = youtube;
   if (linkedin) other.linkedin = linkedin;
@@ -2960,6 +2990,7 @@ export function detectMultiBusinessPage(
   businessName?: string
 ): boolean {
   if (!content) return false;
+  const boundedContent = content.length > 50000 ? content.slice(0, 50000) : content;
 
   if (url) {
     const lowerUrl = url.toLowerCase();
@@ -2981,7 +3012,7 @@ export function detectMultiBusinessPage(
   // 1. Numbered listicle headings (e.g. <h2>1. Apex Hotel... <h2>2. Kathmandu Guest House...)
   // Exclude FAQ questions (e.g. "1. How much does it cost?", "2. Can a foreign company..."), steps, services
   const listicleMatches =
-    content.match(/(?:<h[1-6][^>]*>|^|\n|\.\s+)\s*\d{1,2}\.?\s+(?:Top|Best|[A-Z])[A-Za-z0-9\s&'-]{3,60}/gi) || [];
+    boundedContent.match(/(?:<h[1-6][^>]*>|^|\n|\.\s+)\s*\d{1,2}\.?\s+(?:Top|Best|[A-Z])[A-Za-z0-9\s&'-]{3,60}/gi) || [];
 
   const realListicles = listicleMatches.filter((m) => {
     const cleaned = m.replace(/^[^A-Za-z0-9]+/, '').replace(/^\d{1,2}\.?\s*/, '').trim();
@@ -2997,9 +3028,9 @@ export function detectMultiBusinessPage(
 
   // 2. Distinct standalone corporate entities (e.g. "X Pvt Ltd", "Y Suppliers", "Z Traders", "W Enterprises")
   // Strip team rosters and FAQ sections first
-  const sanitizedContent = content
-    .replace(/(?:##?\s*(?:Meet Our|Our Team|Attorneys?|Lawyers?|Doctors?|Faculty|Staff|Leadership|Board)[\s\S]*?(?=\n##|$))/gi, ' ')
-    .replace(/(?:##?\s*(?:Frequently Asked Questions|FAQ|Q&A)[\s\S]*?(?=\n##|$))/gi, ' ');
+  const sanitizedContent = boundedContent
+    .replace(/(?:##?\s*(?:Meet Our|Our Team|Attorneys?|Lawyers?|Doctors?|Faculty|Staff|Leadership|Board)[^\n#]{1,1000})/gi, ' ')
+    .replace(/(?:##?\s*(?:Frequently Asked Questions|FAQ|Q&A)[^\n#]{1,1000})/gi, ' ');
 
   const text = sanitizedContent.replace(/<[^>]+>/g, ' ');
   const entityMatches =
@@ -3093,6 +3124,202 @@ export async function detectMultiBusinessPageWithLlmFallback(
  * and produces a lean WebsiteEvidence payload (minus url/domain/pages which the
  * caller supplies).
  */
+/**
+ * Structurally sanitizes branch addresses, removing HTML tags, Markdown/image fragments,
+ * phone numbers, URLs, and incomplete markup remnants (M2C).
+ */
+export function cleanBranchAddress(
+  rawContextOrAddress: string,
+  businessName?: string
+): string | undefined {
+  if (!rawContextOrAddress) return undefined;
+
+  let cleaned = rawContextOrAddress
+    // 1. Remove Markdown images, links, and orphaned link brackets
+    .replace(/!\[.*?\]\([^)]*\)/g, '')
+    .replace(/\[(.*?)\]\([^)]*\)/g, '$1')
+    .replace(/\]\s*\([^\)]*\)?/g, ' ')
+    .replace(/\[[^\]]*$/g, ' ')
+    // 2. Remove HTML tags
+    .replace(/<[^>]*>/g, '')
+    // 3. Remove URLs
+    .replace(/https?:\/\/\S+/g, '')
+    // 4. Remove Markdown formatting characters
+    .replace(/[#*`_~]/g, '')
+    // 5. Remove image file paths and artifacts
+    .replace(/[a-zA-Z0-9_\-\.\/]*\.(?:png|jpe?g|webp|gif|svg)\b/gi, '')
+    // 6. Remove HTML attribute fragments (e.g. mage" ="\" loading="lazy" /> or loading="lazy")
+    .replace(/\b(?:loading|alt|src|href|class|style|id|target|rel|width|height)=["'][^"']*["']/gi, '')
+    .replace(/\b(?:loading|alt|src|href|class|style|id|target|rel|width|height)=\S+/gi, '')
+    .replace(/\b(?:mage|image)\s*["'=]/gi, '')
+    // 7. Remove phone numbers & emails (including partial or international)
+    .replace(/(?:\+?977[-.\s]?)?(?:\(?0?\d{1,4}\)?[-.\s]?)?\d{4,10}\b/g, '')
+    .replace(/\+\d{1,4}[-.\s]?\d+/g, '')
+    .replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, '')
+    // 8. Remove common CTA / navigation / noise phrases
+    .replace(/\b(?:get direction|get directions|view direction|view on map|view map|view location|find us|find our offices?|our offices?|free consultation|send email|follow us on|testimonials?|real students|read more|more about us|about us|click here|contact us|call now|open hours?|opening hours?|office hours?)\b/gi, '')
+    // 9. Clean quotes, brackets, slashes
+    .replace(/["'\\/<>]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // Strip leading/trailing non-alphanumeric punctuation
+  cleaned = cleaned.replace(/^[^a-zA-Z0-9]+/, '').replace(/[^a-zA-Z0-9)]+$/, '').trim();
+
+  // If business name is at the start (e.g. "CSC New Baneshwor, Kathmandu"), clean it
+  if (businessName && cleaned.toLowerCase().startsWith(businessName.toLowerCase())) {
+    const afterName = cleaned.slice(businessName.length).replace(/^[\s,:-]+/, '').trim();
+    if (afterName.length >= 3) {
+      cleaned = afterName;
+    }
+  }
+
+  // Final check: must be meaningful length and not look like standalone noise
+  if (cleaned.length < 3 || /^(?:branch|office|outlet|location|contact|phone|tel|email|fax)$/i.test(cleaned)) {
+    return undefined;
+  }
+
+  return cleaned;
+}
+
+export interface StructuredBranchBlock {
+  blockId: string;
+  heading: string;
+  branchLabel: string;
+  address?: string;
+  phones: string[];
+  mobiles: string[];
+  emails: string[];
+  rawContent: string;
+  pageUrl?: string;
+}
+
+const NEPAL_BRANCH_LOCALITIES = [
+  'baneshwor', 'new baneshwor', 'old baneshwor',
+  'chitwan', 'bharatpur', 'narayangarh',
+  'kumaripati', 'lalitpur', 'patan', 'jawalakhel', 'kupondole', 'lagankhel',
+  'butwal', 'rupandehi',
+  'kamaladi', 'putalisadak', 'bagbazar', 'dillibazar', 'maharajgunj', 'lazimpat', 'thamel', 'chabahil',
+  'koteshwor', 'tinkune', 'sinamangal', 'anamnagar', 'tripureshwor', 'kalanki', 'balkhu', 'kirtipur',
+  'satungal', 'thankot', 'balambu', 'naikap', 'chhauni', 'swayambhu', 'banasthali', 'balaju',
+  'gongabu', 'samakhusi', 'tokha', 'budhanilkantha', 'basundhara', 'hattigauda',
+  'bhaktapur', 'suryabinayak', 'thimi', 'sallaghari',
+  'pokhara', 'kaski', 'biratnagar', 'morang', 'birgunj', 'parsa', 'dharan', 'sunsari',
+  'hetauda', 'makwanpur', 'nepalgunj', 'banke', 'itahari', 'damak', 'jhapa', 'bhairahawa',
+  'dang', 'ghorahi', 'tulsipur', 'dhangadhi', 'kailali', 'janakpur', 'dhanusha', 'banepa', 'kavre',
+  'australia', 'sydney', 'melbourne', 'brisbane', 'perth', 'adelaide',
+  'canada', 'toronto', 'vancouver', 'uk', 'london', 'usa', 'dallas', 'new york',
+];
+
+/**
+ * Extracts structured branch blocks from raw HTML or Markdown (M2C).
+ */
+export function extractStructuredBranchBlocks(
+  htmlOrContent: string,
+  businessName?: string,
+  pageUrl?: string
+): StructuredBranchBlock[] {
+  if (!htmlOrContent) return [];
+
+  const blocks: StructuredBranchBlock[] = [];
+  const sectionSplitPattern = /(?:<h[1-6][^>]*>([^<]{1,200})<\/h[1-6]>|<(?:strong|b)[^>]*>([^<]{1,200})<\/(?:strong|b)>|(?:^|\n)#{1,6}\s+([^\n]{1,200})|(?:^|\n)\*\*([^*\n]{1,200})\*\*)/gi;
+
+  const matches: Array<{ heading: string; index: number; length: number }> = [];
+  let m: RegExpExecArray | null;
+
+  while ((m = sectionSplitPattern.exec(htmlOrContent)) !== null) {
+    const rawHeading = m[1] || m[2] || m[3] || m[4] || '';
+    const cleanHeading = rawHeading.replace(/<[^>]*>/g, '').replace(/[*#]/g, '').replace(/\s+/g, ' ').trim();
+    if (!cleanHeading || cleanHeading.length < 2 || cleanHeading.length > 150) continue;
+
+    const lower = cleanHeading.toLowerCase();
+    const hasBranchWord = /\b(branch|branches|office|offices|outlet|outlets|center|centre|location|locations)\b/i.test(lower);
+    const hasLocality = NEPAL_BRANCH_LOCALITIES.some((loc) => {
+      const regex = new RegExp(`\\b${loc}\\b`, 'i');
+      return regex.test(lower);
+    });
+
+    if (hasBranchWord || hasLocality) {
+      matches.push({
+        heading: cleanHeading,
+        index: m.index,
+        length: m[0].length,
+      });
+    }
+  }
+
+  if (matches.length === 0) return [];
+
+  for (let i = 0; i < matches.length; i++) {
+    const current = matches[i];
+    const startIndex = current.index;
+    const nextStart = i < matches.length - 1 ? matches[i + 1].index : htmlOrContent.length;
+    const blockContent = htmlOrContent.slice(startIndex, Math.min(startIndex + 1500, nextStart));
+
+    let branchLabel = current.heading;
+    const lowerHeading = current.heading.toLowerCase();
+    const matchedLocality = NEPAL_BRANCH_LOCALITIES.find((loc) => {
+      const regex = new RegExp(`\\b${loc}\\b`, 'i');
+      return regex.test(lowerHeading);
+    });
+
+    if (matchedLocality) {
+      const formattedLoc = matchedLocality.charAt(0).toUpperCase() + matchedLocality.slice(1);
+      if (!lowerHeading.includes('branch') && !lowerHeading.includes('office')) {
+        branchLabel = `${formattedLoc} Branch`;
+      } else {
+        branchLabel = current.heading;
+      }
+    }
+
+    const cleanAddr = cleanBranchAddress(current.heading + '\n' + blockContent.slice(0, 300), businessName);
+
+    const blockPhones = extractPhones(blockContent);
+    const blockMobiles = extractMobiles(blockContent);
+    const blockEmails = extractEmails(blockContent);
+
+    const landlines: string[] = [];
+    const mobiles: string[] = [];
+    for (const p of blockPhones) {
+      const classified = classifyNepalPhone(p);
+      if (classified.type === 'mobile') {
+        if (!mobiles.includes(p)) mobiles.push(p);
+      } else if (classified.type === 'landline' || classified.type === 'international') {
+        if (!landlines.includes(p)) landlines.push(p);
+      }
+    }
+    for (const p of blockMobiles) {
+      if (!mobiles.includes(p)) mobiles.push(p);
+    }
+
+    // Skip generic section wrappers (e.g. "<h2>Our Offices</h2>") that lack contacts and specific locality
+    if (landlines.length === 0 && mobiles.length === 0 && blockEmails.length === 0 && !matchedLocality) {
+      continue;
+    }
+
+    const blockId = `branch-${(matchedLocality || branchLabel).toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+
+    blocks.push({
+      blockId,
+      heading: current.heading,
+      branchLabel,
+      address: cleanAddr,
+      phones: landlines,
+      mobiles,
+      emails: blockEmails,
+      rawContent: blockContent,
+      pageUrl,
+    });
+  }
+
+  return blocks;
+}
+
+/**
+ * Runs ALL deterministic extractors over a set of successfully-extracted pages
+ * and produces a lean WebsiteEvidence payload (minus url/domain/pages which the
+ * caller supplies).
+ */
 export function extractAllFromPages(
   pages: WebsitePageEvidence[],
   businessName?: string,
@@ -3116,6 +3343,29 @@ export function extractAllFromPages(
   const allPhoneEvidence: PhoneEvidenceRecord[] = [];
   const allClassifiedContacts: ClassifiedContact[] = [];
 
+  // Extract structured branch blocks across pages
+  const pageBranchBlocks = new Map<string, StructuredBranchBlock[]>();
+  for (const page of successful) {
+    const blocks = extractStructuredBranchBlocks(page.rawHtml || page.content || '', businessName, page.url);
+    if (blocks.length > 0) {
+      pageBranchBlocks.set(page.url, blocks);
+    }
+  }
+
+  const findMatchingBranchBlock = (pageUrl: string, contactValue: string): StructuredBranchBlock | undefined => {
+    const blocks = pageBranchBlocks.get(pageUrl) || [];
+    const digits = contactValue.replace(/\D/g, '');
+    for (const b of blocks) {
+      if (b.emails.includes(contactValue)) return b;
+      if (digits.length >= 7) {
+        const hasPhone = [...b.phones, ...b.mobiles].some((p) => p.replace(/\D/g, '').includes(digits) || digits.includes(p.replace(/\D/g, '')));
+        if (hasPhone) return b;
+      }
+      if (b.rawContent.includes(contactValue)) return b;
+    }
+    return undefined;
+  };
+
   // Classify extracted emails with context
   for (const page of successful) {
     const pageUrl = page.url;
@@ -3128,15 +3378,19 @@ export function extractAllFromPages(
 
     for (const email of extractEmails(pageText)) {
       emailSet.add(email);
-      const ctx = extractContextAroundMatch(pageText, email);
+      const matchingBlock = findMatchingBranchBlock(pageUrl, email);
+      const ctx = matchingBlock
+        ? `${matchingBlock.branchLabel}: ${matchingBlock.address || matchingBlock.heading}`
+        : extractContextAroundMatch(pageText, email);
       const role = classifyEmailRole(email, ctx, businessName, websiteDomain);
       allClassifiedContacts.push({
         value: email,
         type: 'email',
         role: role.role,
-        owner: role.owner,
+        owner: matchingBlock ? 'branch' : role.owner,
         channels: [],
         context: ctx || undefined,
+        blockId: matchingBlock?.blockId,
         pageUrl,
       });
     }
@@ -3156,7 +3410,12 @@ export function extractAllFromPages(
     };
     allPhoneEvidence.push(evidence);
 
-    const context = pageText ? extractContextAroundMatch(pageText, raw) : '';
+    const matchingBlock = findMatchingBranchBlock(pageUrl, raw);
+    const context = matchingBlock
+      ? `${matchingBlock.branchLabel}: ${matchingBlock.address || matchingBlock.heading}`
+      : pageText
+      ? extractContextAroundMatch(pageText, raw)
+      : '';
 
     // Group E (W3-10): Demo / Template placeholder filter
     if (
@@ -3176,11 +3435,12 @@ export function extractAllFromPages(
         type: 'phone',
         phoneType: classified.type,
         role: phoneRole.role,
-        owner: phoneRole.owner,
+        owner: matchingBlock ? 'branch' : phoneRole.owner,
         channels: phoneRole.channels,
         associatedPerson: phoneRole.associatedPerson,
         associatedJobTitle: phoneRole.associatedJobTitle,
         context: context || undefined,
+        blockId: matchingBlock?.blockId,
         pageUrl,
       });
     }
