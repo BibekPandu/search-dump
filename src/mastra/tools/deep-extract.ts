@@ -1,7 +1,7 @@
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
-import { tavilyExtract } from '@/services/tavily-extract.service';
-import { saveStageOutput } from '@/services/output-storage.service';
+import { tavilyExtract } from '@/services/external/tavily-extract.service';
+import { saveStageOutput } from '@/services/storage/output-storage.service';
 
 export const deepExtractTool = createTool({
   id: 'deep-extract-tool',

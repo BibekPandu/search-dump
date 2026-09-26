@@ -11,7 +11,7 @@ import {
   type UnifiedSearchResult,
   type CategoryIntent,
   type ExpandedQuery,
-} from '@/services/search-fallback.service';
+} from '@/services/discovery/search-fallback.service';
 import {
   resolveWebsiteDiscoveryBudget,
   formatWebsiteDiscoveryBudgetLog,
@@ -24,11 +24,11 @@ import {
   getDiscoveryTelemetryCounters,
   type DiscoveryLookupResult,
   type WebsiteDiscoveryArtifact,
-} from '@/services/website-discovery-gate.service';
-import { selectFirstPartyWebsiteUrl } from '@/services/website-search-ranker.service';
-import { type SerperPlaceResult, backfillMissingMapsPhones } from '@/services/serper-places.service';
-import { tavilyExtract } from '@/services/tavily-extract.service';
-import { filterCandidateUrls } from '@/services/url-filter.service';
+} from '@/services/discovery/website-discovery-gate.service';
+import { selectFirstPartyWebsiteUrl } from '@/services/discovery/website-search-ranker.service';
+import { type SerperPlaceResult, backfillMissingMapsPhones } from '@/services/external/serper-places.service';
+import { tavilyExtract } from '@/services/external/tavily-extract.service';
+import { filterCandidateUrls } from '@/services/discovery/url-filter.service';
 import {
   saveStageOutput,
   saveSummaryReport,
@@ -36,24 +36,24 @@ import {
   endRunSession,
   getActiveRunSession,
   getRunSessionId,
-} from '@/services/output-storage.service';
+} from '@/services/storage/output-storage.service';
 import {
   filterSearchResults,
   checkCategoryRelevance,
-} from '@/services/candidate-classifier.service';
-import { evaluateGeographicLocality } from '@/services/geographic-evaluator.service';
+} from '@/services/resolution/candidate-classifier.service';
+import { evaluateGeographicLocality } from '@/services/resolution/geographic-evaluator.service';
 import { findRegisteredLocalityCluster } from '@/config/geo-localities.config';
-import { geocodeLocality } from '@/services/geocoding.service';
+import { geocodeLocality } from '@/services/resolution/geocoding.service';
 import {
   validateCandidate,
   revalidateExtractedCandidateAddress,
-} from '@/services/candidate-validation.service';
+} from '@/services/resolution/candidate-validation.service';
 import {
   getLlmMultiBusinessCallCount,
   resetLlmMultiBusinessCallCount,
 } from '@/services/business-extractor.service';
 import { getTelemetry, incrementTelemetry } from '@/services/telemetry.service';
-import { mergeDuplicateEntities } from '@/services/entity-resolution.service';
+import { mergeDuplicateEntities } from '@/services/resolution/entity-resolution.service';
 import {
   researchReportSchema,
   researchCandidateSchema,
@@ -71,7 +71,7 @@ import {
   normalizeNameKey,
   domainFromUrlOrHost,
   detectCrossListingConflicts,
-} from '@/services/entity-resolution.service';
+} from '@/services/resolution/entity-resolution.service';
 import {
   extractEmails,
   extractPhones,
@@ -96,12 +96,12 @@ import {
 import {
   attributeMultiBranchContacts,
   isAllContactsUnattributed,
-} from '@/services/entity-resolution.service';
+} from '@/services/resolution/entity-resolution.service';
 import {
   buildResearchCandidates,
   toUnifiedCandidates,
-} from '@/services/research-candidate.service';
-import { paginateMapsDiscovery } from '@/services/maps-discovery.service';
+} from '@/services/resolution/research-candidate.service';
+import { paginateMapsDiscovery } from '@/services/discovery/maps-discovery.service';
 import {
   buildCacheKeys,
   canonicalKeyFor,
@@ -110,16 +110,16 @@ import {
   saveRunRecord,
   upsertBusinesses,
   type RunInputConfig,
-} from '@/services/mongo.service';
+} from '@/services/storage/mongo.service';
 import { describeLookupMaxAgeDays } from '@/config/freshness.config';
 import {
   discoverWebsitePages,
   type DiscoveredWebsitePage,
-} from '@/services/website-discovery.service';
+} from '@/services/discovery/website-discovery.service';
 import {
   buildVerifiedEvidence,
   keyOfCandidate,
-} from '@/services/verification.service';
+} from '@/services/resolution/verification.service';
 import {
   verifiedBusinessEvidenceSchema,
   type VerifiedBusinessEvidence,
@@ -129,7 +129,7 @@ import {
   computeConfidenceBreakdown,
   validateConfidenceIntegrity,
   type ConfidenceInputs,
-} from '@/services/confidence.service';
+} from '@/services/resolution/confidence.service';
 
 // Phase 1 (R5 shim): canonical domain contracts imported from the type layer.
 // Consumers may use the `@/types` barrel; the type modules themselves import

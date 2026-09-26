@@ -1,7 +1,7 @@
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
-import { searchWithFallback, searchResponseSchema } from '@/services/search-fallback.service';
-import { saveStageOutput } from '@/services/output-storage.service';
+import { searchWithFallback, searchResponseSchema } from '@/services/discovery/search-fallback.service';
+import { saveStageOutput } from '@/services/storage/output-storage.service';
 
 export const broadSearchTool = createTool({
   id: 'broad-search-tool',

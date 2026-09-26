@@ -1,4 +1,4 @@
-import { extractDomain } from './search-fallback.service';
+import { extractDomain } from '@/services/discovery/search-fallback.service';
 import type { WebsitePageEvidence, WebsiteEvidence, PhoneEvidenceRecord } from '@/types/verification.js';
 import { NTA_MOBILE_PREFIXES, NTA_LANDLINE_AREA_CODES } from '@/config/nepal-telecom.config';
 import {

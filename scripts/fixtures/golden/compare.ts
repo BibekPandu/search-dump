@@ -16,7 +16,7 @@ import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { normalizeUrl } from '../../../src/services/search-fallback.service';
+import { normalizeUrl } from '@/services/discovery/search-fallback.service';
 
 /** Keys whose values are run-scoped bookkeeping and never semantically meaningful. */
 export const VOLATILE_KEYS: ReadonlySet<string> = new Set([

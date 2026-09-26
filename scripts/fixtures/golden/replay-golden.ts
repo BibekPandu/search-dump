@@ -22,14 +22,14 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { canonicalize, hashCanonical, semanticDiff, summarizeDiffs } from './compare';
 import { diffSnapshots, snapshotTree } from './snapshot-tree';
-import { buildResearchCandidates } from '../../../src/services/research-candidate.service';
-import { classifyNepalPhone, classifySocialProfile } from '../../../src/services/business-extractor.service';
+import { buildResearchCandidates } from '@/services/resolution/research-candidate.service';
+import { classifyNepalPhone, classifySocialProfile } from '@/services/business-extractor.service';
 import {
   buildFallbackListing,
   sanitizeListingWithEvidence,
 } from '../../../src/mastra/workflows/research-workflow';
-import type { SerperPlaceResult } from '../../../src/services/serper-places.service';
-import type { UnifiedSearchResult } from '../../../src/services/search-fallback.service';
+import type { SerperPlaceResult } from '@/services/external/serper-places.service';
+import type { UnifiedSearchResult } from '@/services/discovery/search-fallback.service';
 import type { ResearchDecision } from '../../../src/mastra/agents/research-agent/schema';
 import type { BusinessListing } from '../../../src/mastra/workflows/research-workflow';
 import type { VerifiedBusinessEvidence } from '../../../src/mastra/agents/research-agent/verification.schema';
@@ -54,7 +54,7 @@ import {
   INDUSTRY_GENERIC_TOKENS,
   NEPAL_LOCALITY_TOKENS,
   UNIVERSAL_STOPWORDS,
-} from '../../../src/services/business-extractor.service';
+} from '@/services/business-extractor.service';
 
 // Lazily-read runtime configuration is neutralized before any stage executes.
 process.env.MONGODB_URI = '';

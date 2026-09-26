@@ -1,6 +1,6 @@
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
-import { searchSerperPlaces } from '@/services/serper-places.service';
+import { searchSerperPlaces } from '@/services/external/serper-places.service';
 
 export const googleMapsPlaceSchema = z.object({
   position: z.number(),
