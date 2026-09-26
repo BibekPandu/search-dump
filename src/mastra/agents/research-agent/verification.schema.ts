@@ -225,6 +225,22 @@ export const websiteLifecycleEnum = z.enum([
 export type WebsiteLifecycle = z.infer<typeof websiteLifecycleEnum>;
 
 /**
+ * Explicit source health classification for website evidence (M2C).
+ * - 'verified': Passed first-party/corporate identity verification
+ * - 'transient_failure': Network timeout, 5xx, or extraction failure on valid candidate site
+ * - 'wrong_source': Confirmed directory, aggregator, vendor, or unrelated domain
+ * - 'unverified': Available/crawled without confirmed wrong source or full verification
+ */
+export const sourceHealthEnum = z.enum([
+  'verified',
+  'transient_failure',
+  'wrong_source',
+  'unverified',
+]);
+
+export type SourceHealth = z.infer<typeof sourceHealthEnum>;
+
+/**
  * The VerifiedBusinessEvidence record: the ResearchCandidate identity paired
  * with the verified website evidence and the verification outcome.
  * - candidate   = identity source (phase 1)
@@ -233,6 +249,7 @@ export type WebsiteLifecycle = z.infer<typeof websiteLifecycleEnum>;
  * - verification = how strongly the website corroborates the candidate
  * - websiteRelationship = relationship classification between candidate & domain
  * - websiteLifecycle = processing lifecycle stage of the website
+ * - sourceHealth = operational health / validity classification of the source
  */
 export const verifiedBusinessEvidenceSchema = z.object({
   candidate: researchCandidateSchema,
@@ -240,6 +257,7 @@ export const verifiedBusinessEvidenceSchema = z.object({
   verification: verificationResultSchema,
   websiteRelationship: websiteRelationshipEnum.optional().default('unverified'),
   websiteLifecycle: websiteLifecycleEnum.optional().default('discovered'),
+  sourceHealth: sourceHealthEnum.optional(),
 });
 
 export type WebsitePageEvidence = z.infer<typeof websitePageEvidenceSchema>;

@@ -88,6 +88,7 @@ import {
   classifyPhoneRole,
   classifyAllSocialProfiles,
   deduplicateClassifiedContacts,
+  cleanBranchAddress,
 } from '../../services/business-extractor.service';
 import {
   branchRecordSchema,
@@ -95,6 +96,21 @@ import {
   type BranchRecord,
   type ClassifiedContact,
 } from '../agents/research-agent/contact.schema';
+
+export const ledgerStatusEnum = z.enum([
+  'persisted',
+  'synthesis_omission',
+  'verification_failed',
+  'zero_actionable_fields',
+  'geography_rejected',
+  'provider_exhausted',
+  'deduplicated',
+  'category_rejected',
+  'budget_skipped',
+  'upsert_failed',
+]);
+
+export type LedgerStatus = z.infer<typeof ledgerStatusEnum>;
 import {
   attributeMultiBranchContacts,
   isAllContactsUnattributed,
@@ -104,6 +120,16 @@ import {
   toUnifiedCandidates,
 } from '../../services/research-candidate.service';
 import { paginateMapsDiscovery } from '../../services/maps-discovery.service';
+import {
+  buildCacheKeys,
+  canonicalKeyFor,
+  getLastMongoState,
+  lookupFreshRun,
+  saveRunRecord,
+  upsertBusinesses,
+  type RunInputConfig,
+} from '../../services/mongo.service';
+import { describeLookupMaxAgeDays } from '../../config/freshness.config';
 import {
   discoverWebsitePages,
   type DiscoveredWebsitePage,
@@ -197,6 +223,66 @@ export const businessListingSchema = z.object({
 
 export type BusinessListing = z.infer<typeof businessListingSchema>;
 
+/**
+ * M1 cache passthrough fragment.
+ *
+ * Zod objects strip undeclared fields between workflow steps, so every field that
+ * must survive from Step 1 (cache decision) to Step 4 (artifacts + run record) is
+ * declared in EACH intermediate step's input AND output schema by spreading this
+ * fragment. No chain restructuring, no branching API.
+ */
+const cachePassthroughSchema = {
+  /** True when Step 1 served a stored snapshot instead of running discovery. */
+  fromCache: z.boolean().optional(),
+  /** Frozen snapshot payload carried to Step 4 on a cache hit. */
+  cachedListings: z.array(businessListingSchema).optional(),
+  /** Diagnostic: 'hit' | 'miss' | 'skipped_mongo_down' (never conflated). */
+  cacheLookupStatus: z.enum(['hit', 'miss', 'skipped_mongo_down']).optional(),
+  /** Freshness window in force for this run (days). */
+  cachePolicyDays: z.number().optional(),
+  /** Run id whose snapshot was served (cache hits only). */
+  cacheSourceRunId: z.string().optional(),
+  /** True when the caller explicitly bypassed the cache with refresh: true. */
+  refreshRequested: z.boolean().optional(),
+  /**
+   * Run configuration carried through for the runs-history record
+   * (reproducibility: which knobs produced / requested this snapshot).
+   */
+  runConfig: z
+    .object({
+      maxMapsPages: z.number().optional(),
+      maxPages: z.number().optional(),
+      websiteDiscoveryMode: z.string().optional(),
+      maxWebsiteDiscoveryLookups: z.number().optional(),
+      targetCandidates: z.number().optional(),
+    })
+    .optional(),
+};
+
+type CachePassthroughFields = {
+  fromCache?: boolean;
+  cachedListings?: BusinessListing[];
+  cacheLookupStatus?: 'hit' | 'miss' | 'skipped_mongo_down';
+  cachePolicyDays?: number;
+  cacheSourceRunId?: string;
+  refreshRequested?: boolean;
+  runConfig?: RunInputConfig;
+};
+
+/** Copies the cache-passthrough fields from one step's input to its output. */
+function takeCachePassthrough(input: unknown): CachePassthroughFields {
+  const source = (input ?? {}) as CachePassthroughFields;
+  return {
+    fromCache: source.fromCache,
+    cachedListings: source.cachedListings,
+    cacheLookupStatus: source.cacheLookupStatus,
+    cachePolicyDays: source.cachePolicyDays,
+    cacheSourceRunId: source.cacheSourceRunId,
+    refreshRequested: source.refreshRequested,
+    runConfig: source.runConfig,
+  };
+}
+
 export interface RunResearchDiscoveryInput {
   query: string;
   location?: string;
@@ -218,6 +304,16 @@ export interface RunResearchDiscoveryInput {
    * Independent of targetCandidates.
    */
   maxWebsiteDiscoveryLookups?: number;
+  /**
+   * M1: explicit cache bypass. When true the Step 1 cache-first guard is skipped
+   * and a full pipeline run executes, then the fresh snapshot replaces the cache.
+   */
+  refresh?: boolean;
+  /**
+   * M1: override the freshness window for this run (days). Precedence:
+   * this input > env CACHE_MAX_AGE_DAYS > category policy > default 30.
+   */
+  maxCacheAgeDays?: number;
 }
 
 export async function runResearchDiscovery(
@@ -305,7 +401,7 @@ export async function runResearchDiscovery(
 
       const mapsDiscovery = await paginateMapsDiscovery({
         query: eq.query,
-        location: undefined,
+        location,
         targetCandidates: paginationRemaining,
         maxMapsPages,
       });
@@ -1068,6 +1164,9 @@ export const researchAgentStep = createStep({
     maxWebsiteDiscoveryLookups: z.number().optional(),
     // Phase 2 passthrough: Tavily deep-verification cap (consumed by Step 2).
     maxDeepVerifyCandidates: z.number().optional(),
+    // M1 cache control (declared here or Zod strips them at the step boundary).
+    refresh: z.boolean().optional(),
+    maxCacheAgeDays: z.number().optional(),
   }),
   outputSchema: z.object({
     candidates: z.array(candidateSchema),
@@ -1078,12 +1177,79 @@ export const researchAgentStep = createStep({
     agentId: z.string().optional(),
     researchReport: researchReportSchema.optional(),
     maxDeepVerifyCandidates: z.number().optional(),
+    ...cachePassthroughSchema,
   }),
   execute: async ({ inputData, mastra }) => {
+    // ------------------------------------------------------------------
+    // M1 cache-first guard (Step 1).
+    // Same (query, location) inside the freshness window → serve the stored
+    // snapshot and skip ALL three cost centres: Maps/web discovery, Tavily
+    // extraction, and supervisor synthesis.
+    // ------------------------------------------------------------------
+    const refreshRequested = Boolean(inputData.refresh);
+    const policy = describeLookupMaxAgeDays(inputData.query);
+    const maxCacheAgeDays =
+      typeof inputData.maxCacheAgeDays === 'number' && inputData.maxCacheAgeDays >= 0
+        ? inputData.maxCacheAgeDays
+        : policy.days;
+
+    if (refreshRequested) {
+      console.log('[cache] bypass — refresh: true (full pipeline re-run requested)');
+    } else if (inputData.query) {
+      const keys = buildCacheKeys(inputData.query, inputData.location);
+      console.log(
+        `[cache] lookup — {${keys.queryKey} | ${keys.locationKey || '-'}} within ${maxCacheAgeDays}d (${policy.source})`
+      );
+      const hit = await lookupFreshRun(inputData.query, inputData.location, maxCacheAgeDays);
+      if (hit) {
+        return {
+          candidates: [],
+          researchCandidates: [],
+          query: inputData.query,
+          location: inputData.location,
+          autoApprove: inputData.autoApprove,
+          agentId: inputData.agentId,
+          researchReport: undefined,
+          maxDeepVerifyCandidates: inputData.maxDeepVerifyCandidates,
+          fromCache: true as const,
+          cachedListings: hit.listings,
+          cacheLookupStatus: 'hit' as const,
+          cachePolicyDays: maxCacheAgeDays,
+          cacheSourceRunId: hit.runId,
+          refreshRequested: false,
+          runConfig: {
+            maxMapsPages: inputData.maxMapsPages,
+            maxPages: inputData.maxPages,
+            websiteDiscoveryMode: inputData.websiteDiscoveryMode,
+            maxWebsiteDiscoveryLookups: inputData.maxWebsiteDiscoveryLookups,
+            targetCandidates: inputData.targetCandidates,
+            maxCacheAgeDays,
+          },
+        };
+      }
+    }
+
     const result = await runResearchDiscovery(inputData, mastra);
     return {
       ...result,
       maxDeepVerifyCandidates: inputData.maxDeepVerifyCandidates,
+      fromCache: false,
+      // FIX-3: a miss because the store was unreachable is NOT the same as a
+      // miss because nothing fresh was stored — never conflate them.
+      cacheLookupStatus:
+        refreshRequested || getLastMongoState() === 'connected'
+          ? ('miss' as const)
+          : ('skipped_mongo_down' as const),
+      cachePolicyDays: maxCacheAgeDays,
+      refreshRequested,
+      runConfig: {
+        maxMapsPages: inputData.maxMapsPages,
+        maxPages: inputData.maxPages,
+        websiteDiscoveryMode: inputData.websiteDiscoveryMode,
+        maxWebsiteDiscoveryLookups: inputData.maxWebsiteDiscoveryLookups,
+        targetCandidates: inputData.targetCandidates,
+        maxCacheAgeDays,
+      },
     };
   },
 });
@@ -1102,6 +1268,7 @@ export const humanReviewStep = createStep({
     agentId: z.string().optional(),
     researchReport: researchReportSchema.optional(),
     maxDeepVerifyCandidates: z.number().optional(),
+    ...cachePassthroughSchema,
   }),
   outputSchema: z.object({
     candidates: z.array(candidateSchema),
@@ -1112,8 +1279,25 @@ export const humanReviewStep = createStep({
     agentId: z.string().optional(),
     researchReport: researchReportSchema.optional(),
     maxDeepVerifyCandidates: z.number().optional(),
+    ...cachePassthroughSchema,
   }),
   execute: async ({ inputData, suspend, resumeData }) => {
+    // M1: a cache hit carries no candidates to review — never suspend for one.
+    if (inputData.fromCache) {
+      console.log('[Workflow:HITL] Cache hit — skipping human review step (no discovery happened)');
+      return {
+        candidates: inputData.candidates,
+        researchCandidates: inputData.researchCandidates,
+        query: inputData.query,
+        location: inputData.location,
+        autoApprove: inputData.autoApprove,
+        agentId: inputData.agentId,
+        researchReport: inputData.researchReport,
+        maxDeepVerifyCandidates: inputData.maxDeepVerifyCandidates,
+        ...takeCachePassthrough(inputData),
+      };
+    }
+
     if (inputData.autoApprove) {
       console.log(`[Workflow:HITL] Auto-approved ${inputData.candidates.length} candidates (headless mode)`);
       return {
@@ -1125,6 +1309,7 @@ export const humanReviewStep = createStep({
         agentId: inputData.agentId,
         researchReport: inputData.researchReport,
         maxDeepVerifyCandidates: inputData.maxDeepVerifyCandidates,
+        ...takeCachePassthrough(inputData),
       };
     }
 
@@ -1163,6 +1348,7 @@ export const humanReviewStep = createStep({
       agentId: inputData.agentId,
       researchReport: inputData.researchReport,
       maxDeepVerifyCandidates: inputData.maxDeepVerifyCandidates,
+      ...takeCachePassthrough(inputData),
     };
   },
 });
@@ -1179,6 +1365,7 @@ export const deepExtractionStep = createStep({
     researchReport: researchReportSchema.optional(),
     // Phase 2: Tavily cost guard — how many candidates get deep-verified (default 3).
     maxDeepVerifyCandidates: z.number().optional(),
+    ...cachePassthroughSchema,
   }),
   outputSchema: z.object({
     candidates: z.array(candidateSchema),
@@ -1191,8 +1378,28 @@ export const deepExtractionStep = createStep({
     autoApprove: z.boolean().default(true),
     agentId: z.string().optional(),
     researchReport: researchReportSchema.optional(),
+    ...cachePassthroughSchema,
   }),
   execute: async ({ inputData }) => {
+    // M1: a cache hit must not call Tavily at all. `extractions` is REQUIRED by the
+    // next step's input schema (z.array(extractionSchema) carries no default), so it
+    // must be supplied explicitly as [] — omitting it would fail Zod validation.
+    if (inputData.fromCache) {
+      console.log('[Workflow:Step2] Cache hit — skipping deep extraction (0 Tavily calls)');
+      return {
+        candidates: inputData.candidates,
+        researchCandidates: inputData.researchCandidates,
+        extractions: [],
+        verifiedEvidence: undefined,
+        query: inputData.query,
+        location: inputData.location,
+        autoApprove: inputData.autoApprove,
+        agentId: inputData.agentId,
+        researchReport: inputData.researchReport,
+        ...takeCachePassthrough(inputData),
+      };
+    }
+
     const { candidates, researchCandidates, query, location, autoApprove, agentId, researchReport } = inputData;
 
     // ------------------------------------------------------------------
@@ -1232,29 +1439,31 @@ const DEFAULT_CRAWL_USER_AGENT =
 
 async function fetchRawPageHtml(url: string, timeoutMs = 8000, maxRetries = 1): Promise<string | undefined> {
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const res = await withTimeout(
-        fetch(url, {
-          headers: {
-            'User-Agent': DEFAULT_CRAWL_USER_AGENT,
-            Accept: 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.8',
-          },
-          redirect: 'follow',
-        }),
-        timeoutMs,
-        `raw-html-fetch`
-      );
+      const res = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          'User-Agent': DEFAULT_CRAWL_USER_AGENT,
+          Accept: 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.8',
+        },
+        redirect: 'follow',
+      });
       if (!res.ok) {
+        clearTimeout(timer);
         if (attempt < maxRetries) {
           await new Promise((resolve) => setTimeout(resolve, 300));
           continue;
         }
         return undefined;
       }
-      const html = await withTimeout(res.text(), timeoutMs, `raw-html-text`);
+      const html = await res.text();
+      clearTimeout(timer);
       console.log(`[Workflow:Step2] Raw HTML fetched for ${url}: ${html.length} bytes`);
       return html;
     } catch {
+      clearTimeout(timer);
       if (attempt < maxRetries) {
         await new Promise((resolve) => setTimeout(resolve, 300));
         continue;
@@ -1268,6 +1477,9 @@ async function fetchRawPageHtml(url: string, timeoutMs = 8000, maxRetries = 1): 
 
       for (const candidate of selected) {
         const website = candidate.website;
+        if (!website || !website.trim() || !/^https?:\/\//i.test(website)) {
+          continue;
+        }
         try {
           // 1) Homepage first (1 Tavily call, 1 URL) — basic depth (cost-controlled).
           const homepageResponse = await tavilyExtract([website], {
@@ -1574,6 +1786,7 @@ async function fetchRawPageHtml(url: string, timeoutMs = 8000, maxRetries = 1): 
         autoApprove,
         agentId,
         researchReport,
+        ...takeCachePassthrough(inputData),
       };
     }
 
@@ -1612,9 +1825,98 @@ async function fetchRawPageHtml(url: string, timeoutMs = 8000, maxRetries = 1): 
       autoApprove,
       agentId,
       researchReport,
+      ...takeCachePassthrough(inputData),
     };
   },
 });
+
+/**
+ * M1 cache-hit finalization.
+ *
+ * Writes this run's artifacts from the frozen snapshot and appends a 'cache-hit'
+ * run record so "this query was served from cache N times" stays answerable.
+ *
+ * Deliberately does NOT call upsertBusinesses: nothing was re-verified on a cache
+ * hit, so lastVerifiedAt must never claim verification that never happened.
+ */
+async function finalizeCacheHit(params: {
+  listings: BusinessListing[];
+  query: string;
+  location?: string;
+  runId: string;
+  sourceRunId?: string;
+  cachePolicyDays?: number;
+  runConfig?: RunInputConfig;
+  researchReport?: ResearchReport;
+  verifiedEvidence?: VerifiedBusinessEvidence[];
+}): Promise<{
+  listings: BusinessListing[];
+  researchReport?: ResearchReport;
+  verifiedEvidence?: VerifiedBusinessEvidence[];
+}> {
+  const { listings, query, location, runId, sourceRunId } = params;
+  const completedAt = new Date();
+
+  console.log(
+    `[Workflow:Step3] Cache hit — serving ${listings.length} listing(s) from run ${sourceRunId ?? 'unknown'} (0 LLM calls, 0 search calls)`
+  );
+
+  saveStageOutput('final-listings', '3-final-listings.json', listings, query);
+  saveStageOutput('results', 'results.json', listings, query);
+
+  saveSummaryReport({
+    query,
+    location,
+    totalBusinesses: listings.length,
+    conflictsDetected: 0,
+    sources: { googleMaps: 0, webSearch: 0, officialWebsitesCrawled: 0 },
+    contactsFound: {
+      withPhone: listings.filter(
+        (l) => (l.phones?.length ?? 0) > 0 || (l.mobiles?.length ?? 0) > 0
+      ).length,
+      withEmail: listings.filter((l) => (l.emails?.length ?? 0) > 0).length,
+      withWebsite: listings.filter((l) => (l.websites?.length ?? 0) > 0).length,
+      withSocialLinks: listings.filter((l) => {
+        const s = l.socialLinks;
+        return Boolean(
+          s && (s.facebook || s.tiktok || s.instagram || (s.other && Object.keys(s.other).length > 0))
+        );
+      }).length,
+    },
+    status: listings.length > 0 ? 'success' : 'empty',
+    synthesisMethod: 'Cache hit — served from stored runs snapshot (no synthesis executed)',
+    cacheLookupStatus: 'hit',
+    notes: [
+      sourceRunId ? `Served from run ${sourceRunId}` : 'Served from stored snapshot',
+      `Freshness window: ${params.cachePolicyDays ?? 'default'}d`,
+      'No API calls made: discovery, extraction and synthesis were all skipped',
+    ],
+  });
+
+  await saveRunRecord({
+    runId,
+    query,
+    location,
+    status: 'cache-hit',
+    listings,
+    servedFromCache: true,
+    refreshRequested: false,
+    inputConfig: { ...(params.runConfig ?? {}), maxCacheAgeDays: params.cachePolicyDays },
+    completedAt,
+  });
+
+  endRunSession();
+
+  console.log(`\n================ CACHED LISTINGS (${listings.length}) ================`);
+  console.log(JSON.stringify(listings, null, 2));
+  console.log('=========================================================\n');
+
+  return {
+    listings,
+    researchReport: params.researchReport,
+    verifiedEvidence: params.verifiedEvidence,
+  };
+}
 
 export const supervisorSynthesisStep = createStep({
   id: 'supervisor-synthesis',
@@ -1628,6 +1930,7 @@ export const supervisorSynthesisStep = createStep({
     autoApprove: z.boolean().default(true),
     agentId: z.string().optional(),
     researchReport: researchReportSchema.optional(),
+    ...cachePassthroughSchema,
   }),
   outputSchema: z.object({
     listings: z.array(businessListingSchema),
@@ -1637,6 +1940,27 @@ export const supervisorSynthesisStep = createStep({
   execute: async ({ inputData, mastra }) => {
     const { candidates, extractions, verifiedEvidence, query, location, agentId, researchReport } = inputData;
     const runStartedAt = new Date().toISOString();
+
+    // ------------------------------------------------------------------
+    // M1 cache-hit branch: serve the frozen snapshot and finalize.
+    // Placed BEFORE any synthesis work so the LLM is never called, and returns
+    // through `finalizeCacheHit` (which owns the artifact + run-record writes for
+    // this path). `businesses` is never touched here: nothing was re-verified.
+    // ------------------------------------------------------------------
+    if (inputData.fromCache) {
+      return await finalizeCacheHit({
+        listings: inputData.cachedListings ?? [],
+        query,
+        location,
+        runId: getRunSessionId(query, location),
+        sourceRunId: inputData.cacheSourceRunId,
+        cachePolicyDays: inputData.cachePolicyDays,
+        runConfig: inputData.runConfig,
+        researchReport,
+        verifiedEvidence,
+      });
+    }
+
     console.log(
       `[Workflow:Step3] Supervisor synthesizing ${candidates.length} candidates + ${extractions.length} extractions` +
         (verifiedEvidence ? ` + ${verifiedEvidence.length} verified evidence records` : '')
@@ -1732,14 +2056,26 @@ export const supervisorSynthesisStep = createStep({
       })
       .filter((item) => item.name !== 'Unknown Name');
 
+    const excludedInGeoRevalidation = new Map<string, string>();
+    const autoMergedCandidates = new Map<string, string>();
+    const zeroActionableFiltered = new Set<string>();
+    const cappedOutListings = new Set<string>();
+
     // Filter out any listings whose candidate evidence was excluded during Step 2 address revalidation
     if (verifiedEvidence && verifiedEvidence.length > 0) {
       listings = listings.filter((l) => {
         const ev = matchListingToEvidence(l, verifiedEvidence);
         if (ev && ((ev.candidate as any).isGeographicallyExcluded || (ev as any).isGeographicallyExcluded)) {
+          const reason =
+            (ev.candidate as any).geographicExclusionReason ||
+            (ev as any).geographicExclusionReason ||
+            'Excluded during Step 2 address revalidation';
           console.log(
-            `[Workflow:Step3] Dropping geographically excluded listing: "${l.name}" (${(ev.candidate as any).geographicExclusionReason || (ev as any).geographicExclusionReason || 'Excluded in Step 2'})`
+            `[Workflow:Step3] Dropping geographically excluded listing: "${l.name}" (${reason})`
           );
+          if (ev.candidate.website) excludedInGeoRevalidation.set(ev.candidate.website, reason);
+          if (ev.candidate.phone) excludedInGeoRevalidation.set(normalizePhoneDigits(ev.candidate.phone), reason);
+          excludedInGeoRevalidation.set(normalizeNameKey(l.name), reason);
           return false;
         }
         return true;
@@ -1749,12 +2085,12 @@ export const supervisorSynthesisStep = createStep({
     // ========================================================================
     // Post-Synthesis: Deterministic GPS & Phone Re-injection + Tradesmen Preservation
     // ========================================================================
-    const mapsCandidates = candidates.filter((c) => c.source === 'google_maps');
-    const matchedMapUrls = new Set<string>();
+    const preservableCandidates = candidates;
+    const matchedCandidateUrls = new Set<string>();
 
     for (const listing of listings) {
-      const match = mapsCandidates.find((m) => {
-        if (matchedMapUrls.has(m.url)) return false;
+      const match = preservableCandidates.find((m) => {
+        if (matchedCandidateUrls.has(m.url)) return false;
 
         // 1. Domain match
         if (listing.websites && listing.websites.length > 0 && m.domain && !m.domain.includes('google.com')) {
@@ -1783,7 +2119,7 @@ export const supervisorSynthesisStep = createStep({
       });
 
       if (match) {
-        matchedMapUrls.add(match.url);
+        matchedCandidateUrls.add(match.url);
 
         // Deterministically re-inject exact GPS coordinates
         if (match.latitude !== undefined && match.longitude !== undefined) {
@@ -1823,10 +2159,16 @@ export const supervisorSynthesisStep = createStep({
       }
     }
 
-    // Adjustment 3: Preserve any Google Maps businesses that the LLM omitted (e.g. tradesmen without websites)
-    for (const m of mapsCandidates) {
-      if (!matchedMapUrls.has(m.url)) {
-        console.log(`[Workflow:Step3] Preserving unlisted Google Maps tradesman/business: "${m.title}"`);
+    // Adjustment 3: Preserve any accepted candidate that the supervisor omitted.
+    for (const m of preservableCandidates) {
+      if (!matchedCandidateUrls.has(m.url)) {
+        if (m.source !== 'google_maps') {
+          console.log(`[Workflow:Step3] Preserving unlisted web candidate: "${m.title}"`);
+          listings.push(buildFallbackListing(m, extractions, verifiedEvidence, location, runStartedAt));
+          continue;
+        }
+
+        console.log(`[Workflow:Step3] Preserving unlisted Google Maps business: "${m.title}"`);
         const hasSite = m.domain && !m.domain.includes('google.com');
         const fallbackPlaceLocation = m.address || location || 'Kathmandu, Nepal';
 
@@ -1915,6 +2257,15 @@ export const supervisorSynthesisStep = createStep({
       console.log(
         `[Workflow:Step3] Auto-merged ${autoMergedCount} duplicate listings using 4-tier deterministic resolution`
       );
+      for (const m of mergedListings) {
+        const aliases = (m.otherDetails as any)?.mergedAliases || [];
+        for (const alias of aliases) {
+          const aliasName = typeof alias === 'string' ? alias : alias?.name || '';
+          if (aliasName) {
+            autoMergedCandidates.set(normalizeNameKey(aliasName), m.name);
+          }
+        }
+      }
       listings = mergedListings;
     }
 
@@ -2083,6 +2434,7 @@ export const supervisorSynthesisStep = createStep({
         console.log(
           `[Workflow:Step3] W2-05 Filter: Dropping zero-actionable listing "${l.name}" (0 phones, 0 mobiles, 0 emails, 0 websites)`
         );
+        zeroActionableFiltered.add(normalizeNameKey(l.name));
       }
       return isActionable;
     });
@@ -2094,7 +2446,13 @@ export const supervisorSynthesisStep = createStep({
       console.log(
         `[Workflow:Step3] Enforcing W2-08 output cap: sorting ${listings.length} listings by quality and capping to target ${explicitTarget}`
       );
+      const beforeCap = listings;
       listings = applyTargetCandidatesCap(listings, explicitTarget);
+      for (const item of beforeCap) {
+        if (!listings.includes(item)) {
+          cappedOutListings.add(normalizeNameKey(item.name));
+        }
+      }
     }
 
     const totalCascadeSocials = listings.reduce(
@@ -2115,11 +2473,129 @@ export const supervisorSynthesisStep = createStep({
     saveStageOutput('final-listings', '3-final-listings.json', listings, query);
     saveStageOutput('results', 'results.json', listings, query);
 
+    // ------------------------------------------------------------------
+    // M1: identity merge + run history (NORMAL path only).
+    // A cache hit returned above and never reaches this block, so
+    // lastVerifiedAt can only move when work was actually performed.
+    // ------------------------------------------------------------------
+    const runId = getRunSessionId(query, location);
+    const completedAt = new Date();
+    const upsertResult = await upsertBusinesses(listings, {
+      query,
+      location,
+      runId,
+      completedAt,
+      markVerified: true,
+    });
+    const runRecordSaved = await saveRunRecord({
+      runId,
+      query,
+      location,
+      status: listings.length > 0 ? 'success' : 'empty',
+      listings,
+      servedFromCache: false,
+      refreshRequested: Boolean(inputData.refreshRequested),
+      inputConfig: { ...(inputData.runConfig ?? {}), maxCacheAgeDays: inputData.cachePolicyDays },
+      completedAt,
+      startedAt: new Date(runStartedAt),
+    });
+
+    const candidateLedger = candidates.map((candidate) => {
+      const candidateId = buildCandidateLedgerId(candidate);
+      const finalListing = listings.find((listing) => candidateMatchesListing(candidate, listing));
+      const normName = normalizeNameKey(candidate.title || '');
+      const normPhone = normalizePhoneDigits(candidate.phoneNumber || '');
+      const normDomain = candidate.domain ? domainFromUrlOrHost(candidate.domain) : '';
+
+      let status: LedgerStatus;
+      let reason: string | undefined;
+
+      if (finalListing) {
+        const locationKey = buildCacheKeys(query, location).locationKey;
+        const candidateKey = canonicalKeyFor(finalListing, locationKey);
+        const perStatus = candidateKey ? upsertResult.perCandidateStatus?.get(candidateKey) : undefined;
+        
+        if (perStatus === 'persisted' || (!perStatus && upsertResult.skipped === 0 && runRecordSaved)) {
+          status = 'persisted';
+          reason = undefined;
+        } else if (perStatus === 'upsert_failed') {
+          status = 'upsert_failed' as LedgerStatus;
+          reason = `MongoDB write error for candidate "${candidate.title}"`;
+        } else {
+          status = 'verification_failed';
+          reason = upsertResult.reason || 'Mongo persistence did not confirm this listing';
+        }
+      } else if (
+        excludedInGeoRevalidation.has(candidate.url) ||
+        (normDomain && excludedInGeoRevalidation.has(normDomain)) ||
+        (normPhone && excludedInGeoRevalidation.has(normPhone)) ||
+        (normName && excludedInGeoRevalidation.has(normName))
+      ) {
+        status = 'geography_rejected';
+        reason =
+          excludedInGeoRevalidation.get(candidate.url) ||
+          excludedInGeoRevalidation.get(normDomain) ||
+          excludedInGeoRevalidation.get(normPhone) ||
+          excludedInGeoRevalidation.get(normName) ||
+          'Excluded during Step 2 address revalidation';
+      } else if (zeroActionableFiltered.has(normName)) {
+        status = 'zero_actionable_fields';
+        reason = 'Filtered out: 0 phones, 0 mobiles, 0 emails, 0 websites';
+      } else if (cappedOutListings.has(normName)) {
+        status = 'synthesis_omission';
+        reason = `Omitted due to targetCandidates cap (${explicitTarget})`;
+      } else if (autoMergedCandidates.has(normName)) {
+        status = 'deduplicated';
+        reason = `Merged into listing "${autoMergedCandidates.get(normName)}" during entity resolution`;
+      } else {
+        status = 'synthesis_omission';
+        reason = 'Omitted during supervisor synthesis or final deduplication';
+      }
+
+      return {
+        candidateId,
+        name: candidate.title,
+        source: candidate.source,
+        status,
+        finalListingName: finalListing?.name,
+        reason,
+      };
+    });
+
+    const reasonCounts: Record<LedgerStatus, number> = {
+      persisted: 0,
+      synthesis_omission: 0,
+      verification_failed: 0,
+      zero_actionable_fields: 0,
+      geography_rejected: 0,
+      provider_exhausted: 0,
+      deduplicated: 0,
+      category_rejected: 0,
+      budget_skipped: 0,
+      upsert_failed: 0,
+    };
+    for (const c of candidateLedger) {
+      reasonCounts[c.status]++;
+    }
+
+    const discoveredCount = researchReport?.uniqueBusinessesFound || candidates.length;
+    const acceptedCount = candidates.length;
+    const persistedCount = reasonCounts.persisted;
+    const requestedTarget = researchReport?.targetCandidates;
+    const shortfall = requestedTarget ? Math.max(0, requestedTarget - persistedCount) : 0;
+
     // Save high-level summary report for latest consumer and history archive
     saveSummaryReport({
       query,
       location,
       totalBusinesses: listings.length,
+      requestedTarget,
+      discovered: discoveredCount,
+      accepted: acceptedCount,
+      finalized: listings.length,
+      persisted: persistedCount,
+      shortfall,
+      reasonCounts,
       conflictsDetected: conflictReport.conflicts.length,
       sources: {
         googleMaps: (researchReport?.researchCandidates || []).filter((c) => c.sources?.googleMaps?.found).length,
@@ -2148,9 +2624,30 @@ export const supervisorSynthesisStep = createStep({
         templateFingerprintMatches: getTelemetry().templateFingerprintMatches,
         socialUrlsCanonicalized: getTelemetry().socialUrlsCanonicalized,
       },
-      status: listings.length > 0 ? 'success' : 'failed',
+      status: listings.length > 0 ? 'success' : 'empty',
       synthesisMethod: 'OpenRouter Supervisor Agent / Deterministic Fallback',
+      cacheLookupStatus: inputData.cacheLookupStatus ?? 'miss',
     });
+
+    saveStageOutput(
+      'candidate-ledger',
+      'candidate-ledger.json',
+      {
+        query,
+        location,
+        requestedTarget,
+        discovered: discoveredCount,
+        accepted: acceptedCount,
+        finalized: listings.length,
+        persisted: persistedCount,
+        shortfall,
+        reasonCounts,
+        upsertResult,
+        runRecordSaved,
+        candidates: candidateLedger,
+      },
+      query
+    );
 
     endRunSession();
 
@@ -2266,6 +2763,18 @@ export function sanitizeListingWithEvidence(
   // ENRICHMENT GATE: Require trusted relationship + candidate name alignment
   // ═══════════════════════════════════════════════════════════════════════════
   const relationship = evidence.websiteRelationship || 'unverified';
+  const sourceHealth = evidence.sourceHealth;
+  const isConfirmedWrongSource =
+    sourceHealth === 'wrong_source' ||
+    relationship === 'directory' ||
+    relationship === 'marketplace' ||
+    relationship === 'service_platform' ||
+    relationship === 'unrelated';
+  const isTransientOrUnverified =
+    sourceHealth === 'transient_failure' ||
+    sourceHealth === 'unverified' ||
+    relationship === 'unverified';
+
   const candidateNameKey = normalizeNameKey(candidate.name || '');
   const listingNameKey = normalizeNameKey(listing.name || '');
   const namesAlign = Boolean(
@@ -2292,8 +2801,31 @@ export function sanitizeListingWithEvidence(
   // Corporate parent and unverified websites do NOT inherit raw web contacts.
   let contactsCascadeRejected = 0;
   const allClassifiedContacts: ClassifiedContact[] = [];
-  if (isFirstParty) {
-    allClassifiedContacts.push(...(web?.extractedClassifiedContacts || []));
+  
+  const isTransientFailure = sourceHealth === 'transient_failure' || sourceHealth === 'unverified';
+  
+  const evidenceDomain = web?.url ? domainFromUrlOrHost(web.url) : '';
+  const officialDomain = (candidate as any).website ? domainFromUrlOrHost((candidate as any).website) : (candidate as any).domain || '';
+  const domainCorroborated = Boolean(evidenceDomain && officialDomain && evidenceDomain === officialDomain);
+  const mapsPhoneDigitsForCorroboration = normalizePhoneDigits(candidate.phone || '');
+  const phoneCorroborated = Boolean(
+    mapsPhoneDigitsForCorroboration &&
+    web?.extractedClassifiedContacts?.some(
+      (c) => c.canonicalDigits && normalizePhoneDigits(c.canonicalDigits) === mapsPhoneDigitsForCorroboration
+    )
+  );
+  
+  const isTransientButCorroborated = isTransientFailure && !isConfirmedWrongSource && (domainCorroborated || phoneCorroborated);
+
+  if (isFirstParty || isTransientButCorroborated) {
+    const contacts = web?.extractedClassifiedContacts || [];
+    for (const contact of contacts) {
+      allClassifiedContacts.push(
+        isTransientButCorroborated && !isFirstParty
+          ? { ...contact, context: `${contact.context || ''} [provisional_source]`.trim() }
+          : contact
+      );
+    }
   } else if (web?.extractedClassifiedContacts && web.extractedClassifiedContacts.length > 0) {
     contactsCascadeRejected += web.extractedClassifiedContacts.length;
   }
@@ -2325,7 +2857,7 @@ export function sanitizeListingWithEvidence(
   }
 
   // If no classified phone contacts exist from deep extractor, classify from extractedMobiles/extractedPhones
-  if ((!web?.extractedClassifiedContacts || web.extractedClassifiedContacts.length === 0) && isFirstParty) {
+  if ((!web?.extractedClassifiedContacts || web.extractedClassifiedContacts.length === 0) && (isFirstParty || isTransientButCorroborated)) {
     for (const m of web?.extractedMobiles || []) {
       const classified = classifyNepalPhone(m);
       if (classified.type !== 'invalid' && !allClassifiedContacts.some((c) => c.canonicalDigits === classified.digits)) {
@@ -2395,21 +2927,10 @@ export function sanitizeListingWithEvidence(
     if (attr.attribution !== 'branch_contact') continue;
     const c = attr.contact;
     const branchName = attr.branchLabel || 'Branch';
-    const cleanAddr = c.context
-      ? c.context
-          .replace(/!\[.*?\]\(.*?\)/g, '')
-          .replace(/\[(.*?)\]\(.*?\)/g, '$1')
-          .replace(/<[^>]*>?/g, '')
-          .replace(/https?:\/\/\S+/g, '')
-          .replace(/#+/g, '')
-          .replace(/^[a-zA-Z0-9_\-\.\/]*\.(?:png|jpe?g|webp|gif|svg)\)?\s*/i, '')
-          .replace(/^[^a-zA-Z0-9]+/, '')
-          .replace(/(?:\+977[-.\s]?)?(?:\(?\d{2,4}\)?[-.\s]?)?\d{6,10}/g, '')
-          .replace(/\b(?:Kantipur Dent\w*|Rotary[- ]\s*Kanti\w*|alt)\b/gi, '')
-          .replace(/\bRorary\b/gi, 'Rotary')
-          .replace(/\s+/g, ' ')
-          .trim()
-      : undefined;
+    let cleanAddr = c.context ? cleanBranchAddress(c.context, candidateBizName) : undefined;
+    if (!cleanAddr || cleanAddr.length < 3) {
+      cleanAddr = branchName.replace(/\s+Branch$/i, '').trim();
+    }
     const existing = branchesMap.get(branchName) || {
       name: branchName,
       address: cleanAddr && cleanAddr.length >= 3 ? cleanAddr : undefined,
@@ -2525,7 +3046,7 @@ export function sanitizeListingWithEvidence(
 
   // Websites: ONLY the candidate's verified official website.
   const websites: string[] = [];
-  if (isFirstParty || isCorporateParent) {
+  if (isFirstParty || isCorporateParent || !isConfirmedWrongSource) {
     if (candidate.website && isUsableOfficialWebsite(candidate.website, candidate.name)) {
       websites.push(candidate.website);
     } else if (web?.url && isUsableOfficialWebsite(web.url, candidate.name)) {
@@ -2568,7 +3089,7 @@ export function sanitizeListingWithEvidence(
   const emails = [...new Set(rawEmails.map(sanitizeEmailString).filter((e) => /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(e)))];
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // SOCIAL LINK INDEPENDENCE & STRICT VALIDATION (W2-07)
+  // SOCIAL LINK INDEPENDENCE & STRICT VALIDATION (W2-07 / M2C)
   // ═══════════════════════════════════════════════════════════════════════════
   const discoveredSocials =
     (candidate as any).discoveredSocials ||
@@ -2598,7 +3119,7 @@ export function sanitizeListingWithEvidence(
       url,
       plat,
       candidate.name,
-      isFirstParty ? websiteDomain : undefined,
+      !isConfirmedWrongSource ? websiteDomain : undefined,
       categoryCtx,
       origin
     );
@@ -2615,49 +3136,20 @@ export function sanitizeListingWithEvidence(
     ) {
       return classified.canonicalUrl || url;
     }
-    rejectedProfiles.push({
-      url,
-      platform: plat || 'other',
-      reason: classified.rejectionReason || 'BUSINESS_NAME_MISMATCH',
-    });
+    const rejectionReason = isConfirmedWrongSource && origin === 'website_evidence'
+      ? 'CASCADE_REJECTED_WRONG_SOURCE'
+      : isTransientOrUnverified && origin === 'website_evidence'
+      ? 'PROVISIONAL_SOURCE_UNVERIFIED'
+      : classified.rejectionReason || 'BUSINESS_NAME_MISMATCH';
+    if (!rejectedProfiles.some((r) => r.url === url)) {
+      rejectedProfiles.push({
+        url,
+        platform: plat || 'other',
+        reason: rejectionReason,
+      });
+    }
     return null;
   };
-
-  // If the website is unverified or third-party, record its scraped socials as cascade rejected
-  if (!isFirstParty && web?.extractedSocialLinks) {
-    if (web.extractedSocialLinks.facebook) {
-      rejectedProfiles.push({
-        url: web.extractedSocialLinks.facebook,
-        platform: 'facebook',
-        reason: 'CASCADE_REJECTED_UNVERIFIED_SOURCE',
-      });
-    }
-    if (web.extractedSocialLinks.instagram) {
-      rejectedProfiles.push({
-        url: web.extractedSocialLinks.instagram,
-        platform: 'instagram',
-        reason: 'CASCADE_REJECTED_UNVERIFIED_SOURCE',
-      });
-    }
-    if (web.extractedSocialLinks.tiktok) {
-      rejectedProfiles.push({
-        url: web.extractedSocialLinks.tiktok,
-        platform: 'tiktok',
-        reason: 'CASCADE_REJECTED_UNVERIFIED_SOURCE',
-      });
-    }
-    if (web.extractedSocialLinks.other) {
-      for (const [k, u] of Object.entries(web.extractedSocialLinks.other)) {
-        if (typeof u === 'string' && u) {
-          rejectedProfiles.push({
-            url: u,
-            platform: k,
-            reason: 'CASCADE_REJECTED_UNVERIFIED_SOURCE',
-          });
-        }
-      }
-    }
-  }
 
   // 1. Resolve Facebook
   let finalFb = '';
@@ -2676,17 +3168,13 @@ export function sanitizeListingWithEvidence(
       }
     }
   }
-  if (!finalFb && isFirstParty && web?.extractedSocialLinks?.facebook) {
+  if (!finalFb && !isConfirmedWrongSource && web?.extractedSocialLinks?.facebook) {
     const valid = validateSocialCandidate(web.extractedSocialLinks.facebook, 'facebook', 'website_evidence');
     if (valid) finalFb = valid;
   }
   if (!finalFb && listing.socialLinks?.facebook) {
-    if (!isFirstParty && web?.extractedSocialLinks?.facebook === listing.socialLinks.facebook) {
-      // already recorded in rejectedProfiles
-    } else {
-      const valid = validateSocialCandidate(listing.socialLinks.facebook, 'facebook', 'maps');
-      if (valid) finalFb = valid;
-    }
+    const valid = validateSocialCandidate(listing.socialLinks.facebook, 'facebook', 'maps');
+    if (valid) finalFb = valid;
   }
 
   // 2. Resolve Instagram
@@ -2706,17 +3194,13 @@ export function sanitizeListingWithEvidence(
       }
     }
   }
-  if (!finalIg && isFirstParty && web?.extractedSocialLinks?.instagram) {
+  if (!finalIg && !isConfirmedWrongSource && web?.extractedSocialLinks?.instagram) {
     const valid = validateSocialCandidate(web.extractedSocialLinks.instagram, 'instagram', 'website_evidence');
     if (valid) finalIg = valid;
   }
   if (!finalIg && listing.socialLinks?.instagram) {
-    if (!isFirstParty && web?.extractedSocialLinks?.instagram === listing.socialLinks.instagram) {
-      // already recorded in rejectedProfiles
-    } else {
-      const valid = validateSocialCandidate(listing.socialLinks.instagram, 'instagram', 'maps');
-      if (valid) finalIg = valid;
-    }
+    const valid = validateSocialCandidate(listing.socialLinks.instagram, 'instagram', 'maps');
+    if (valid) finalIg = valid;
   }
 
   // 3. Resolve TikTok
@@ -2736,17 +3220,13 @@ export function sanitizeListingWithEvidence(
       }
     }
   }
-  if (!finalTt && isFirstParty && web?.extractedSocialLinks?.tiktok) {
+  if (!finalTt && !isConfirmedWrongSource && web?.extractedSocialLinks?.tiktok) {
     const valid = validateSocialCandidate(web.extractedSocialLinks.tiktok, 'tiktok', 'website_evidence');
     if (valid) finalTt = valid;
   }
   if (!finalTt && listing.socialLinks?.tiktok) {
-    if (!isFirstParty && web?.extractedSocialLinks?.tiktok === listing.socialLinks.tiktok) {
-      // already recorded in rejectedProfiles
-    } else {
-      const valid = validateSocialCandidate(listing.socialLinks.tiktok, 'tiktok', 'maps');
-      if (valid) finalTt = valid;
-    }
+    const valid = validateSocialCandidate(listing.socialLinks.tiktok, 'tiktok', 'maps');
+    if (valid) finalTt = valid;
   }
 
   // 4. Resolve Other Socials
@@ -2759,19 +3239,15 @@ export function sanitizeListingWithEvidence(
   if (discoveredSocials?.linkedin) {
     candidateOther['linkedin'] = { url: discoveredSocials.linkedin, origin: 'serp' };
   }
-  if (isFirstParty && web?.extractedSocialLinks?.other) {
+  if (!isConfirmedWrongSource && web?.extractedSocialLinks?.other) {
     for (const [k, u] of Object.entries(web.extractedSocialLinks.other)) {
       if (typeof u === 'string' && u) candidateOther[k] = { url: u, origin: 'website_evidence' };
     }
   }
   if (listing.socialLinks?.other) {
     for (const [k, u] of Object.entries(listing.socialLinks.other)) {
-      if (typeof u === 'string' && u) {
-        if (!isFirstParty && web?.extractedSocialLinks?.other?.[k] === u) {
-          // ignore unverified website other
-        } else if (!candidateOther[k]) {
-          candidateOther[k] = { url: u, origin: 'maps' };
-        }
+      if (typeof u === 'string' && u && !candidateOther[k]) {
+        candidateOther[k] = { url: u, origin: 'maps' };
       }
     }
   }
@@ -2781,6 +3257,44 @@ export function sanitizeListingWithEvidence(
     if (entry && typeof entry.url === 'string') {
       const valid = validateSocialCandidate(entry.url, k as any, entry.origin);
       if (valid) validatedOther[k] = valid;
+    }
+  }
+
+  // Audit pass: Ensure unaccepted social links from websiteEvidence or raw listing are evaluated for rejectedProfiles
+  if (web?.extractedSocialLinks) {
+    if (web.extractedSocialLinks.facebook && web.extractedSocialLinks.facebook !== finalFb) {
+      validateSocialCandidate(web.extractedSocialLinks.facebook, 'facebook', 'website_evidence');
+    }
+    if (web.extractedSocialLinks.instagram && web.extractedSocialLinks.instagram !== finalIg) {
+      validateSocialCandidate(web.extractedSocialLinks.instagram, 'instagram', 'website_evidence');
+    }
+    if (web.extractedSocialLinks.tiktok && web.extractedSocialLinks.tiktok !== finalTt) {
+      validateSocialCandidate(web.extractedSocialLinks.tiktok, 'tiktok', 'website_evidence');
+    }
+    if (web.extractedSocialLinks.other) {
+      for (const [k, u] of Object.entries(web.extractedSocialLinks.other)) {
+        if (typeof u === 'string' && u && validatedOther[k] !== u) {
+          validateSocialCandidate(u, k as any, 'website_evidence');
+        }
+      }
+    }
+  }
+  if (listing.socialLinks) {
+    if (listing.socialLinks.facebook && listing.socialLinks.facebook !== finalFb) {
+      validateSocialCandidate(listing.socialLinks.facebook, 'facebook', 'maps');
+    }
+    if (listing.socialLinks.instagram && listing.socialLinks.instagram !== finalIg) {
+      validateSocialCandidate(listing.socialLinks.instagram, 'instagram', 'maps');
+    }
+    if (listing.socialLinks.tiktok && listing.socialLinks.tiktok !== finalTt) {
+      validateSocialCandidate(listing.socialLinks.tiktok, 'tiktok', 'maps');
+    }
+    if (listing.socialLinks.other) {
+      for (const [k, u] of Object.entries(listing.socialLinks.other)) {
+        if (typeof u === 'string' && u && validatedOther[k] !== u) {
+          validateSocialCandidate(u, k as any, 'maps');
+        }
+      }
     }
   }
 
@@ -3100,7 +3614,45 @@ YOUR TASK:
 6. Return the listings as a JSON object matching the output schema exactly. No markdown, no explanation — just valid JSON.`;
 }
 
-function buildFallbackListing(
+function buildCandidateLedgerId(candidate: UnifiedSearchResult): string {
+  const placeId = (candidate as any).placeId;
+  if (typeof placeId === 'string' && placeId.trim()) return `maps:${placeId.trim()}`;
+
+  const domain = candidate.domain && !candidate.domain.includes('google.com')
+    ? domainFromUrlOrHost(candidate.domain)
+    : '';
+  const name = normalizeNameKey(candidate.title || 'unknown');
+  const phone = normalizePhoneDigits(candidate.phoneNumber || '');
+  const identity = [domain, name, phone].filter(Boolean).join('|');
+  return `candidate:${identity || normalizeUrl(candidate.url)}`;
+}
+
+function candidateMatchesListing(
+  candidate: UnifiedSearchResult,
+  listing: z.infer<typeof businessListingSchema>
+): boolean {
+  const candidateDomain = candidate.domain && !candidate.domain.includes('google.com')
+    ? domainFromUrlOrHost(candidate.domain)
+    : '';
+  if (candidateDomain && listing.websites.some((website) => domainFromUrlOrHost(website) === candidateDomain)) {
+    return true;
+  }
+
+  const candidatePhone = normalizePhoneDigits(candidate.phoneNumber || '');
+  if (candidatePhone && [...listing.phones, ...listing.mobiles].some((phone) => normalizePhoneDigits(phone) === candidatePhone)) {
+    return true;
+  }
+
+  const candidateName = normalizeNameKey(candidate.title || '');
+  const listingName = normalizeNameKey(listing.name || '');
+  return Boolean(
+    candidateName &&
+      listingName &&
+      (candidateName.includes(listingName) || listingName.includes(candidateName))
+  );
+}
+
+export function buildFallbackListing(
   candidate: UnifiedSearchResult,
   extractions: Array<{ url: string; content: string; favicon: string; success: boolean }>,
   verifiedEvidence?: VerifiedBusinessEvidence[],
@@ -3145,7 +3697,27 @@ function buildFallbackListing(
   const isFirstParty = relationship === 'first_party' && namesAlign;
   const isCorporateParent = relationship === 'corporate_parent' && namesAlign;
 
+  const isConfirmedWrongSource =
+    relationship === 'directory' ||
+    relationship === 'marketplace' ||
+    relationship === 'service_platform' ||
+    relationship === 'unrelated';
+  const sourceHealth = matchingEvidence?.sourceHealth;
+  const isTransientFailure = sourceHealth === 'transient_failure' || sourceHealth === 'unverified';
+  const evidenceDomain = candidate.url ? domainFromUrlOrHost(candidate.url) : '';
+  const officialDomain = candidate.domain || '';
+  const domainCorroborated = Boolean(evidenceDomain && officialDomain && evidenceDomain === officialDomain);
+  
   const mapsPhoneDigits = normalizePhoneDigits(candidate.phoneNumber || matchingEvidence?.candidate.phone || '');
+  
+  const phoneCorroborated = Boolean(
+    mapsPhoneDigits &&
+    matchingEvidence?.websiteEvidence?.extractedClassifiedContacts?.some(
+      (c) => c.canonicalDigits && normalizePhoneDigits(c.canonicalDigits) === mapsPhoneDigits
+    )
+  );
+  
+  const isTransientButCorroborated = isTransientFailure && !isConfirmedWrongSource && (domainCorroborated || phoneCorroborated);
 
   const webEvidence = isFirstParty ? matchingEvidence?.websiteEvidence : undefined;
   const extraction = extractions.find((e) => e.url === candidate.url && e.success);
@@ -3181,9 +3753,10 @@ function buildFallbackListing(
 
   if (candidate.phoneNumber) routePhone(candidate.phoneNumber);
   if (matchingEvidence?.candidate.phone) routePhone(matchingEvidence.candidate.phone);
-  if (isFirstParty) {
-    for (const m of webEvidence?.extractedMobiles || []) routePhone(m);
-    for (const p of webEvidence?.extractedPhones || []) routePhone(p);
+  if (isFirstParty || isTransientButCorroborated) {
+    const evidenceToUse = matchingEvidence?.websiteEvidence || webEvidence;
+    for (const m of evidenceToUse?.extractedMobiles || []) routePhone(m);
+    for (const p of evidenceToUse?.extractedPhones || []) routePhone(p);
   } else if (isCorporateParent && mapsPhoneDigits && matchingEvidence?.websiteEvidence) {
     for (const m of matchingEvidence.websiteEvidence.extractedMobiles || []) {
       if (normalizePhoneDigits(m) === mapsPhoneDigits) routePhone(m);
@@ -3192,7 +3765,7 @@ function buildFallbackListing(
       if (normalizePhoneDigits(p) === mapsPhoneDigits) routePhone(p);
     }
   }
-  if (mergedPhones.length === 0 && mergedMobiles.length === 0 && isFirstParty) {
+  if (mergedPhones.length === 0 && mergedMobiles.length === 0 && (isFirstParty || isTransientButCorroborated)) {
     for (const m of extractMobiles(content)) routePhone(m);
     for (const p of extractPhones(content)) routePhone(p);
   }
@@ -3204,7 +3777,9 @@ function buildFallbackListing(
     (matchingEvidence?.candidate as any)?.discoveredSocials ||
     (matchingEvidence?.candidate.discoveryProvenance as any)?.discoveredSocials;
 
-  const fallbackSocials = isFirstParty
+
+
+  const fallbackSocials = (isFirstParty || (!isConfirmedWrongSource && content))
     ? extractSocialLinks(content, { businessName: candidate.title, websiteDomain: candidate.url })
     : { facebook: '', instagram: '', tiktok: '', other: {} };
 
@@ -3243,10 +3818,18 @@ function buildFallbackListing(
     '';
 
   const websites: string[] = [];
-  if (isFirstParty || isCorporateParent) {
-    if (candidate.url && hasSite) websites.push(candidate.url);
-    else if (matchingEvidence?.candidate.website) websites.push(matchingEvidence.candidate.website);
-    else if (webEvidence?.url) websites.push(webEvidence.url);
+  const candidateWebsite =
+    (candidate.url && hasSite ? candidate.url : '') ||
+    matchingEvidence?.candidate.website ||
+    webEvidence?.url ||
+    (candidate.source !== 'google_maps' && candidate.url && !candidate.url.includes('google.com') ? candidate.url : '');
+
+  if (candidateWebsite && !isConfirmedWrongSource) {
+    if (isFirstParty || isCorporateParent || candidate.source !== 'google_maps' || hasSite) {
+      if (isUsableOfficialWebsite(candidateWebsite, candidate.title)) {
+        websites.push(candidateWebsite);
+      }
+    }
   }
 
   const fallbackSocialProfiles = (webEvidence as any)?.extractedSocialProfiles ||
@@ -3376,6 +3959,14 @@ export const researchWorkflow = createWorkflow({
       .number()
       .optional()
       .describe('Maximum candidates to deep-verify with Tavily (defaults to max(targetCandidates, 10) or 10)'),
+    refresh: z
+      .boolean()
+      .optional()
+      .describe('M1: bypass the cache for this run (force a full pipeline re-run, then replace the stored snapshot)'),
+    maxCacheAgeDays: z
+      .number()
+      .optional()
+      .describe('M1: freshness window in days for the cache-first guard (input > env CACHE_MAX_AGE_DAYS > category policy > 30)'),
   }),
   outputSchema: z.object({
     listings: z.array(businessListingSchema),
