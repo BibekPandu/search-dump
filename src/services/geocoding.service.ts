@@ -193,6 +193,14 @@ export async function geocodeLocality(
   const normalized = normalizeLocalityString(canonical);
   if (!normalized) return null;
 
+  // Trusted registry entries must win over stale disk or memory cache data.
+  const staticMatch = findRegisteredLocalityCluster(normalized);
+  if (staticMatch) {
+    memoryGeocodeCache.set(normalized, staticMatch);
+    saveToDiskCache(normalized, staticMatch);
+    return staticMatch;
+  }
+
   // 1. Check in-memory cache
   if (memoryGeocodeCache.has(normalized)) {
     return memoryGeocodeCache.get(normalized)!;
@@ -202,14 +210,6 @@ export async function geocodeLocality(
   const cached = loadFromDiskCache(normalized);
   if (cached) {
     return cached;
-  }
-
-  // 3. Check registered static clusters first before hitting network
-  const staticMatch = findRegisteredLocalityCluster(normalized);
-  if (staticMatch) {
-    memoryGeocodeCache.set(normalized, staticMatch);
-    saveToDiskCache(normalized, staticMatch);
-    return staticMatch;
   }
 
   if (options?.disableNetwork) {

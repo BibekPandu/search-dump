@@ -253,8 +253,9 @@ export function buildVerifiedEvidence(
           },
           notes: ['No usable official website — deep verification skipped.'],
         },
-        websiteRelationship: 'unverified',
+        websiteRelationship: candidate.website ? 'directory' : 'unverified',
         websiteLifecycle: 'discovered',
+        sourceHealth: candidate.website ? 'wrong_source' : 'unverified',
       });
       continue;
     }
@@ -279,12 +280,22 @@ export function buildVerifiedEvidence(
         verification.status,
         true
       );
+      const isWrongSource = ['directory', 'marketplace', 'service_platform', 'unrelated'].includes(relClassification.relationship);
+      const sourceHealth = isWrongSource
+        ? 'wrong_source'
+        : (finalRel === 'first_party' && (verification.status === 'verified' || verification.status === 'partial'))
+        ? 'verified'
+        : verification.status === 'failed'
+        ? 'transient_failure'
+        : 'unverified';
+
       result.push({
         candidate,
         websiteEvidence: evidence,
         verification,
         websiteRelationship: finalRel,
         websiteLifecycle: validateLifecycleRelationshipInvariant(lifecycle, finalRel),
+        sourceHealth,
       });
       continue;
     }
@@ -319,6 +330,7 @@ export function buildVerifiedEvidence(
       },
       websiteRelationship: 'unverified',
       websiteLifecycle: validateLifecycleRelationshipInvariant(lifecycle, 'unverified'),
+      sourceHealth: allFailed ? 'transient_failure' : 'unverified',
     });
   }
 

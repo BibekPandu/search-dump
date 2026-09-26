@@ -8,12 +8,19 @@
     "start": "mastra dev",
     "typecheck": "tsc -p tsconfig.json",
     "spellcheck": "cspell lint \"src/**/*.{ts,md}\" \"scripts/**/*.ts\" \"README.md\"",
-    "test": "tsx scripts/test-website-ranker.ts && tsx scripts/test-second-chance.ts && tsx scripts/test-satungal-sweep-defects.ts && tsx scripts/test-website-discovery-budget.ts && tsx scripts/test-website-discovery-gate.ts && tsx scripts/test-snippet-phone-attribution.ts && tsx scripts/test-ever-vision-discovery.ts && tsx scripts/test-negative-directory-contamination.ts && tsx scripts/test-phase7c-defect-remediation.ts && tsx scripts/test-phase8a-geographic-evaluator.ts && tsx scripts/test-phase8b-contact-role-aggregation.ts && tsx scripts/test-phase8-geographic-contact-reconciliation.ts && tsx scripts/test-phase8d-defect-fixes.ts && tsx scripts/test-phase8f-rich-metadata.ts && tsx scripts/test-phase8g-defects.ts && tsx scripts/test-phase8h-defects.ts && tsx scripts/test-phase8h-w207.ts && tsx scripts/test-phase8h-w208.ts && tsx scripts/test-phase8i-defects.ts && tsx scripts/test-phase8j-defects.ts && tsx scripts/test-phase8k-defects.ts && tsx scripts/test-phase8l-defects.ts && tsx scripts/test-phase8m-defects.ts && tsx scripts/test-phase8n-defects.ts && tsx scripts/test-phase8o-defects.ts",
+    "test": "tsx scripts/test-website-ranker.ts && tsx scripts/test-second-chance.ts && tsx scripts/test-satungal-sweep-defects.ts && tsx scripts/test-website-discovery-budget.ts && tsx scripts/test-website-discovery-gate.ts && tsx scripts/test-snippet-phone-attribution.ts && tsx scripts/test-ever-vision-discovery.ts && tsx scripts/test-negative-directory-contamination.ts && tsx scripts/test-phase7c-defect-remediation.ts && tsx scripts/test-phase8a-geographic-evaluator.ts && tsx scripts/test-phase8b-contact-role-aggregation.ts && tsx scripts/test-phase8-geographic-contact-reconciliation.ts && tsx scripts/test-phase8d-defect-fixes.ts && tsx scripts/test-phase8f-rich-metadata.ts && tsx scripts/test-phase8g-defects.ts && tsx scripts/test-phase8h-defects.ts && tsx scripts/test-phase8h-w207.ts && tsx scripts/test-phase8h-w208.ts && tsx scripts/test-phase8i-defects.ts && tsx scripts/test-phase8j-defects.ts && tsx scripts/test-phase8k-defects.ts && tsx scripts/test-phase8l-defects.ts && tsx scripts/test-phase8m-defects.ts && tsx scripts/test-phase8n-defects.ts && tsx scripts/test-phase8o-defects.ts && tsx scripts/test-mongo-service.ts && tsx scripts/test-m2a-locality-and-maps.ts && tsx scripts/test-m2b-candidate-preservation.ts && tsx scripts/test-m2c-social-extraction.ts && tsx scripts/test-m2c-cascade-semantics.ts && tsx scripts/test-m2c-structured-branch-attribution.ts",
     "test:satungal": "tsx scripts/test-satungal-sweep-defects.ts",
+    "db:seed": "tsx scripts/seed-mongo-from-output.ts",
+    "test:mongo": "tsx scripts/test-mongo-service.ts",
     "test:phase8g": "tsx scripts/test-phase8g-defects.ts",
     "test:phase8h": "tsx scripts/test-phase8h-defects.ts",
     "test:phase8": "tsx scripts/test-phase8-geographic-contact-reconciliation.ts",
     "test:phase8a": "tsx scripts/test-phase8a-geographic-evaluator.ts",
+    "test:m2a": "tsx scripts/test-m2a-locality-and-maps.ts",
+    "test:m2b": "tsx scripts/test-m2b-candidate-preservation.ts",
+    "test:m2c-social": "tsx scripts/test-m2c-social-extraction.ts",
+    "test:m2c-cascade": "tsx scripts/test-m2c-cascade-semantics.ts",
+    "test:m2c-branch": "tsx scripts/test-m2c-structured-branch-attribution.ts",
     "test:phase8b": "tsx scripts/test-phase8b-contact-role-aggregation.ts",
     "test:phase7c-defects": "tsx scripts/test-phase7c-defect-remediation.ts",
     "test:e2e": "tsx scripts/test-research-workflow-e2e.ts",
@@ -30,12 +37,15 @@
     "@mastra/memory": "^1.28.3",
     "@openrouter/ai-sdk-provider": "^3.0.0",
     "@types/node": "^26.5.0",
+    "dotenv": "^17.4.2",
     "duck-duck-scrape": "^2.2.7",
     "mastra": "^1.27.3",
+    "mongodb": "^7.6.0",
     "typescript": "^7.0.2",
     "zod": "^4.5.4"
   },
   "devDependencies": {
+    "cspell": "^10.3.4",
     "tsx": "^4.23.13"
   }
 }

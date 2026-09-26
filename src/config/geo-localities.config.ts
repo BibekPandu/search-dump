@@ -95,6 +95,14 @@ export const REGISTERED_LOCALITY_CLUSTERS: Record<string, LocalityClusterConfig>
       'minbhawan',
     ],
   },
+  putalisadak: {
+    canonicalName: 'putalisadak',
+    // Centroid: Putalisadak / Dillibazar border, central Kathmandu
+    centroid: { lat: 27.7055, lng: 85.3234 },
+    maxRadiusKm: 2.0,
+    administrativeExtent: 'Putalisadak, Dillibazar, Kathmandu Metropolitan City Ward 28/29',
+    aliases: ['putalisadak', 'putalisadak kathmandu', 'dillibazar'],
+  },
   thamel: {
     canonicalName: 'thamel',
     centroid: { lat: 27.7154, lng: 85.3123 },
