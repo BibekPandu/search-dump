@@ -156,6 +156,62 @@ The engine discovers authentic local businesses by fusing Google Maps Places wit
 
 ---
 
+##  Storage, Cache Lookup & Run History
+
+MongoDB is an **optional** persistence layer. With `MONGODB_URI` unset the engine behaves exactly
+as before (a full run every time) and nothing throws.
+
+### Collections
+
+| Collection | Purpose |
+|---|---|
+| `businesses` | Merged current state per business identity (`canonicalKey`). Written by the **normal pipeline path only**. |
+| `runs` | One document per run holding that run's **exact** listing snapshot. Doubles as the cache payload and the per-run history. |
+
+`canonicalKey` = `name:<normalized name>|<locationKey>` — the name plus the **run's locality**,
+because `listing.location` is a street address, not a locality. Contacts are never clobbered:
+`phones`, `mobiles`, `emails`, `websites` (plus canonical `phoneDigits`, `mobileDigits`, `domains`)
+and `sourceRunIds` accumulate with `$addToSet`, while `$set` replaces display fields.
+`firstSeenAt` and `createdAt` are insert-only.
+
+### Cache-first guard (Step 1)
+
+Before any Maps/web search, the workflow looks for a stored run with the same normalized
+`(query, location)` completed inside the freshness window:
+
+| Outcome | Behaviour |
+|---|---|
+| **Hit** | The stored snapshot is served as this run's result — **0 search calls, 0 Tavily calls, 0 LLM calls**. A `cache-hit` run record is still written so "how often was this served from cache?" stays answerable. |
+| **Miss** | The full pipeline runs, then `businesses` is merged and a `success`/`empty` run record is written. |
+| **Mongo down / unset** | The lookup is skipped, the full pipeline runs, and `summary-report.json` records `cacheLookupStatus: "skipped_mongo_down"` (never conflated with a genuine miss). |
+
+Cache-hit runs never touch `businesses`: nothing was re-verified, so `lastVerifiedAt` cannot claim
+verification that never happened. To force a fresh run:
+
+```typescript
+await run.start({ inputData: { query: 'Barber', location: 'Satungal, Kathmandu', refresh: true } });
+```
+
+A run that honestly found **zero** businesses is stored as `status: 'empty'` and is cached like any
+other result, so repeated empty queries are free instead of re-running the whole pipeline.
+
+Freshness defaults live in `src/config/freshness.config.ts`: 30 days, with per-category windows
+(restaurants 14, lawyers/consultants 90, schools 180, …) and an env override `CACHE_MAX_AGE_DAYS`.
+Keys are normalized (trim, lowercase, collapse whitespace), so stored values such as
+`"\nSatungal, Kathmandu\n"` still match a clean re-query.
+
+### Seeding and inspecting
+
+```bash
+npm run db:seed      # imports every output/history/* folder into businesses + runs
+npm run test:mongo   # storage + cache tests (skips cleanly when Mongo is down)
+```
+
+Run `npm run db:seed` twice: the second pass reports `inserted 0` with the same `modified` count,
+an unchanged `firstSeenAt`, and an incremented `runCount`.
+
+---
+
 ##  Repository Structure
 
 ```
@@ -302,6 +358,10 @@ GOOGLE_GENERATIVE_AI_API_KEY=your_gemini_api_key
 
 # Optional Configuration
 DISCOVERY_MODE=production                       # 'production' (default) or 'benchmark'
+
+# Optional MongoDB storage (cache lookup + runs history)
+MONGODB_URI=mongodb://localhost:27017           # omit to disable storage entirely
+MONGODB_DB_NAME=business_directory
 ```
 
 ### 2. Installation & Running
@@ -331,6 +391,8 @@ const response = await run.start({
     maxPages: 3,
     maxDeepVerifyCandidates: 10,
     websiteDiscoveryMode: 'benchmark',  // 'benchmark' evaluates all eligible candidates
+    refresh: false,                     // true = bypass the M1 cache and re-run everything
+    maxCacheAgeDays: 30,                // M1 freshness window (input > env > category policy)
     autoApprove: true,                  // true = headless; false = human review step
     agentId: 'gemma-supervisor-agent',
   },
