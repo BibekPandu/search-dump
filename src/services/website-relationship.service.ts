@@ -1,6 +1,6 @@
 import { domainFromUrlOrHost } from './entity-resolution.service';
 import type { WebsiteRelationship, WebsiteLifecycle } from '@/types/verification.js';
-import { SHARED_DIRECTORY_DOMAINS } from '../config/directory-domains.config';
+import { SHARED_DIRECTORY_DOMAINS } from '@/config/directory-domains.config';
 
 /**
  * Service platforms (SaaS hosts / website builders).

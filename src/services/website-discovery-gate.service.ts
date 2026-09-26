@@ -40,7 +40,7 @@ import {
   DISCOVERY_STATES,
   type DiscoveryState,
 } from './discovery-state.service';
-import type { WebsiteDiscoveryMode } from '../config/website-discovery.config';
+import type { WebsiteDiscoveryMode } from '@/config/website-discovery.config';
 
 /** Fresh zeroed counter map (never a shared mutable singleton). */
 export function emptyDiscoveryStateCounts(): Record<DiscoveryState, number> {

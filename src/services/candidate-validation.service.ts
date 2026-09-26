@@ -13,7 +13,7 @@ import {
   evaluateGeographicLocalityWithEscalation,
   type GeographicDecision,
 } from './geographic-evaluator.service';
-import type { LocalityClusterConfig } from '../config/geo-localities.config.js';
+import type { LocalityClusterConfig } from '@/config/geo-localities.config.js';
 import type { ResearchCandidate } from '@/types/research-candidate.js';
 import { incrementTelemetry } from './telemetry.service';
 

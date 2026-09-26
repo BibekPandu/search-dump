@@ -4,7 +4,7 @@ import { search } from 'duck-duck-scrape';
 import {
   CATEGORY_EXPANSION_POLICIES,
   CATEGORY_STEM_MAPPINGS,
-} from '../config/category-expansion.config';
+} from '@/config/category-expansion.config';
 import type { UnifiedSearchResult, SearchResponse } from '@/types/search.js';
 
 // ============================================================================

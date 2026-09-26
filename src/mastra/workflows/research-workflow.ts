@@ -11,12 +11,12 @@ import {
   type UnifiedSearchResult,
   type CategoryIntent,
   type ExpandedQuery,
-} from '../../services/search-fallback.service';
+} from '@/services/search-fallback.service';
 import {
   resolveWebsiteDiscoveryBudget,
   formatWebsiteDiscoveryBudgetLog,
   type WebsiteDiscoveryBudget,
-} from '../../config/website-discovery.config';
+} from '@/config/website-discovery.config';
 import {
   runWebsiteDiscoveryGate,
   selectPhoneFromOwnDomain,
@@ -24,11 +24,11 @@ import {
   getDiscoveryTelemetryCounters,
   type DiscoveryLookupResult,
   type WebsiteDiscoveryArtifact,
-} from '../../services/website-discovery-gate.service';
-import { selectFirstPartyWebsiteUrl } from '../../services/website-search-ranker.service';
-import { type SerperPlaceResult, backfillMissingMapsPhones } from '../../services/serper-places.service';
-import { tavilyExtract } from '../../services/tavily-extract.service';
-import { filterCandidateUrls } from '../../services/url-filter.service';
+} from '@/services/website-discovery-gate.service';
+import { selectFirstPartyWebsiteUrl } from '@/services/website-search-ranker.service';
+import { type SerperPlaceResult, backfillMissingMapsPhones } from '@/services/serper-places.service';
+import { tavilyExtract } from '@/services/tavily-extract.service';
+import { filterCandidateUrls } from '@/services/url-filter.service';
 import {
   saveStageOutput,
   saveSummaryReport,
@@ -36,24 +36,24 @@ import {
   endRunSession,
   getActiveRunSession,
   getRunSessionId,
-} from '../../services/output-storage.service';
+} from '@/services/output-storage.service';
 import {
   filterSearchResults,
   checkCategoryRelevance,
-} from '../../services/candidate-classifier.service';
-import { evaluateGeographicLocality } from '../../services/geographic-evaluator.service';
-import { findRegisteredLocalityCluster } from '../../config/geo-localities.config';
-import { geocodeLocality } from '../../services/geocoding.service';
+} from '@/services/candidate-classifier.service';
+import { evaluateGeographicLocality } from '@/services/geographic-evaluator.service';
+import { findRegisteredLocalityCluster } from '@/config/geo-localities.config';
+import { geocodeLocality } from '@/services/geocoding.service';
 import {
   validateCandidate,
   revalidateExtractedCandidateAddress,
-} from '../../services/candidate-validation.service';
+} from '@/services/candidate-validation.service';
 import {
   getLlmMultiBusinessCallCount,
   resetLlmMultiBusinessCallCount,
-} from '../../services/business-extractor.service';
-import { getTelemetry, incrementTelemetry } from '../../services/telemetry.service';
-import { mergeDuplicateEntities } from '../../services/entity-resolution.service';
+} from '@/services/business-extractor.service';
+import { getTelemetry, incrementTelemetry } from '@/services/telemetry.service';
+import { mergeDuplicateEntities } from '@/services/entity-resolution.service';
 import {
   researchReportSchema,
   researchCandidateSchema,
@@ -63,7 +63,7 @@ import {
   type ExcludedSummaryItem,
   type StoppedReason,
   type DiscoveryMetrics,
-} from '../agents/research-agent/schema';
+} from '@/mastra/agents/research-agent/schema';
 import {
   rankWebsiteLookupTargets,
   isUsableOfficialWebsite,
@@ -71,7 +71,7 @@ import {
   normalizeNameKey,
   domainFromUrlOrHost,
   detectCrossListingConflicts,
-} from '../../services/entity-resolution.service';
+} from '@/services/entity-resolution.service';
 import {
   extractEmails,
   extractPhones,
@@ -87,21 +87,21 @@ import {
   classifyAllSocialProfiles,
   deduplicateClassifiedContacts,
   cleanBranchAddress,
-} from '../../services/business-extractor.service';
+} from '@/services/business-extractor.service';
 import {
   type BranchRecord,
   type ClassifiedContact,
-} from '../agents/research-agent/contact.schema';
+} from '@/mastra/agents/research-agent/contact.schema';
 
 import {
   attributeMultiBranchContacts,
   isAllContactsUnattributed,
-} from '../../services/entity-resolution.service';
+} from '@/services/entity-resolution.service';
 import {
   buildResearchCandidates,
   toUnifiedCandidates,
-} from '../../services/research-candidate.service';
-import { paginateMapsDiscovery } from '../../services/maps-discovery.service';
+} from '@/services/research-candidate.service';
+import { paginateMapsDiscovery } from '@/services/maps-discovery.service';
 import {
   buildCacheKeys,
   canonicalKeyFor,
@@ -110,26 +110,26 @@ import {
   saveRunRecord,
   upsertBusinesses,
   type RunInputConfig,
-} from '../../services/mongo.service';
-import { describeLookupMaxAgeDays } from '../../config/freshness.config';
+} from '@/services/mongo.service';
+import { describeLookupMaxAgeDays } from '@/config/freshness.config';
 import {
   discoverWebsitePages,
   type DiscoveredWebsitePage,
-} from '../../services/website-discovery.service';
+} from '@/services/website-discovery.service';
 import {
   buildVerifiedEvidence,
   keyOfCandidate,
-} from '../../services/verification.service';
+} from '@/services/verification.service';
 import {
   verifiedBusinessEvidenceSchema,
   type VerifiedBusinessEvidence,
   type WebsitePageEvidence,
-} from '../agents/research-agent/verification.schema';
+} from '@/mastra/agents/research-agent/verification.schema';
 import {
   computeConfidenceBreakdown,
   validateConfidenceIntegrity,
   type ConfidenceInputs,
-} from '../../services/confidence.service';
+} from '@/services/confidence.service';
 
 // Phase 1 (R5 shim): canonical domain contracts imported from the type layer.
 // Consumers may use the `@/types` barrel; the type modules themselves import
@@ -633,7 +633,7 @@ export async function runResearchDiscovery(
   let searchWorker = mastra?.getAgentById?.('search-worker-agent');
   if (!searchWorker) {
     try {
-      const { mastra: appMastra } = await import('../index');
+      const { mastra: appMastra } = await import('@/mastra/index');
       searchWorker = appMastra?.getAgentById('search-worker-agent');
     } catch {}
   }

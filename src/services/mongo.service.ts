@@ -36,7 +36,7 @@ import {
   domainFromUrlOrHost,
 } from './entity-resolution.service';
 import { extractCanonicalLocality } from './geocoding.service';
-import { DEFAULT_MAX_AGE_DAYS, normalizeQueryKeyPart } from '../config/freshness.config';
+import { DEFAULT_MAX_AGE_DAYS, normalizeQueryKeyPart } from '@/config/freshness.config';
 import type {
   CacheKeys,
   MongoRunRecord,

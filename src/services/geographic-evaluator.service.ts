@@ -3,7 +3,7 @@ import {
   findRegisteredLocalityCluster,
   normalizeLocalityString,
   REGISTERED_LOCALITY_CLUSTERS,
-} from '../config/geo-localities.config.js';
+} from '@/config/geo-localities.config.js';
 import { incrementTelemetry } from './telemetry.service.js';
 
 export type GeographicStatus = 'inside' | 'outside' | 'ambiguous';

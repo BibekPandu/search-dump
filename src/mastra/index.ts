@@ -20,7 +20,7 @@ console.error = (...args: any[]) => {
 };
 
 import { Mastra } from '@mastra/core';
-import { createMemoryStorage } from '../services/db.service';
+import { createMemoryStorage } from '@/services/db.service';
 import { searchWorkerAgent } from './agents/search-worker/config';
 import { gemmaSupervisorAgent } from './agents/gemma-supervisor/config';
 import { unoSupervisorAgent } from './agents/uno-supervisor/config';

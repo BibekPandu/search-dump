@@ -3,7 +3,7 @@ import {
   type CandidateType,
   type ResearchDecision,
 } from '@/types/research-candidate.js';
-import { SHARED_DIRECTORY_DOMAINS } from '../config/directory-domains.config';
+import { SHARED_DIRECTORY_DOMAINS } from '@/config/directory-domains.config';
 
 // ============================================================================
 // Domain & Pattern Dictionaries

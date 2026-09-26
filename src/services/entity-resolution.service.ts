@@ -17,8 +17,8 @@ import {
   findRegisteredLocalityCluster,
   normalizeLocalityString,
   REGISTERED_LOCALITY_CLUSTERS,
-} from '../config/geo-localities.config.js';
-import { NTA_LANDLINE_AREA_CODES } from '../config/nepal-telecom.config.js';
+} from '@/config/geo-localities.config.js';
+import { NTA_LANDLINE_AREA_CODES } from '@/config/nepal-telecom.config.js';
 
 // ============================================================================
 // Types
@@ -1290,7 +1290,7 @@ export function attributeMultiBranchContacts(
   targetLocation: string,
   mapsPhone?: string,
   candidateCoords?: { lat: number; lng: number },
-  dynamicCluster?: import('../config/geo-localities.config.js').LocalityClusterConfig | null,
+  dynamicCluster?: import('@/config/geo-localities.config.js').LocalityClusterConfig | null,
   businessName?: string
 ): BranchAttributionResult[] {
   const results: BranchAttributionResult[] = [];
