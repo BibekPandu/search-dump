@@ -5,8 +5,8 @@ import path from 'path';
 import { createMemoryStorage, getProjectRootDir } from '../../../services/db.service';
 
 // Import tools
-import { broadSearchTool } from '../../Tools/broad-search';
-import { googleMapsSearchTool } from '../../Tools/google-maps-search';
+import { broadSearchTool } from '../../tools/broad-search';
+import { googleMapsSearchTool } from '../../tools/google-maps-search';
 
 const instructionsPath = path.join(getProjectRootDir(), 'src/mastra/agents/search-worker/prompt.md');
 const instructions = fs.existsSync(instructionsPath)
