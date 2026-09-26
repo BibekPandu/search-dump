@@ -1,0 +1,1463 @@
+{
+  "generatedAt": "2026-09-26T16:00:46.004Z",
+  "target": "src/services/business-extractor.service.ts",
+  "totalLines": 3702,
+  "declarationCount": 98,
+  "exportedCount": 69,
+  "privateCount": 29,
+  "mutableContainers": [
+    "PLACEHOLDER_EMAIL_PATTERNS",
+    "IMAGE_FILE_TLDS",
+    "FACEBOOK_RESERVED_PATHS",
+    "TWITTER_RESERVED_PATHS",
+    "INSTAGRAM_RESERVED_PATHS",
+    "INDUSTRY_GENERIC_TOKENS",
+    "UNIVERSAL_STOPWORDS",
+    "NEPAL_LOCALITY_TOKENS",
+    "CATEGORY_GENERIC_TOKENS",
+    "CONFLICTING_VERTICAL_TOKENS",
+    "SCHEDULE_GARBAGE_PATTERNS",
+    "FACEBOOK_NON_CANONICAL_SUBPATHS",
+    "PLATFORM_OFFICIAL_HANDLES",
+    "KNOWN_VENDOR_SOCIAL_HANDLES",
+    "PLATFORM_DOMAINS",
+    "BUSINESS_EMAIL_PREFIXES",
+    "CONSUMER_EMAIL_DOMAINS",
+    "OWNER_LEADERSHIP_TITLES",
+    "STAFF_TITLES",
+    "EXCLUDED_LEGAL_AND_GOV_ENTITIES",
+    "NEPAL_BRANCH_LOCALITIES"
+  ],
+  "declarations": [
+    {
+      "name": "domainFromUrlOrHost",
+      "kind": "function",
+      "isExported": false,
+      "isAsync": false,
+      "startLine": 13,
+      "endLine": 25,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "EMAIL_REGEX",
+      "kind": "const",
+      "isExported": false,
+      "isAsync": false,
+      "startLine": 34,
+      "endLine": 36,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "PLACEHOLDER_EMAIL_PATTERNS",
+      "kind": "const",
+      "isExported": false,
+      "isAsync": false,
+      "startLine": 37,
+      "endLine": 69,
+      "mutable": true,
+      "refs": []
+    },
+    {
+      "name": "MEDIA_FILENAME_PATTERN",
+      "kind": "const",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 72,
+      "endLine": 72,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "MEDIA_DPR_PATTERN",
+      "kind": "const",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 73,
+      "endLine": 73,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "IMAGE_FILE_TLDS",
+      "kind": "const",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 74,
+      "endLine": 80,
+      "mutable": true,
+      "refs": []
+    },
+    {
+      "name": "LANDLINE_OR_MOBILE_REGEX",
+      "kind": "const",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 81,
+      "endLine": 82,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "MOBILE_REGEX",
+      "kind": "const",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 83,
+      "endLine": 83,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "NEPAL_LANDLINE_REGEX",
+      "kind": "const",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 84,
+      "endLine": 84,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "INTERNATIONAL_REGEX",
+      "kind": "const",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 85,
+      "endLine": 89,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "TEL_PROTECT_REGEX",
+      "kind": "const",
+      "isExported": false,
+      "isAsync": false,
+      "startLine": 90,
+      "endLine": 92,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "FACEBOOK_REGEX",
+      "kind": "const",
+      "isExported": false,
+      "isAsync": false,
+      "startLine": 93,
+      "endLine": 93,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "INSTAGRAM_REGEX",
+      "kind": "const",
+      "isExported": false,
+      "isAsync": false,
+      "startLine": 94,
+      "endLine": 94,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "TIKTOK_REGEX",
+      "kind": "const",
+      "isExported": false,
+      "isAsync": false,
+      "startLine": 95,
+      "endLine": 95,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "X_TWITTER_REGEX",
+      "kind": "const",
+      "isExported": false,
+      "isAsync": false,
+      "startLine": 96,
+      "endLine": 96,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "YOUTUBE_REGEX",
+      "kind": "const",
+      "isExported": false,
+      "isAsync": false,
+      "startLine": 97,
+      "endLine": 97,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "LINKEDIN_COMPANY_REGEX",
+      "kind": "const",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 98,
+      "endLine": 98,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "LINKEDIN_PERSONAL_REGEX",
+      "kind": "const",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 99,
+      "endLine": 99,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "LINKEDIN_REGEX",
+      "kind": "const",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 100,
+      "endLine": 101,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "cleanTrailingPunctuation",
+      "kind": "function",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 102,
+      "endLine": 105,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "sanitizeEmailString",
+      "kind": "function",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 112,
+      "endLine": 119,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "sanitizePhoneString",
+      "kind": "function",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 126,
+      "endLine": 132,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "ClassifiedPhone",
+      "kind": "interface",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 134,
+      "endLine": 140,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "PhoneEvidence",
+      "kind": "interface",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 146,
+      "endLine": 161,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "formatPhoneDisplay",
+      "kind": "function",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 192,
+      "endLine": 215,
+      "mutable": false,
+      "refs": [
+        "sanitizePhoneString",
+        "ClassifiedPhone"
+      ]
+    },
+    {
+      "name": "classifyNepalPhone",
+      "kind": "function",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 235,
+      "endLine": 368,
+      "mutable": false,
+      "refs": [
+        "sanitizePhoneString",
+        "ClassifiedPhone",
+        "formatPhoneDisplay"
+      ]
+    },
+    {
+      "name": "FACEBOOK_RESERVED_PATHS",
+      "kind": "const",
+      "isExported": false,
+      "isAsync": false,
+      "startLine": 370,
+      "endLine": 405,
+      "mutable": true,
+      "refs": []
+    },
+    {
+      "name": "TWITTER_RESERVED_PATHS",
+      "kind": "const",
+      "isExported": false,
+      "isAsync": false,
+      "startLine": 406,
+      "endLine": 422,
+      "mutable": true,
+      "refs": []
+    },
+    {
+      "name": "INSTAGRAM_RESERVED_PATHS",
+      "kind": "const",
+      "isExported": false,
+      "isAsync": false,
+      "startLine": 423,
+      "endLine": 438,
+      "mutable": true,
+      "refs": []
+    },
+    {
+      "name": "INDUSTRY_GENERIC_TOKENS",
+      "kind": "const",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 439,
+      "endLine": 470,
+      "mutable": true,
+      "refs": []
+    },
+    {
+      "name": "UNIVERSAL_STOPWORDS",
+      "kind": "const",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 471,
+      "endLine": 481,
+      "mutable": true,
+      "refs": []
+    },
+    {
+      "name": "NEPAL_LOCALITY_TOKENS",
+      "kind": "const",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 482,
+      "endLine": 494,
+      "mutable": true,
+      "refs": [
+        "UNIVERSAL_STOPWORDS"
+      ]
+    },
+    {
+      "name": "CATEGORY_GENERIC_TOKENS",
+      "kind": "const",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 495,
+      "endLine": 548,
+      "mutable": true,
+      "refs": []
+    },
+    {
+      "name": "CONFLICTING_VERTICAL_TOKENS",
+      "kind": "const",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 554,
+      "endLine": 560,
+      "mutable": true,
+      "refs": []
+    },
+    {
+      "name": "requiredSocialNameOverlap",
+      "kind": "function",
+      "isExported": false,
+      "isAsync": false,
+      "startLine": 567,
+      "endLine": 571,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "brandSegmentFromBusinessName",
+      "kind": "function",
+      "isExported": false,
+      "isAsync": false,
+      "startLine": 578,
+      "endLine": 581,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "resolveCategoryKey",
+      "kind": "function",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 591,
+      "endLine": 648,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "SCHEDULE_GARBAGE_PATTERNS",
+      "kind": "const",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 655,
+      "endLine": 682,
+      "mutable": true,
+      "refs": []
+    },
+    {
+      "name": "FACEBOOK_NON_CANONICAL_SUBPATHS",
+      "kind": "const",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 684,
+      "endLine": 701,
+      "mutable": true,
+      "refs": []
+    },
+    {
+      "name": "computeCanonicalSocialUrl",
+      "kind": "function",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 702,
+      "endLine": 772,
+      "mutable": false,
+      "refs": [
+        "FACEBOOK_NON_CANONICAL_SUBPATHS"
+      ]
+    },
+    {
+      "name": "PLATFORM_OFFICIAL_HANDLES",
+      "kind": "const",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 774,
+      "endLine": 786,
+      "mutable": true,
+      "refs": []
+    },
+    {
+      "name": "KNOWN_VENDOR_SOCIAL_HANDLES",
+      "kind": "const",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 787,
+      "endLine": 796,
+      "mutable": true,
+      "refs": []
+    },
+    {
+      "name": "isRealSocialProfile",
+      "kind": "function",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 797,
+      "endLine": 860,
+      "mutable": false,
+      "refs": [
+        "FACEBOOK_RESERVED_PATHS",
+        "TWITTER_RESERVED_PATHS",
+        "INSTAGRAM_RESERVED_PATHS"
+      ]
+    },
+    {
+      "name": "classifySocialProfile",
+      "kind": "function",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 867,
+      "endLine": 1580,
+      "mutable": false,
+      "refs": [
+        "domainFromUrlOrHost",
+        "FACEBOOK_RESERVED_PATHS",
+        "TWITTER_RESERVED_PATHS",
+        "INSTAGRAM_RESERVED_PATHS",
+        "INDUSTRY_GENERIC_TOKENS",
+        "NEPAL_LOCALITY_TOKENS",
+        "CATEGORY_GENERIC_TOKENS",
+        "CONFLICTING_VERTICAL_TOKENS",
+        "requiredSocialNameOverlap",
+        "brandSegmentFromBusinessName",
+        "resolveCategoryKey",
+        "computeCanonicalSocialUrl",
+        "PLATFORM_OFFICIAL_HANDLES",
+        "KNOWN_VENDOR_SOCIAL_HANDLES"
+      ]
+    },
+    {
+      "name": "isBusinessOwnedSocialProfile",
+      "kind": "function",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 1586,
+      "endLine": 1599,
+      "mutable": false,
+      "refs": [
+        "classifySocialProfile"
+      ]
+    },
+    {
+      "name": "classifyAllSocialProfiles",
+      "kind": "function",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 1604,
+      "endLine": 1643,
+      "mutable": false,
+      "refs": [
+        "cleanTrailingPunctuation",
+        "classifySocialProfile"
+      ]
+    },
+    {
+      "name": "stripVendorAttribution",
+      "kind": "function",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 1649,
+      "endLine": 1665,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "stripHtmlTags",
+      "kind": "function",
+      "isExported": false,
+      "isAsync": false,
+      "startLine": 1667,
+      "endLine": 1675,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "decodeCloudflareEmail",
+      "kind": "function",
+      "isExported": false,
+      "isAsync": false,
+      "startLine": 1689,
+      "endLine": 1712,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "decodeObfuscatedEmails",
+      "kind": "function",
+      "isExported": false,
+      "isAsync": false,
+      "startLine": 1726,
+      "endLine": 1742,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "extractMailtoEmails",
+      "kind": "function",
+      "isExported": false,
+      "isAsync": false,
+      "startLine": 1750,
+      "endLine": 1763,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "extractEmails",
+      "kind": "function",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 1772,
+      "endLine": 1816,
+      "mutable": false,
+      "refs": [
+        "EMAIL_REGEX",
+        "PLACEHOLDER_EMAIL_PATTERNS",
+        "MEDIA_FILENAME_PATTERN",
+        "MEDIA_DPR_PATTERN",
+        "IMAGE_FILE_TLDS",
+        "sanitizeEmailString",
+        "stripHtmlTags",
+        "decodeCloudflareEmail",
+        "decodeObfuscatedEmails",
+        "extractMailtoEmails"
+      ]
+    },
+    {
+      "name": "PLATFORM_DOMAINS",
+      "kind": "const",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 1822,
+      "endLine": 1827,
+      "mutable": true,
+      "refs": []
+    },
+    {
+      "name": "BUSINESS_EMAIL_PREFIXES",
+      "kind": "const",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 1828,
+      "endLine": 1837,
+      "mutable": true,
+      "refs": []
+    },
+    {
+      "name": "CONSUMER_EMAIL_DOMAINS",
+      "kind": "const",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 1838,
+      "endLine": 1846,
+      "mutable": true,
+      "refs": []
+    },
+    {
+      "name": "extractContextAroundMatch",
+      "kind": "function",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 1847,
+      "endLine": 1869,
+      "mutable": false,
+      "refs": [
+        "stripHtmlTags"
+      ]
+    },
+    {
+      "name": "classifyEmailRole",
+      "kind": "function",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 1874,
+      "endLine": 1992,
+      "mutable": false,
+      "refs": [
+        "PLATFORM_DOMAINS",
+        "BUSINESS_EMAIL_PREFIXES",
+        "CONSUMER_EMAIL_DOMAINS"
+      ]
+    },
+    {
+      "name": "PageType",
+      "kind": "type",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 1994,
+      "endLine": 1998,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "classifyPageType",
+      "kind": "function",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 1999,
+      "endLine": 2035,
+      "mutable": false,
+      "refs": [
+        "PageType"
+      ]
+    },
+    {
+      "name": "OWNER_LEADERSHIP_TITLES",
+      "kind": "const",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 2037,
+      "endLine": 2053,
+      "mutable": true,
+      "refs": []
+    },
+    {
+      "name": "STAFF_TITLES",
+      "kind": "const",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 2055,
+      "endLine": 2093,
+      "mutable": true,
+      "refs": []
+    },
+    {
+      "name": "ContactSignalSnapshot",
+      "kind": "interface",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 2095,
+      "endLine": 2104,
+      "mutable": false,
+      "refs": [
+        "PageType"
+      ]
+    },
+    {
+      "name": "evaluateContactRoleMatrix",
+      "kind": "function",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 2109,
+      "endLine": 2112,
+      "mutable": false,
+      "refs": [
+        "ContactSignalSnapshot"
+      ]
+    },
+    {
+      "name": "PhoneRoleClassificationResult",
+      "kind": "interface",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 2161,
+      "endLine": 2174,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "classifyPhoneRole",
+      "kind": "function",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 2180,
+      "endLine": 2312,
+      "mutable": false,
+      "refs": [
+        "ClassifiedPhone",
+        "SCHEDULE_GARBAGE_PATTERNS",
+        "classifyPageType",
+        "OWNER_LEADERSHIP_TITLES",
+        "STAFF_TITLES",
+        "evaluateContactRoleMatrix",
+        "PhoneRoleClassificationResult"
+      ]
+    },
+    {
+      "name": "detectTemplateContent",
+      "kind": "function",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 2319,
+      "endLine": 2348,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "stripNoiseContexts",
+      "kind": "function",
+      "isExported": false,
+      "isAsync": false,
+      "startLine": 2360,
+      "endLine": 2406,
+      "mutable": false,
+      "refs": [
+        "TEL_PROTECT_REGEX",
+        "cleanTrailingPunctuation"
+      ]
+    },
+    {
+      "name": "expandSlashExtensions",
+      "kind": "function",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 2417,
+      "endLine": 2463,
+      "mutable": false,
+      "refs": [
+        "classifyNepalPhone"
+      ]
+    },
+    {
+      "name": "extractPhones",
+      "kind": "function",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 2475,
+      "endLine": 2526,
+      "mutable": false,
+      "refs": [
+        "LANDLINE_OR_MOBILE_REGEX",
+        "INTERNATIONAL_REGEX",
+        "sanitizePhoneString",
+        "classifyNepalPhone",
+        "stripHtmlTags",
+        "stripNoiseContexts",
+        "expandSlashExtensions"
+      ]
+    },
+    {
+      "name": "extractMobiles",
+      "kind": "function",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 2533,
+      "endLine": 2548,
+      "mutable": false,
+      "refs": [
+        "MOBILE_REGEX",
+        "sanitizePhoneString",
+        "classifyNepalPhone",
+        "stripHtmlTags",
+        "stripNoiseContexts"
+      ]
+    },
+    {
+      "name": "extractLandlines",
+      "kind": "function",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 2555,
+      "endLine": 2593,
+      "mutable": false,
+      "refs": [
+        "NEPAL_LANDLINE_REGEX",
+        "INTERNATIONAL_REGEX",
+        "sanitizePhoneString",
+        "classifyNepalPhone",
+        "stripHtmlTags",
+        "stripNoiseContexts",
+        "expandSlashExtensions"
+      ]
+    },
+    {
+      "name": "extractLandlinesAndIntl",
+      "kind": "function",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 2599,
+      "endLine": 2625,
+      "mutable": false,
+      "refs": [
+        "INTERNATIONAL_REGEX",
+        "sanitizePhoneString",
+        "classifyNepalPhone",
+        "stripHtmlTags",
+        "stripNoiseContexts",
+        "extractLandlines"
+      ]
+    },
+    {
+      "name": "BARE_HANDLE_REGEX",
+      "kind": "const",
+      "isExported": false,
+      "isAsync": false,
+      "startLine": 2626,
+      "endLine": 2631,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "extractUrlsFromMarkdown",
+      "kind": "function",
+      "isExported": false,
+      "isAsync": false,
+      "startLine": 2632,
+      "endLine": 2644,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "liftBareHandles",
+      "kind": "function",
+      "isExported": false,
+      "isAsync": false,
+      "startLine": 2651,
+      "endLine": 2664,
+      "mutable": false,
+      "refs": [
+        "BARE_HANDLE_REGEX"
+      ]
+    },
+    {
+      "name": "extractUrlsFromHtml",
+      "kind": "function",
+      "isExported": false,
+      "isAsync": false,
+      "startLine": 2670,
+      "endLine": 2679,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "extractStructuredSocialUrls",
+      "kind": "function",
+      "isExported": false,
+      "isAsync": false,
+      "startLine": 2685,
+      "endLine": 2701,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "ExtractedSocialLinks",
+      "kind": "interface",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 2703,
+      "endLine": 2708,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "extractSocialLinks",
+      "kind": "function",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 2715,
+      "endLine": 2766,
+      "mutable": false,
+      "refs": [
+        "FACEBOOK_REGEX",
+        "INSTAGRAM_REGEX",
+        "TIKTOK_REGEX",
+        "X_TWITTER_REGEX",
+        "YOUTUBE_REGEX",
+        "LINKEDIN_REGEX",
+        "cleanTrailingPunctuation",
+        "computeCanonicalSocialUrl",
+        "isBusinessOwnedSocialProfile",
+        "ExtractedSocialLinks"
+      ]
+    },
+    {
+      "name": "extractFaviconFromHtml",
+      "kind": "function",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 2771,
+      "endLine": 2784,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "extractFavicon",
+      "kind": "function",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 2789,
+      "endLine": 2796,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "extractBusinessInfo",
+      "kind": "function",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 2802,
+      "endLine": 2805,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "isGenericName",
+      "kind": "function",
+      "isExported": false,
+      "isAsync": false,
+      "startLine": 2832,
+      "endLine": 2850,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "ExtractedPageBusinessName",
+      "kind": "interface",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 2852,
+      "endLine": 2855,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "extractPageBusinessName",
+      "kind": "function",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 2861,
+      "endLine": 2947,
+      "mutable": false,
+      "refs": [
+        "isGenericName",
+        "ExtractedPageBusinessName"
+      ]
+    },
+    {
+      "name": "llmMultiBusinessCallCount",
+      "kind": "let",
+      "isExported": false,
+      "isAsync": false,
+      "startLine": 2949,
+      "endLine": 2950,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "getLlmMultiBusinessCallCount",
+      "kind": "function",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 2951,
+      "endLine": 2953,
+      "mutable": false,
+      "refs": [
+        "llmMultiBusinessCallCount"
+      ]
+    },
+    {
+      "name": "resetLlmMultiBusinessCallCount",
+      "kind": "function",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 2955,
+      "endLine": 2957,
+      "mutable": false,
+      "refs": [
+        "llmMultiBusinessCallCount"
+      ]
+    },
+    {
+      "name": "EXCLUDED_LEGAL_AND_GOV_ENTITIES",
+      "kind": "const",
+      "isExported": false,
+      "isAsync": false,
+      "startLine": 2959,
+      "endLine": 2979,
+      "mutable": true,
+      "refs": []
+    },
+    {
+      "name": "QUESTION_STARTER_WORDS",
+      "kind": "const",
+      "isExported": false,
+      "isAsync": false,
+      "startLine": 2980,
+      "endLine": 2986,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "detectMultiBusinessPage",
+      "kind": "function",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 2987,
+      "endLine": 3070,
+      "mutable": false,
+      "refs": [
+        "extractPhones",
+        "extractMobiles",
+        "EXCLUDED_LEGAL_AND_GOV_ENTITIES",
+        "QUESTION_STARTER_WORDS"
+      ]
+    },
+    {
+      "name": "detectMultiBusinessPageWithLlmFallback",
+      "kind": "function",
+      "isExported": true,
+      "isAsync": true,
+      "startLine": 3076,
+      "endLine": 3120,
+      "mutable": false,
+      "refs": [
+        "llmMultiBusinessCallCount",
+        "detectMultiBusinessPage"
+      ]
+    },
+    {
+      "name": "cleanBranchAddress",
+      "kind": "function",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 3131,
+      "endLine": 3183,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "StructuredBranchBlock",
+      "kind": "interface",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 3185,
+      "endLine": 3195,
+      "mutable": false,
+      "refs": []
+    },
+    {
+      "name": "NEPAL_BRANCH_LOCALITIES",
+      "kind": "const",
+      "isExported": false,
+      "isAsync": false,
+      "startLine": 3197,
+      "endLine": 3212,
+      "mutable": true,
+      "refs": []
+    },
+    {
+      "name": "extractStructuredBranchBlocks",
+      "kind": "function",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 3217,
+      "endLine": 3316,
+      "mutable": false,
+      "refs": [
+        "classifyNepalPhone",
+        "extractEmails",
+        "extractPhones",
+        "extractMobiles",
+        "cleanBranchAddress",
+        "StructuredBranchBlock",
+        "NEPAL_BRANCH_LOCALITIES"
+      ]
+    },
+    {
+      "name": "extractAllFromPages",
+      "kind": "function",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 3323,
+      "endLine": 3526,
+      "mutable": false,
+      "refs": [
+        "domainFromUrlOrHost",
+        "formatPhoneDisplay",
+        "classifyNepalPhone",
+        "stripVendorAttribution",
+        "extractEmails",
+        "extractContextAroundMatch",
+        "classifyEmailRole",
+        "classifyPhoneRole",
+        "detectTemplateContent",
+        "extractMobiles",
+        "extractLandlinesAndIntl",
+        "extractSocialLinks",
+        "extractFaviconFromHtml",
+        "extractFavicon",
+        "extractBusinessInfo",
+        "detectMultiBusinessPage",
+        "StructuredBranchBlock",
+        "extractStructuredBranchBlocks",
+        "deduplicateClassifiedContacts"
+      ]
+    },
+    {
+      "name": "deduplicateClassifiedContacts",
+      "kind": "function",
+      "isExported": true,
+      "isAsync": false,
+      "startLine": 3534,
+      "endLine": 3702,
+      "mutable": false,
+      "refs": [
+        "PageType",
+        "classifyPageType",
+        "OWNER_LEADERSHIP_TITLES",
+        "STAFF_TITLES",
+        "evaluateContactRoleMatrix"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "formatPhoneDisplay",
+      "to": [
+        "sanitizePhoneString",
+        "ClassifiedPhone"
+      ]
+    },
+    {
+      "from": "classifyNepalPhone",
+      "to": [
+        "sanitizePhoneString",
+        "ClassifiedPhone",
+        "formatPhoneDisplay"
+      ]
+    },
+    {
+      "from": "NEPAL_LOCALITY_TOKENS",
+      "to": [
+        "UNIVERSAL_STOPWORDS"
+      ]
+    },
+    {
+      "from": "computeCanonicalSocialUrl",
+      "to": [
+        "FACEBOOK_NON_CANONICAL_SUBPATHS"
+      ]
+    },
+    {
+      "from": "isRealSocialProfile",
+      "to": [
+        "FACEBOOK_RESERVED_PATHS",
+        "TWITTER_RESERVED_PATHS",
+        "INSTAGRAM_RESERVED_PATHS"
+      ]
+    },
+    {
+      "from": "classifySocialProfile",
+      "to": [
+        "domainFromUrlOrHost",
+        "FACEBOOK_RESERVED_PATHS",
+        "TWITTER_RESERVED_PATHS",
+        "INSTAGRAM_RESERVED_PATHS",
+        "INDUSTRY_GENERIC_TOKENS",
+        "NEPAL_LOCALITY_TOKENS",
+        "CATEGORY_GENERIC_TOKENS",
+        "CONFLICTING_VERTICAL_TOKENS",
+        "requiredSocialNameOverlap",
+        "brandSegmentFromBusinessName",
+        "resolveCategoryKey",
+        "computeCanonicalSocialUrl",
+        "PLATFORM_OFFICIAL_HANDLES",
+        "KNOWN_VENDOR_SOCIAL_HANDLES"
+      ]
+    },
+    {
+      "from": "isBusinessOwnedSocialProfile",
+      "to": [
+        "classifySocialProfile"
+      ]
+    },
+    {
+      "from": "classifyAllSocialProfiles",
+      "to": [
+        "cleanTrailingPunctuation",
+        "classifySocialProfile"
+      ]
+    },
+    {
+      "from": "extractEmails",
+      "to": [
+        "EMAIL_REGEX",
+        "PLACEHOLDER_EMAIL_PATTERNS",
+        "MEDIA_FILENAME_PATTERN",
+        "MEDIA_DPR_PATTERN",
+        "IMAGE_FILE_TLDS",
+        "sanitizeEmailString",
+        "stripHtmlTags",
+        "decodeCloudflareEmail",
+        "decodeObfuscatedEmails",
+        "extractMailtoEmails"
+      ]
+    },
+    {
+      "from": "extractContextAroundMatch",
+      "to": [
+        "stripHtmlTags"
+      ]
+    },
+    {
+      "from": "classifyEmailRole",
+      "to": [
+        "PLATFORM_DOMAINS",
+        "BUSINESS_EMAIL_PREFIXES",
+        "CONSUMER_EMAIL_DOMAINS"
+      ]
+    },
+    {
+      "from": "classifyPageType",
+      "to": [
+        "PageType"
+      ]
+    },
+    {
+      "from": "ContactSignalSnapshot",
+      "to": [
+        "PageType"
+      ]
+    },
+    {
+      "from": "evaluateContactRoleMatrix",
+      "to": [
+        "ContactSignalSnapshot"
+      ]
+    },
+    {
+      "from": "classifyPhoneRole",
+      "to": [
+        "ClassifiedPhone",
+        "SCHEDULE_GARBAGE_PATTERNS",
+        "classifyPageType",
+        "OWNER_LEADERSHIP_TITLES",
+        "STAFF_TITLES",
+        "evaluateContactRoleMatrix",
+        "PhoneRoleClassificationResult"
+      ]
+    },
+    {
+      "from": "stripNoiseContexts",
+      "to": [
+        "TEL_PROTECT_REGEX",
+        "cleanTrailingPunctuation"
+      ]
+    },
+    {
+      "from": "expandSlashExtensions",
+      "to": [
+        "classifyNepalPhone"
+      ]
+    },
+    {
+      "from": "extractPhones",
+      "to": [
+        "LANDLINE_OR_MOBILE_REGEX",
+        "INTERNATIONAL_REGEX",
+        "sanitizePhoneString",
+        "classifyNepalPhone",
+        "stripHtmlTags",
+        "stripNoiseContexts",
+        "expandSlashExtensions"
+      ]
+    },
+    {
+      "from": "extractMobiles",
+      "to": [
+        "MOBILE_REGEX",
+        "sanitizePhoneString",
+        "classifyNepalPhone",
+        "stripHtmlTags",
+        "stripNoiseContexts"
+      ]
+    },
+    {
+      "from": "extractLandlines",
+      "to": [
+        "NEPAL_LANDLINE_REGEX",
+        "INTERNATIONAL_REGEX",
+        "sanitizePhoneString",
+        "classifyNepalPhone",
+        "stripHtmlTags",
+        "stripNoiseContexts",
+        "expandSlashExtensions"
+      ]
+    },
+    {
+      "from": "extractLandlinesAndIntl",
+      "to": [
+        "INTERNATIONAL_REGEX",
+        "sanitizePhoneString",
+        "classifyNepalPhone",
+        "stripHtmlTags",
+        "stripNoiseContexts",
+        "extractLandlines"
+      ]
+    },
+    {
+      "from": "liftBareHandles",
+      "to": [
+        "BARE_HANDLE_REGEX"
+      ]
+    },
+    {
+      "from": "extractSocialLinks",
+      "to": [
+        "FACEBOOK_REGEX",
+        "INSTAGRAM_REGEX",
+        "TIKTOK_REGEX",
+        "X_TWITTER_REGEX",
+        "YOUTUBE_REGEX",
+        "LINKEDIN_REGEX",
+        "cleanTrailingPunctuation",
+        "computeCanonicalSocialUrl",
+        "isBusinessOwnedSocialProfile",
+        "ExtractedSocialLinks"
+      ]
+    },
+    {
+      "from": "extractPageBusinessName",
+      "to": [
+        "isGenericName",
+        "ExtractedPageBusinessName"
+      ]
+    },
+    {
+      "from": "getLlmMultiBusinessCallCount",
+      "to": [
+        "llmMultiBusinessCallCount"
+      ]
+    },
+    {
+      "from": "resetLlmMultiBusinessCallCount",
+      "to": [
+        "llmMultiBusinessCallCount"
+      ]
+    },
+    {
+      "from": "detectMultiBusinessPage",
+      "to": [
+        "extractPhones",
+        "extractMobiles",
+        "EXCLUDED_LEGAL_AND_GOV_ENTITIES",
+        "QUESTION_STARTER_WORDS"
+      ]
+    },
+    {
+      "from": "detectMultiBusinessPageWithLlmFallback",
+      "to": [
+        "llmMultiBusinessCallCount",
+        "detectMultiBusinessPage"
+      ]
+    },
+    {
+      "from": "extractStructuredBranchBlocks",
+      "to": [
+        "classifyNepalPhone",
+        "extractEmails",
+        "extractPhones",
+        "extractMobiles",
+        "cleanBranchAddress",
+        "StructuredBranchBlock",
+        "NEPAL_BRANCH_LOCALITIES"
+      ]
+    },
+    {
+      "from": "extractAllFromPages",
+      "to": [
+        "domainFromUrlOrHost",
+        "formatPhoneDisplay",
+        "classifyNepalPhone",
+        "stripVendorAttribution",
+        "extractEmails",
+        "extractContextAroundMatch",
+        "classifyEmailRole",
+        "classifyPhoneRole",
+        "detectTemplateContent",
+        "extractMobiles",
+        "extractLandlinesAndIntl",
+        "extractSocialLinks",
+        "extractFaviconFromHtml",
+        "extractFavicon",
+        "extractBusinessInfo",
+        "detectMultiBusinessPage",
+        "StructuredBranchBlock",
+        "extractStructuredBranchBlocks",
+        "deduplicateClassifiedContacts"
+      ]
+    },
+    {
+      "from": "deduplicateClassifiedContacts",
+      "to": [
+        "PageType",
+        "classifyPageType",
+        "OWNER_LEADERSHIP_TITLES",
+        "STAFF_TITLES",
+        "evaluateContactRoleMatrix"
+      ]
+    }
+  ]
+}

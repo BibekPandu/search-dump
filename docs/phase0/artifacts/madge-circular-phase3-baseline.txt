@@ -1,0 +1,19 @@
+﻿node.exe : - Finding files
+At E:\Work 
+tools\node-v24.15.0-win-x64\node-v24.15.0-win-x64\npx.ps1:16 
+char:5
++     & "$basedir/node$exe"  
+"$basedir/node_modules/npm/bin/npx-cli.js" ...
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (- Finding files 
+   :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Processed 82 files (947ms) 
+
+Γ£û Found 2 circular dependencies!
+
+1) mastra/index.ts > mastra/workflows/research-workflow.ts
+2) services/resolution/geographic-evaluator.service.ts > services/resolution/geocoding.service.ts
+
