@@ -1,0 +1,383 @@
+{
+  "root": "E:\\Agentic Search\\searchDump\\output",
+  "capturedAt": "2026-09-26T13:14:49.312Z",
+  "fileCount": 75,
+  "totalBytes": 112192604,
+  "files": [
+    {
+      "path": "0-research-candidates.json",
+      "bytes": 113191,
+      "sha256": "412e2a364b39ebce521441f4c8e4c7467b689d0605b7883f6a49d087d9f68d26"
+    },
+    {
+      "path": "0-website-discovery.json",
+      "bytes": 695,
+      "sha256": "4b01258fdfab147b1301eca654318e1f870a1d133c53c4fe70848b8967fbff92"
+    },
+    {
+      "path": "0b-research-candidates-lean.json",
+      "bytes": 61497,
+      "sha256": "2ed84457bccc52a244a4ecda30475db8468aada29ba5b5217355571ba39f1f39"
+    },
+    {
+      "path": "1-broad-search.json",
+      "bytes": 5603,
+      "sha256": "169a46e56fb469f175d3ed7777eef62b539cacaf7c15a150758dc598fb5885d5"
+    },
+    {
+      "path": "2-deep-extractions.json",
+      "bytes": 3050499,
+      "sha256": "e3474a173b62d0c8842757b7cde4535c69a3fedbbb4b566954532237c8e1d367"
+    },
+    {
+      "path": "2b-verified-evidence.json",
+      "bytes": 26677493,
+      "sha256": "c92fe0cdfd1f1cc097e0f0bfb6d810aa2e244a4e910812fae2b0671f8d5a7364"
+    },
+    {
+      "path": "3-final-listings.json",
+      "bytes": 261518,
+      "sha256": "77817ac4af468d1c07b64c34ed79b67e9c55a02024bb1832f26626e5bcbddf76"
+    },
+    {
+      "path": "candidate-ledger.json",
+      "bytes": 11139,
+      "sha256": "0c1499b0511faafdf9fa552759d46ad4dbca2efc937820515ba42b86cac4e0ca"
+    },
+    {
+      "path": "entity-conflicts.json",
+      "bytes": 157,
+      "sha256": "bf72896b502faa46538286fc093b144ad77f75cf51c9a9dd4095cd1647e9acd6"
+    },
+    {
+      "path": "history/2026-09-25T07-48-18-469Z-consultancy/0-research-candidates.json",
+      "bytes": 77079,
+      "sha256": "91b11826c5aea7f5d62a77203ec2a0dba7abb8c76ece8a5e9f4aeca48a3835f8"
+    },
+    {
+      "path": "history/2026-09-25T07-48-18-469Z-consultancy/0-website-discovery.json",
+      "bytes": 695,
+      "sha256": "74ba4907ed4d7c47afc3a51b5051a8fb9ffa41e51801aa8be68c010fb0c8462f"
+    },
+    {
+      "path": "history/2026-09-25T07-48-18-469Z-consultancy/0b-research-candidates-lean.json",
+      "bytes": 23671,
+      "sha256": "0c2234f9d7bc719325b8adcd2231a960b708baa7e8ce2a86b4b98a9f2115a1d4"
+    },
+    {
+      "path": "history/2026-09-25T07-48-18-469Z-consultancy/1-broad-search.json",
+      "bytes": 5603,
+      "sha256": "169a46e56fb469f175d3ed7777eef62b539cacaf7c15a150758dc598fb5885d5"
+    },
+    {
+      "path": "history/2026-09-25T07-48-18-469Z-consultancy/2-deep-extractions.json",
+      "bytes": 320603,
+      "sha256": "ba0b2ea2c92f22ede9473e2794c9ab10ae9337e41d08bfc50e2f8c466bd4f100"
+    },
+    {
+      "path": "history/2026-09-25T07-48-18-469Z-consultancy/2b-verified-evidence.json",
+      "bytes": 7221336,
+      "sha256": "2bcebc4a7bd90b1000aca8ba7585a07bad97d0efeb9c2dd8d2f63eb33532481b"
+    },
+    {
+      "path": "history/2026-09-25T07-48-18-469Z-consultancy/3-final-listings.json",
+      "bytes": 73195,
+      "sha256": "d37bdb6334fb23ed9f610a16d1821af439b4847370329cba6dc6cc92597640ab"
+    },
+    {
+      "path": "history/2026-09-25T07-48-18-469Z-consultancy/entity-conflicts.json",
+      "bytes": 157,
+      "sha256": "bfe9c2696a932aa48c91ec52a24f8cff24c1f4d1c3340534d95fbc78b18b9372"
+    },
+    {
+      "path": "history/2026-09-25T07-48-18-469Z-consultancy/results.json",
+      "bytes": 73195,
+      "sha256": "d37bdb6334fb23ed9f610a16d1821af439b4847370329cba6dc6cc92597640ab"
+    },
+    {
+      "path": "history/2026-09-25T07-48-18-469Z-consultancy/summary-report.json",
+      "bytes": 1121,
+      "sha256": "3463cb3b193d4ac56263f5d8953c25e13ad214329d0a6c1abf2b70da01449988"
+    },
+    {
+      "path": "history/2026-09-25T09-05-47-300Z-consultancy/0-research-candidates.json",
+      "bytes": 93812,
+      "sha256": "e5d80acd7b8a36dc4d654479bdde75e56d997191894d0c0799e186a018919274"
+    },
+    {
+      "path": "history/2026-09-25T09-05-47-300Z-consultancy/0-website-discovery.json",
+      "bytes": 695,
+      "sha256": "5e0286b5e57b79eaecde0eff1f7f4247a7d845c39ee1854d5e2bfc7fe5be2624"
+    },
+    {
+      "path": "history/2026-09-25T09-05-47-300Z-consultancy/0b-research-candidates-lean.json",
+      "bytes": 49769,
+      "sha256": "32324639fe2a3768d6ecece96c6c6c5a3175a7a00a3c29ded53bb62e9d5a6969"
+    },
+    {
+      "path": "history/2026-09-25T09-05-47-300Z-consultancy/1-broad-search.json",
+      "bytes": 5603,
+      "sha256": "169a46e56fb469f175d3ed7777eef62b539cacaf7c15a150758dc598fb5885d5"
+    },
+    {
+      "path": "history/2026-09-25T09-05-47-300Z-consultancy/2-deep-extractions.json",
+      "bytes": 438499,
+      "sha256": "14ea888a74aee662b5dfdde612d792ca8e947bee4badb46ca4dbdafe4a0ff549"
+    },
+    {
+      "path": "history/2026-09-25T09-05-47-300Z-consultancy/2b-verified-evidence.json",
+      "bytes": 10751629,
+      "sha256": "827b105d6cd653f6c518e755f8576ad11cbdf51e68676fed2d3ddb80f92afb89"
+    },
+    {
+      "path": "history/2026-09-25T09-05-47-300Z-consultancy/3-final-listings.json",
+      "bytes": 157290,
+      "sha256": "e70cb961f5278895700aa3be8f87c459de11a50eab01e102922ddbbdb788f4f7"
+    },
+    {
+      "path": "history/2026-09-25T09-05-47-300Z-consultancy/candidate-ledger.json",
+      "bytes": 8087,
+      "sha256": "e97eb26f9c47854e0ae7038bfb3049a89aded3a217ea287b518935b4615a25b3"
+    },
+    {
+      "path": "history/2026-09-25T09-05-47-300Z-consultancy/entity-conflicts.json",
+      "bytes": 157,
+      "sha256": "8d72dee3dbc000a989ebfc798a580cbfc80850c5b44ee07efea743b2d626238e"
+    },
+    {
+      "path": "history/2026-09-25T09-05-47-300Z-consultancy/results.json",
+      "bytes": 157290,
+      "sha256": "e70cb961f5278895700aa3be8f87c459de11a50eab01e102922ddbbdb788f4f7"
+    },
+    {
+      "path": "history/2026-09-25T09-05-47-300Z-consultancy/summary-report.json",
+      "bytes": 1123,
+      "sha256": "2bde327e03ffa5f1ce96f3216571b28c28baa10af5951eccb61579de3e7af457"
+    },
+    {
+      "path": "history/2026-09-25T09-53-12-426Z-consultancy/0-research-candidates.json",
+      "bytes": 113191,
+      "sha256": "412e2a364b39ebce521441f4c8e4c7467b689d0605b7883f6a49d087d9f68d26"
+    },
+    {
+      "path": "history/2026-09-25T09-53-12-426Z-consultancy/0-website-discovery.json",
+      "bytes": 695,
+      "sha256": "1e00bcf89b82f86d9519c28b0683c7d030d4dd2b53d2afa74fd50ab247f2d46f"
+    },
+    {
+      "path": "history/2026-09-25T09-53-12-426Z-consultancy/0b-research-candidates-lean.json",
+      "bytes": 61497,
+      "sha256": "2ed84457bccc52a244a4ecda30475db8468aada29ba5b5217355571ba39f1f39"
+    },
+    {
+      "path": "history/2026-09-25T10-14-34-459Z-consultancy/0-research-candidates.json",
+      "bytes": 113191,
+      "sha256": "412e2a364b39ebce521441f4c8e4c7467b689d0605b7883f6a49d087d9f68d26"
+    },
+    {
+      "path": "history/2026-09-25T10-14-34-459Z-consultancy/0-website-discovery.json",
+      "bytes": 695,
+      "sha256": "ab9130d1c523838c5a652418c081d46691ea17245020c77f4de8d74172bbab69"
+    },
+    {
+      "path": "history/2026-09-25T10-14-34-459Z-consultancy/0b-research-candidates-lean.json",
+      "bytes": 61497,
+      "sha256": "2ed84457bccc52a244a4ecda30475db8468aada29ba5b5217355571ba39f1f39"
+    },
+    {
+      "path": "history/2026-09-25T10-22-38-965Z-consultancy/0-research-candidates.json",
+      "bytes": 113191,
+      "sha256": "412e2a364b39ebce521441f4c8e4c7467b689d0605b7883f6a49d087d9f68d26"
+    },
+    {
+      "path": "history/2026-09-25T10-22-38-965Z-consultancy/0-website-discovery.json",
+      "bytes": 695,
+      "sha256": "f67d2dfdda1ac64f92601b0bd44ac84d7682baa94502ec5c8db55c6c1b7d06ad"
+    },
+    {
+      "path": "history/2026-09-25T10-22-38-965Z-consultancy/0b-research-candidates-lean.json",
+      "bytes": 61497,
+      "sha256": "2ed84457bccc52a244a4ecda30475db8468aada29ba5b5217355571ba39f1f39"
+    },
+    {
+      "path": "history/2026-09-25T10-31-07-074Z-consultancy/0-research-candidates.json",
+      "bytes": 113191,
+      "sha256": "412e2a364b39ebce521441f4c8e4c7467b689d0605b7883f6a49d087d9f68d26"
+    },
+    {
+      "path": "history/2026-09-25T10-31-07-074Z-consultancy/0-website-discovery.json",
+      "bytes": 695,
+      "sha256": "9d50b5601bd1efff2a34718d121753628c13591068217957b825a25be60eced6"
+    },
+    {
+      "path": "history/2026-09-25T10-31-07-074Z-consultancy/0b-research-candidates-lean.json",
+      "bytes": 61497,
+      "sha256": "2ed84457bccc52a244a4ecda30475db8468aada29ba5b5217355571ba39f1f39"
+    },
+    {
+      "path": "history/2026-09-25T10-42-17-209Z-consultancy/0-research-candidates.json",
+      "bytes": 113191,
+      "sha256": "412e2a364b39ebce521441f4c8e4c7467b689d0605b7883f6a49d087d9f68d26"
+    },
+    {
+      "path": "history/2026-09-25T10-42-17-209Z-consultancy/0-website-discovery.json",
+      "bytes": 695,
+      "sha256": "5afd6bab7c5a8b47d1f640b78894696255a25698f1b1b66e22349dd7e9eb670c"
+    },
+    {
+      "path": "history/2026-09-25T10-42-17-209Z-consultancy/0b-research-candidates-lean.json",
+      "bytes": 61497,
+      "sha256": "2ed84457bccc52a244a4ecda30475db8468aada29ba5b5217355571ba39f1f39"
+    },
+    {
+      "path": "history/2026-09-25T10-53-52-895Z-consultancy/0-research-candidates.json",
+      "bytes": 113191,
+      "sha256": "412e2a364b39ebce521441f4c8e4c7467b689d0605b7883f6a49d087d9f68d26"
+    },
+    {
+      "path": "history/2026-09-25T10-53-52-895Z-consultancy/0-website-discovery.json",
+      "bytes": 695,
+      "sha256": "ca3805d15fd79fd9dc604c84f7a4af9335ad7958ac98e1e5f910138442814f3b"
+    },
+    {
+      "path": "history/2026-09-25T10-53-52-895Z-consultancy/0b-research-candidates-lean.json",
+      "bytes": 61497,
+      "sha256": "2ed84457bccc52a244a4ecda30475db8468aada29ba5b5217355571ba39f1f39"
+    },
+    {
+      "path": "history/2026-09-25T11-02-43-161Z-consultancy/0-research-candidates.json",
+      "bytes": 113191,
+      "sha256": "412e2a364b39ebce521441f4c8e4c7467b689d0605b7883f6a49d087d9f68d26"
+    },
+    {
+      "path": "history/2026-09-25T11-02-43-161Z-consultancy/0-website-discovery.json",
+      "bytes": 695,
+      "sha256": "959afed199ab4b031f940dfc2143ac70e64430b520c7a7d639b362ac154654c3"
+    },
+    {
+      "path": "history/2026-09-25T11-02-43-161Z-consultancy/0b-research-candidates-lean.json",
+      "bytes": 61497,
+      "sha256": "2ed84457bccc52a244a4ecda30475db8468aada29ba5b5217355571ba39f1f39"
+    },
+    {
+      "path": "history/2026-09-25T11-12-24-103Z-consultancy/0-research-candidates.json",
+      "bytes": 113191,
+      "sha256": "412e2a364b39ebce521441f4c8e4c7467b689d0605b7883f6a49d087d9f68d26"
+    },
+    {
+      "path": "history/2026-09-25T11-12-24-103Z-consultancy/0-website-discovery.json",
+      "bytes": 695,
+      "sha256": "fb0d58037c24a5feb69cf43c48b2a201963b8e5347523b7af2e59d9bac2b5d10"
+    },
+    {
+      "path": "history/2026-09-25T11-12-24-103Z-consultancy/0b-research-candidates-lean.json",
+      "bytes": 61497,
+      "sha256": "2ed84457bccc52a244a4ecda30475db8468aada29ba5b5217355571ba39f1f39"
+    },
+    {
+      "path": "history/2026-09-25T11-12-24-103Z-consultancy/2-deep-extractions.json",
+      "bytes": 3048198,
+      "sha256": "cb73b66783663565ff1c1932f12ca81f2a1e8cd7f44f9497f9bb1f51fd5a7466"
+    },
+    {
+      "path": "history/2026-09-25T11-12-24-103Z-consultancy/2b-verified-evidence.json",
+      "bytes": 26686806,
+      "sha256": "c8ffadce5eb604a4db25e0c97c6996f61c8adfe17664dc454559ee770b256694"
+    },
+    {
+      "path": "history/2026-09-25T11-12-24-103Z-consultancy/3-final-listings.json",
+      "bytes": 217698,
+      "sha256": "14b82a2d7ef042dc641980c0a3d2c967888d5cb697bce32b9961dc8467bbf851"
+    },
+    {
+      "path": "history/2026-09-25T11-12-24-103Z-consultancy/candidate-ledger.json",
+      "bytes": 11085,
+      "sha256": "bde17c066f91fad3886aaefd7de68e5a40781fdcd703d71e00e35b2f42fca766"
+    },
+    {
+      "path": "history/2026-09-25T11-12-24-103Z-consultancy/entity-conflicts.json",
+      "bytes": 157,
+      "sha256": "3c1917dccb9dcf20d343c62840a1ed28c8e995cb88f4ed933623f8db67860e98"
+    },
+    {
+      "path": "history/2026-09-25T11-12-24-103Z-consultancy/results.json",
+      "bytes": 217698,
+      "sha256": "14b82a2d7ef042dc641980c0a3d2c967888d5cb697bce32b9961dc8467bbf851"
+    },
+    {
+      "path": "history/2026-09-25T11-12-24-103Z-consultancy/summary-report.json",
+      "bytes": 1517,
+      "sha256": "09ff914a84fd831d1465ce87533c05bcb0cece8c5d4d9ea6027d60919cbe4b10"
+    },
+    {
+      "path": "history/2026-09-25T11-49-07-627Z-consultancy/0-research-candidates.json",
+      "bytes": 113191,
+      "sha256": "412e2a364b39ebce521441f4c8e4c7467b689d0605b7883f6a49d087d9f68d26"
+    },
+    {
+      "path": "history/2026-09-25T11-49-07-627Z-consultancy/0-website-discovery.json",
+      "bytes": 695,
+      "sha256": "4b01258fdfab147b1301eca654318e1f870a1d133c53c4fe70848b8967fbff92"
+    },
+    {
+      "path": "history/2026-09-25T11-49-07-627Z-consultancy/0b-research-candidates-lean.json",
+      "bytes": 61497,
+      "sha256": "2ed84457bccc52a244a4ecda30475db8468aada29ba5b5217355571ba39f1f39"
+    },
+    {
+      "path": "history/2026-09-25T11-49-07-627Z-consultancy/2-deep-extractions.json",
+      "bytes": 3050499,
+      "sha256": "e3474a173b62d0c8842757b7cde4535c69a3fedbbb4b566954532237c8e1d367"
+    },
+    {
+      "path": "history/2026-09-25T11-49-07-627Z-consultancy/2b-verified-evidence.json",
+      "bytes": 26677493,
+      "sha256": "c92fe0cdfd1f1cc097e0f0bfb6d810aa2e244a4e910812fae2b0671f8d5a7364"
+    },
+    {
+      "path": "history/2026-09-25T11-49-07-627Z-consultancy/3-final-listings.json",
+      "bytes": 261518,
+      "sha256": "77817ac4af468d1c07b64c34ed79b67e9c55a02024bb1832f26626e5bcbddf76"
+    },
+    {
+      "path": "history/2026-09-25T11-49-07-627Z-consultancy/candidate-ledger.json",
+      "bytes": 11139,
+      "sha256": "0c1499b0511faafdf9fa552759d46ad4dbca2efc937820515ba42b86cac4e0ca"
+    },
+    {
+      "path": "history/2026-09-25T11-49-07-627Z-consultancy/entity-conflicts.json",
+      "bytes": 157,
+      "sha256": "bf72896b502faa46538286fc093b144ad77f75cf51c9a9dd4095cd1647e9acd6"
+    },
+    {
+      "path": "history/2026-09-25T11-49-07-627Z-consultancy/results.json",
+      "bytes": 261518,
+      "sha256": "77817ac4af468d1c07b64c34ed79b67e9c55a02024bb1832f26626e5bcbddf76"
+    },
+    {
+      "path": "history/2026-09-25T11-49-07-627Z-consultancy/summary-report.json",
+      "bytes": 1540,
+      "sha256": "8317a364d6ce718b52a86e79f8d85966a263c1cd832bc64e27a19fec62b09a7f"
+    },
+    {
+      "path": "latest/businesses.json",
+      "bytes": 261518,
+      "sha256": "77817ac4af468d1c07b64c34ed79b67e9c55a02024bb1832f26626e5bcbddf76"
+    },
+    {
+      "path": "latest/entity-conflicts.json",
+      "bytes": 157,
+      "sha256": "bf72896b502faa46538286fc093b144ad77f75cf51c9a9dd4095cd1647e9acd6"
+    },
+    {
+      "path": "latest/summary-report.json",
+      "bytes": 1540,
+      "sha256": "8317a364d6ce718b52a86e79f8d85966a263c1cd832bc64e27a19fec62b09a7f"
+    },
+    {
+      "path": "results.json",
+      "bytes": 261518,
+      "sha256": "77817ac4af468d1c07b64c34ed79b67e9c55a02024bb1832f26626e5bcbddf76"
+    }
+  ]
+}

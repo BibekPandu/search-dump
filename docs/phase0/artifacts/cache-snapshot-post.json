@@ -1,0 +1,23 @@
+{
+  "root": "E:\\Agentic Search\\searchDump\\.cache",
+  "capturedAt": "2026-09-26T13:20:07.175Z",
+  "fileCount": 3,
+  "totalBytes": 3195249,
+  "files": [
+    {
+      "path": "geocoding/putalisadak.json",
+      "bytes": 294,
+      "sha256": "cdb94a2240aa05e721162ef623f7936e4a4f200a5e1af19368b53936d4c81c3c"
+    },
+    {
+      "path": "geocoding/satungal.json",
+      "bytes": 357,
+      "sha256": "1348ad4f132fd08db39777447b7940bd784e7321c42944e8089f26ad1c1242e4"
+    },
+    {
+      "path": "search-results.json",
+      "bytes": 3194598,
+      "sha256": "7b79272ef114d0430aa19406404f0b686168bf25cb03e08e29f50ca62896053b"
+    }
+  ]
+}

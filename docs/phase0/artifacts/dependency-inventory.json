@@ -1,0 +1,946 @@
+{
+  "phase": "0.2",
+  "generatedAt": "2026-09-26T13:16:25.907Z",
+  "repoRoot": "E:\\Agentic Search\\searchDump",
+  "totals": {
+    "filesScanned": 97,
+    "importEdges": 418,
+    "internalEdges": 296,
+    "externalSpecifiers": 26,
+    "crossServiceSiblingImports": 47,
+    "servicesToMastraImports": 12,
+    "mastraToServicesImports": 36,
+    "dynamicImportSites": 3,
+    "unresolvedRelativeSpecifiers": 0
+  },
+  "crossServiceSiblingImports": [
+    {
+      "from": "src/services/business-extractor.service.ts",
+      "to": "src/services/search-fallback.service.ts",
+      "module": "search-fallback.service",
+      "specifier": "./search-fallback.service"
+    },
+    {
+      "from": "src/services/business-extractor.service.ts",
+      "to": "src/services/telemetry.service.ts",
+      "module": "telemetry.service",
+      "specifier": "./telemetry.service"
+    },
+    {
+      "from": "src/services/cache.service.ts",
+      "to": "src/services/db.service.ts",
+      "module": "db.service",
+      "specifier": "./db.service"
+    },
+    {
+      "from": "src/services/candidate-classifier.service.ts",
+      "to": "src/services/search-fallback.service.ts",
+      "module": "search-fallback.service",
+      "specifier": "./search-fallback.service"
+    },
+    {
+      "from": "src/services/candidate-validation.service.ts",
+      "to": "src/services/geographic-evaluator.service.ts",
+      "module": "geographic-evaluator.service",
+      "specifier": "./geographic-evaluator.service"
+    },
+    {
+      "from": "src/services/candidate-validation.service.ts",
+      "to": "src/services/telemetry.service.ts",
+      "module": "telemetry.service",
+      "specifier": "./telemetry.service"
+    },
+    {
+      "from": "src/services/entity-resolution.service.ts",
+      "to": "src/services/business-extractor.service.ts",
+      "module": "business-extractor.service",
+      "specifier": "./business-extractor.service"
+    },
+    {
+      "from": "src/services/entity-resolution.service.ts",
+      "to": "src/services/candidate-classifier.service.ts",
+      "module": "candidate-classifier.service",
+      "specifier": "./candidate-classifier.service"
+    },
+    {
+      "from": "src/services/entity-resolution.service.ts",
+      "to": "src/services/geographic-evaluator.service.ts",
+      "module": "geographic-evaluator.service",
+      "specifier": "./geographic-evaluator.service"
+    },
+    {
+      "from": "src/services/entity-resolution.service.ts",
+      "to": "src/services/search-fallback.service.ts",
+      "module": "search-fallback.service",
+      "specifier": "./search-fallback.service"
+    },
+    {
+      "from": "src/services/entity-resolution.service.ts",
+      "to": "src/services/serper-places.service.ts",
+      "module": "serper-places.service",
+      "specifier": "./serper-places.service"
+    },
+    {
+      "from": "src/services/entity-resolution.service.ts",
+      "to": "src/services/url-filter.service.ts",
+      "module": "url-filter.service",
+      "specifier": "./url-filter.service"
+    },
+    {
+      "from": "src/services/geocoding.service.ts",
+      "to": "src/services/geographic-evaluator.service.ts",
+      "module": "geographic-evaluator.service",
+      "specifier": "./geographic-evaluator.service.js"
+    },
+    {
+      "from": "src/services/geographic-evaluator.service.ts",
+      "to": "src/services/geocoding.service.ts",
+      "module": "geocoding.service",
+      "specifier": "./geocoding.service.js"
+    },
+    {
+      "from": "src/services/geographic-evaluator.service.ts",
+      "to": "src/services/telemetry.service.ts",
+      "module": "telemetry.service",
+      "specifier": "./telemetry.service.js"
+    },
+    {
+      "from": "src/services/maps-discovery.service.ts",
+      "to": "src/services/research-candidate.service.ts",
+      "module": "research-candidate.service",
+      "specifier": "./research-candidate.service"
+    },
+    {
+      "from": "src/services/maps-discovery.service.ts",
+      "to": "src/services/serper-places.service.ts",
+      "module": "serper-places.service",
+      "specifier": "./serper-places.service"
+    },
+    {
+      "from": "src/services/mongo.service.ts",
+      "to": "src/services/entity-resolution.service.ts",
+      "module": "entity-resolution.service",
+      "specifier": "./entity-resolution.service"
+    },
+    {
+      "from": "src/services/mongo.service.ts",
+      "to": "src/services/geocoding.service.ts",
+      "module": "geocoding.service",
+      "specifier": "./geocoding.service"
+    },
+    {
+      "from": "src/services/output-storage.service.ts",
+      "to": "src/services/db.service.ts",
+      "module": "db.service",
+      "specifier": "./db.service"
+    },
+    {
+      "from": "src/services/research-candidate.service.ts",
+      "to": "src/services/entity-resolution.service.ts",
+      "module": "entity-resolution.service",
+      "specifier": "./entity-resolution.service"
+    },
+    {
+      "from": "src/services/research-candidate.service.ts",
+      "to": "src/services/search-fallback.service.ts",
+      "module": "search-fallback.service",
+      "specifier": "./search-fallback.service"
+    },
+    {
+      "from": "src/services/research-candidate.service.ts",
+      "to": "src/services/serper-places.service.ts",
+      "module": "serper-places.service",
+      "specifier": "./serper-places.service"
+    },
+    {
+      "from": "src/services/search-fallback.service.ts",
+      "to": "src/services/cache.service.ts",
+      "module": "cache.service",
+      "specifier": "./cache.service"
+    },
+    {
+      "from": "src/services/search-fallback.service.ts",
+      "to": "src/services/discovery-state.service.ts",
+      "module": "discovery-state.service",
+      "specifier": "./discovery-state.service"
+    },
+    {
+      "from": "src/services/search-fallback.service.ts",
+      "to": "src/services/serper-search.service.ts",
+      "module": "serper-search.service",
+      "specifier": "./serper-search.service"
+    },
+    {
+      "from": "src/services/serper-places.service.ts",
+      "to": "src/services/cache.service.ts",
+      "module": "cache.service",
+      "specifier": "./cache.service"
+    },
+    {
+      "from": "src/services/serper-places.service.ts",
+      "to": "src/services/discovery-state.service.ts",
+      "module": "discovery-state.service",
+      "specifier": "./discovery-state.service"
+    },
+    {
+      "from": "src/services/tavily-extract.service.ts",
+      "to": "src/services/cache.service.ts",
+      "module": "cache.service",
+      "specifier": "./cache.service"
+    },
+    {
+      "from": "src/services/verification.service.ts",
+      "to": "src/services/business-extractor.service.ts",
+      "module": "business-extractor.service",
+      "specifier": "./business-extractor.service"
+    },
+    {
+      "from": "src/services/verification.service.ts",
+      "to": "src/services/entity-resolution.service.ts",
+      "module": "entity-resolution.service",
+      "specifier": "./entity-resolution.service"
+    },
+    {
+      "from": "src/services/verification.service.ts",
+      "to": "src/services/website-relationship.service.ts",
+      "module": "website-relationship.service",
+      "specifier": "./website-relationship.service"
+    },
+    {
+      "from": "src/services/website-discovery-gate.service.ts",
+      "to": "src/services/business-extractor.service.ts",
+      "module": "business-extractor.service",
+      "specifier": "./business-extractor.service"
+    },
+    {
+      "from": "src/services/website-discovery-gate.service.ts",
+      "to": "src/services/discovery-state.service.ts",
+      "module": "discovery-state.service",
+      "specifier": "./discovery-state.service"
+    },
+    {
+      "from": "src/services/website-discovery-gate.service.ts",
+      "to": "src/services/discovery-state.service.ts",
+      "module": "discovery-state.service",
+      "specifier": "./discovery-state.service"
+    },
+    {
+      "from": "src/services/website-discovery-gate.service.ts",
+      "to": "src/services/entity-resolution.service.ts",
+      "module": "entity-resolution.service",
+      "specifier": "./entity-resolution.service.js"
+    },
+    {
+      "from": "src/services/website-discovery-gate.service.ts",
+      "to": "src/services/serper-places.service.ts",
+      "module": "serper-places.service",
+      "specifier": "./serper-places.service"
+    },
+    {
+      "from": "src/services/website-discovery-gate.service.ts",
+      "to": "src/services/website-search-ranker.service.ts",
+      "module": "website-search-ranker.service",
+      "specifier": "./website-search-ranker.service.js"
+    },
+    {
+      "from": "src/services/website-discovery.service.ts",
+      "to": "src/services/entity-resolution.service.ts",
+      "module": "entity-resolution.service",
+      "specifier": "./entity-resolution.service"
+    },
+    {
+      "from": "src/services/website-discovery.service.ts",
+      "to": "src/services/search-fallback.service.ts",
+      "module": "search-fallback.service",
+      "specifier": "./search-fallback.service"
+    },
+    {
+      "from": "src/services/website-relationship.service.ts",
+      "to": "src/services/entity-resolution.service.ts",
+      "module": "entity-resolution.service",
+      "specifier": "./entity-resolution.service"
+    },
+    {
+      "from": "src/services/website-search-ranker.service.ts",
+      "to": "src/services/business-extractor.service.ts",
+      "module": "business-extractor.service",
+      "specifier": "./business-extractor.service"
+    },
+    {
+      "from": "src/services/website-search-ranker.service.ts",
+      "to": "src/services/candidate-classifier.service.ts",
+      "module": "candidate-classifier.service",
+      "specifier": "./candidate-classifier.service"
+    },
+    {
+      "from": "src/services/website-search-ranker.service.ts",
+      "to": "src/services/entity-resolution.service.ts",
+      "module": "entity-resolution.service",
+      "specifier": "./entity-resolution.service"
+    },
+    {
+      "from": "src/services/website-search-ranker.service.ts",
+      "to": "src/services/telemetry.service.ts",
+      "module": "telemetry.service",
+      "specifier": "./telemetry.service"
+    },
+    {
+      "from": "src/services/website-search-ranker.service.ts",
+      "to": "src/services/url-filter.service.ts",
+      "module": "url-filter.service",
+      "specifier": "./url-filter.service"
+    },
+    {
+      "from": "src/services/website-search-ranker.service.ts",
+      "to": "src/services/website-relationship.service.ts",
+      "module": "website-relationship.service",
+      "specifier": "./website-relationship.service"
+    }
+  ],
+  "servicesToMastraImports": [
+    {
+      "from": "src/services/business-extractor.service.ts",
+      "to": "src/mastra/agents/research-agent/contact.schema.ts",
+      "specifier": "../mastra/agents/research-agent/contact.schema"
+    },
+    {
+      "from": "src/services/business-extractor.service.ts",
+      "to": "src/mastra/agents/research-agent/social.schema.ts",
+      "specifier": "../mastra/agents/research-agent/social.schema"
+    },
+    {
+      "from": "src/services/business-extractor.service.ts",
+      "to": "src/mastra/agents/research-agent/verification.schema.ts",
+      "specifier": "../mastra/agents/research-agent/verification.schema"
+    },
+    {
+      "from": "src/services/candidate-classifier.service.ts",
+      "to": "src/mastra/agents/research-agent/schema.ts",
+      "specifier": "../mastra/agents/research-agent/schema"
+    },
+    {
+      "from": "src/services/candidate-validation.service.ts",
+      "to": "src/mastra/agents/research-agent/schema.ts",
+      "specifier": "../mastra/agents/research-agent/schema"
+    },
+    {
+      "from": "src/services/entity-resolution.service.ts",
+      "to": "src/mastra/agents/research-agent/contact.schema.ts",
+      "specifier": "../mastra/agents/research-agent/contact.schema"
+    },
+    {
+      "from": "src/services/maps-discovery.service.ts",
+      "to": "src/mastra/agents/research-agent/schema.ts",
+      "specifier": "../mastra/agents/research-agent/schema"
+    },
+    {
+      "from": "src/services/mongo.service.ts",
+      "to": "src/mastra/workflows/research-workflow.ts",
+      "specifier": "../mastra/workflows/research-workflow"
+    },
+    {
+      "from": "src/services/research-candidate.service.ts",
+      "to": "src/mastra/agents/research-agent/schema.ts",
+      "specifier": "../mastra/agents/research-agent/schema"
+    },
+    {
+      "from": "src/services/verification.service.ts",
+      "to": "src/mastra/agents/research-agent/schema.ts",
+      "specifier": "../mastra/agents/research-agent/schema"
+    },
+    {
+      "from": "src/services/verification.service.ts",
+      "to": "src/mastra/agents/research-agent/verification.schema.ts",
+      "specifier": "../mastra/agents/research-agent/verification.schema"
+    },
+    {
+      "from": "src/services/website-relationship.service.ts",
+      "to": "src/mastra/agents/research-agent/verification.schema.ts",
+      "specifier": "../mastra/agents/research-agent/verification.schema"
+    }
+  ],
+  "mastraToServicesImports": [
+    {
+      "from": "src/mastra/Tools/broad-search.ts",
+      "to": "src/services/output-storage.service.ts",
+      "specifier": "../../services/output-storage.service"
+    },
+    {
+      "from": "src/mastra/Tools/broad-search.ts",
+      "to": "src/services/search-fallback.service.ts",
+      "specifier": "../../services/search-fallback.service"
+    },
+    {
+      "from": "src/mastra/Tools/deep-extract.ts",
+      "to": "src/services/output-storage.service.ts",
+      "specifier": "../../services/output-storage.service"
+    },
+    {
+      "from": "src/mastra/Tools/deep-extract.ts",
+      "to": "src/services/tavily-extract.service.ts",
+      "specifier": "../../services/tavily-extract.service"
+    },
+    {
+      "from": "src/mastra/Tools/google-maps-search.ts",
+      "to": "src/services/serper-places.service.ts",
+      "specifier": "../../services/serper-places.service"
+    },
+    {
+      "from": "src/mastra/agents/gemma-supervisor/config.ts",
+      "to": "src/services/db.service.ts",
+      "specifier": "../../../services/db.service"
+    },
+    {
+      "from": "src/mastra/agents/gemma-supervisor/config.ts",
+      "to": "src/services/openrouter.service.ts",
+      "specifier": "../../../services/openrouter.service"
+    },
+    {
+      "from": "src/mastra/agents/research-agent/schema.ts",
+      "to": "src/services/discovery-state.service.ts",
+      "specifier": "../../../services/discovery-state.service"
+    },
+    {
+      "from": "src/mastra/agents/research-agent/schema.ts",
+      "to": "src/services/search-fallback.service.ts",
+      "specifier": "../../../services/search-fallback.service"
+    },
+    {
+      "from": "src/mastra/agents/search-worker/config.ts",
+      "to": "src/services/db.service.ts",
+      "specifier": "../../../services/db.service"
+    },
+    {
+      "from": "src/mastra/agents/uno-supervisor/config.ts",
+      "to": "src/services/db.service.ts",
+      "specifier": "../../../services/db.service"
+    },
+    {
+      "from": "src/mastra/agents/uno-supervisor/config.ts",
+      "to": "src/services/unorouter.service.ts",
+      "specifier": "../../../services/unorouter.service"
+    },
+    {
+      "from": "src/mastra/index.ts",
+      "to": "src/services/db.service.ts",
+      "specifier": "../services/db.service"
+    },
+    {
+      "from": "src/mastra/workflows/research-workflow.ts",
+      "to": "src/services/business-extractor.service.ts",
+      "specifier": "../../services/business-extractor.service"
+    },
+    {
+      "from": "src/mastra/workflows/research-workflow.ts",
+      "to": "src/services/business-extractor.service.ts",
+      "specifier": "../../services/business-extractor.service"
+    },
+    {
+      "from": "src/mastra/workflows/research-workflow.ts",
+      "to": "src/services/candidate-classifier.service.ts",
+      "specifier": "../../services/candidate-classifier.service"
+    },
+    {
+      "from": "src/mastra/workflows/research-workflow.ts",
+      "to": "src/services/candidate-validation.service.ts",
+      "specifier": "../../services/candidate-validation.service"
+    },
+    {
+      "from": "src/mastra/workflows/research-workflow.ts",
+      "to": "src/services/confidence.service.ts",
+      "specifier": "../../services/confidence.service"
+    },
+    {
+      "from": "src/mastra/workflows/research-workflow.ts",
+      "to": "src/services/entity-resolution.service.ts",
+      "specifier": "../../services/entity-resolution.service"
+    },
+    {
+      "from": "src/mastra/workflows/research-workflow.ts",
+      "to": "src/services/entity-resolution.service.ts",
+      "specifier": "../../services/entity-resolution.service"
+    },
+    {
+      "from": "src/mastra/workflows/research-workflow.ts",
+      "to": "src/services/entity-resolution.service.ts",
+      "specifier": "../../services/entity-resolution.service"
+    },
+    {
+      "from": "src/mastra/workflows/research-workflow.ts",
+      "to": "src/services/geocoding.service.ts",
+      "specifier": "../../services/geocoding.service"
+    },
+    {
+      "from": "src/mastra/workflows/research-workflow.ts",
+      "to": "src/services/geographic-evaluator.service.ts",
+      "specifier": "../../services/geographic-evaluator.service"
+    },
+    {
+      "from": "src/mastra/workflows/research-workflow.ts",
+      "to": "src/services/maps-discovery.service.ts",
+      "specifier": "../../services/maps-discovery.service"
+    },
+    {
+      "from": "src/mastra/workflows/research-workflow.ts",
+      "to": "src/services/mongo.service.ts",
+      "specifier": "../../services/mongo.service"
+    },
+    {
+      "from": "src/mastra/workflows/research-workflow.ts",
+      "to": "src/services/output-storage.service.ts",
+      "specifier": "../../services/output-storage.service"
+    },
+    {
+      "from": "src/mastra/workflows/research-workflow.ts",
+      "to": "src/services/research-candidate.service.ts",
+      "specifier": "../../services/research-candidate.service"
+    },
+    {
+      "from": "src/mastra/workflows/research-workflow.ts",
+      "to": "src/services/search-fallback.service.ts",
+      "specifier": "../../services/search-fallback.service"
+    },
+    {
+      "from": "src/mastra/workflows/research-workflow.ts",
+      "to": "src/services/serper-places.service.ts",
+      "specifier": "../../services/serper-places.service"
+    },
+    {
+      "from": "src/mastra/workflows/research-workflow.ts",
+      "to": "src/services/tavily-extract.service.ts",
+      "specifier": "../../services/tavily-extract.service"
+    },
+    {
+      "from": "src/mastra/workflows/research-workflow.ts",
+      "to": "src/services/telemetry.service.ts",
+      "specifier": "../../services/telemetry.service"
+    },
+    {
+      "from": "src/mastra/workflows/research-workflow.ts",
+      "to": "src/services/url-filter.service.ts",
+      "specifier": "../../services/url-filter.service"
+    },
+    {
+      "from": "src/mastra/workflows/research-workflow.ts",
+      "to": "src/services/verification.service.ts",
+      "specifier": "../../services/verification.service"
+    },
+    {
+      "from": "src/mastra/workflows/research-workflow.ts",
+      "to": "src/services/website-discovery-gate.service.ts",
+      "specifier": "../../services/website-discovery-gate.service"
+    },
+    {
+      "from": "src/mastra/workflows/research-workflow.ts",
+      "to": "src/services/website-discovery.service.ts",
+      "specifier": "../../services/website-discovery.service"
+    },
+    {
+      "from": "src/mastra/workflows/research-workflow.ts",
+      "to": "src/services/website-search-ranker.service.ts",
+      "specifier": "../../services/website-search-ranker.service"
+    }
+  ],
+  "dynamicImportSites": [
+    {
+      "from": "src/mastra/workflows/research-workflow.ts",
+      "specifier": "../index",
+      "resolved": "src/mastra/index.ts"
+    },
+    {
+      "from": "src/services/entity-resolution.service.ts",
+      "specifier": "../config/geo-localities.config.js",
+      "resolved": "src/config/geo-localities.config.ts"
+    },
+    {
+      "from": "src/services/geographic-evaluator.service.ts",
+      "specifier": "./geocoding.service.js",
+      "resolved": "src/services/geocoding.service.ts"
+    }
+  ],
+  "unresolvedRelativeSpecifiers": [],
+  "externalSpecifiers": [
+    ", ",
+    "@mastra/core",
+    "@mastra/core/agent",
+    "@mastra/core/tools",
+    "@mastra/core/workflows",
+    "@mastra/libsql",
+    "@mastra/memory",
+    "@openrouter/ai-sdk-provider",
+    "ai",
+    "assert",
+    "branch_contact",
+    "crypto",
+    "dotenv/config",
+    "duck-duck-scrape",
+    "fs",
+    "mongodb",
+    "node:assert",
+    "node:child_process",
+    "node:crypto",
+    "node:fs",
+    "node:path",
+    "node:url",
+    "os",
+    "path",
+    "searched and not found",
+    "zod"
+  ],
+  "exportInventory": {
+    "target": "src/services/business-extractor.service.ts",
+    "counts": {
+      "const": 24,
+      "function": 37,
+      "interface": 7,
+      "type": 1
+    },
+    "entries": [
+      {
+        "name": "MEDIA_FILENAME_PATTERN",
+        "kind": "const",
+        "line": 72
+      },
+      {
+        "name": "MEDIA_DPR_PATTERN",
+        "kind": "const",
+        "line": 73
+      },
+      {
+        "name": "IMAGE_FILE_TLDS",
+        "kind": "const",
+        "line": 74
+      },
+      {
+        "name": "LANDLINE_OR_MOBILE_REGEX",
+        "kind": "const",
+        "line": 81
+      },
+      {
+        "name": "MOBILE_REGEX",
+        "kind": "const",
+        "line": 83
+      },
+      {
+        "name": "NEPAL_LANDLINE_REGEX",
+        "kind": "const",
+        "line": 84
+      },
+      {
+        "name": "INTERNATIONAL_REGEX",
+        "kind": "const",
+        "line": 85
+      },
+      {
+        "name": "LINKEDIN_COMPANY_REGEX",
+        "kind": "const",
+        "line": 98
+      },
+      {
+        "name": "LINKEDIN_PERSONAL_REGEX",
+        "kind": "const",
+        "line": 99
+      },
+      {
+        "name": "LINKEDIN_REGEX",
+        "kind": "const",
+        "line": 100
+      },
+      {
+        "name": "cleanTrailingPunctuation",
+        "kind": "function",
+        "line": 102
+      },
+      {
+        "name": "sanitizeEmailString",
+        "kind": "function",
+        "line": 112
+      },
+      {
+        "name": "sanitizePhoneString",
+        "kind": "function",
+        "line": 126
+      },
+      {
+        "name": "ClassifiedPhone",
+        "kind": "interface",
+        "line": 134
+      },
+      {
+        "name": "PhoneEvidence",
+        "kind": "interface",
+        "line": 146
+      },
+      {
+        "name": "formatPhoneDisplay",
+        "kind": "function",
+        "line": 192
+      },
+      {
+        "name": "classifyNepalPhone",
+        "kind": "function",
+        "line": 235
+      },
+      {
+        "name": "INDUSTRY_GENERIC_TOKENS",
+        "kind": "const",
+        "line": 439
+      },
+      {
+        "name": "UNIVERSAL_STOPWORDS",
+        "kind": "const",
+        "line": 471
+      },
+      {
+        "name": "NEPAL_LOCALITY_TOKENS",
+        "kind": "const",
+        "line": 482
+      },
+      {
+        "name": "CATEGORY_GENERIC_TOKENS",
+        "kind": "const",
+        "line": 495
+      },
+      {
+        "name": "CONFLICTING_VERTICAL_TOKENS",
+        "kind": "const",
+        "line": 554
+      },
+      {
+        "name": "resolveCategoryKey",
+        "kind": "function",
+        "line": 591
+      },
+      {
+        "name": "SCHEDULE_GARBAGE_PATTERNS",
+        "kind": "const",
+        "line": 655
+      },
+      {
+        "name": "FACEBOOK_NON_CANONICAL_SUBPATHS",
+        "kind": "const",
+        "line": 684
+      },
+      {
+        "name": "computeCanonicalSocialUrl",
+        "kind": "function",
+        "line": 702
+      },
+      {
+        "name": "PLATFORM_OFFICIAL_HANDLES",
+        "kind": "const",
+        "line": 774
+      },
+      {
+        "name": "KNOWN_VENDOR_SOCIAL_HANDLES",
+        "kind": "const",
+        "line": 787
+      },
+      {
+        "name": "isRealSocialProfile",
+        "kind": "function",
+        "line": 797
+      },
+      {
+        "name": "classifySocialProfile",
+        "kind": "function",
+        "line": 867
+      },
+      {
+        "name": "isBusinessOwnedSocialProfile",
+        "kind": "function",
+        "line": 1586
+      },
+      {
+        "name": "classifyAllSocialProfiles",
+        "kind": "function",
+        "line": 1604
+      },
+      {
+        "name": "stripVendorAttribution",
+        "kind": "function",
+        "line": 1649
+      },
+      {
+        "name": "extractEmails",
+        "kind": "function",
+        "line": 1772
+      },
+      {
+        "name": "PLATFORM_DOMAINS",
+        "kind": "const",
+        "line": 1822
+      },
+      {
+        "name": "BUSINESS_EMAIL_PREFIXES",
+        "kind": "const",
+        "line": 1828
+      },
+      {
+        "name": "CONSUMER_EMAIL_DOMAINS",
+        "kind": "const",
+        "line": 1838
+      },
+      {
+        "name": "extractContextAroundMatch",
+        "kind": "function",
+        "line": 1847
+      },
+      {
+        "name": "classifyEmailRole",
+        "kind": "function",
+        "line": 1874
+      },
+      {
+        "name": "PageType",
+        "kind": "type",
+        "line": 1994
+      },
+      {
+        "name": "classifyPageType",
+        "kind": "function",
+        "line": 1999
+      },
+      {
+        "name": "OWNER_LEADERSHIP_TITLES",
+        "kind": "const",
+        "line": 2037
+      },
+      {
+        "name": "STAFF_TITLES",
+        "kind": "const",
+        "line": 2055
+      },
+      {
+        "name": "ContactSignalSnapshot",
+        "kind": "interface",
+        "line": 2095
+      },
+      {
+        "name": "evaluateContactRoleMatrix",
+        "kind": "function",
+        "line": 2109
+      },
+      {
+        "name": "PhoneRoleClassificationResult",
+        "kind": "interface",
+        "line": 2161
+      },
+      {
+        "name": "classifyPhoneRole",
+        "kind": "function",
+        "line": 2180
+      },
+      {
+        "name": "detectTemplateContent",
+        "kind": "function",
+        "line": 2319
+      },
+      {
+        "name": "expandSlashExtensions",
+        "kind": "function",
+        "line": 2417
+      },
+      {
+        "name": "extractPhones",
+        "kind": "function",
+        "line": 2475
+      },
+      {
+        "name": "extractMobiles",
+        "kind": "function",
+        "line": 2533
+      },
+      {
+        "name": "extractLandlines",
+        "kind": "function",
+        "line": 2555
+      },
+      {
+        "name": "extractLandlinesAndIntl",
+        "kind": "function",
+        "line": 2599
+      },
+      {
+        "name": "ExtractedSocialLinks",
+        "kind": "interface",
+        "line": 2703
+      },
+      {
+        "name": "extractSocialLinks",
+        "kind": "function",
+        "line": 2715
+      },
+      {
+        "name": "extractFaviconFromHtml",
+        "kind": "function",
+        "line": 2771
+      },
+      {
+        "name": "extractFavicon",
+        "kind": "function",
+        "line": 2789
+      },
+      {
+        "name": "extractBusinessInfo",
+        "kind": "function",
+        "line": 2802
+      },
+      {
+        "name": "ExtractedPageBusinessName",
+        "kind": "interface",
+        "line": 2852
+      },
+      {
+        "name": "extractPageBusinessName",
+        "kind": "function",
+        "line": 2861
+      },
+      {
+        "name": "getLlmMultiBusinessCallCount",
+        "kind": "function",
+        "line": 2951
+      },
+      {
+        "name": "resetLlmMultiBusinessCallCount",
+        "kind": "function",
+        "line": 2955
+      },
+      {
+        "name": "detectMultiBusinessPage",
+        "kind": "function",
+        "line": 2987
+      },
+      {
+        "name": "detectMultiBusinessPageWithLlmFallback",
+        "kind": "function",
+        "line": 3076
+      },
+      {
+        "name": "cleanBranchAddress",
+        "kind": "function",
+        "line": 3131
+      },
+      {
+        "name": "StructuredBranchBlock",
+        "kind": "interface",
+        "line": 3185
+      },
+      {
+        "name": "extractStructuredBranchBlocks",
+        "kind": "function",
+        "line": 3217
+      },
+      {
+        "name": "extractAllFromPages",
+        "kind": "function",
+        "line": 3323
+      },
+      {
+        "name": "deduplicateClassifiedContacts",
+        "kind": "function",
+        "line": 3534
+      }
+    ]
+  }
+}
