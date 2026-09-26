@@ -10,10 +10,18 @@ dist
 output/
 
 # Tests & Scripts
-scripts/
+# NOTE: scripts/ itself is intentionally NOT ignored anymore. Phase 1 tracks the
+# golden replay harness via scripts/fixtures/golden/**, while top-level live
+# scripts stay untracked. (`fixtures/` below matches only the repo root because
+# every pattern here containing a slash is anchored.)
+scripts/probe-*.ts
+scripts/run-*.ts
+scripts/seed-*.ts
+scripts/test-*.ts
+scripts/fixtures/*
+!scripts/fixtures/golden/
 tests/
 test/
 __tests__/
 *.test.*
 *.spec.*
-fixtures/

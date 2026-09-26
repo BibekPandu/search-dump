@@ -1,0 +1,33 @@
+{
+  "generatedAt": "2026-09-26T13:19:59.663Z",
+  "sources": [
+    {
+      "file": "output/history/2026-09-25T11-49-07-627Z-consultancy/2b-verified-evidence.json",
+      "sha256": "c92fe0cdfd1f1cc097e0f0bfb6d810aa2e244a4e910812fae2b0671f8d5a7364",
+      "bytes": 26677493
+    },
+    {
+      "file": "output/history/2026-09-25T11-49-07-627Z-consultancy/3-final-listings.json",
+      "sha256": "77817ac4af468d1c07b64c34ed79b67e9c55a02024bb1832f26626e5bcbddf76",
+      "bytes": 261518
+    },
+    {
+      "file": "output/history/2026-09-25T11-49-07-627Z-consultancy/0-research-candidates.json",
+      "sha256": "412e2a364b39ebce521441f4c8e4c7467b689d0605b7883f6a49d087d9f68d26",
+      "bytes": 113191
+    },
+    {
+      "file": "output/history/2026-09-25T07-48-18-469Z-consultancy/1-broad-search.json",
+      "sha256": "169a46e56fb469f175d3ed7777eef62b539cacaf7c15a150758dc598fb5885d5",
+      "bytes": 5603
+    }
+  ],
+  "copied": [
+    {
+      "from": "scripts/fixtures/royal-cleaning-fixture.json",
+      "to": "scripts/fixtures/golden/input/royal-cleaning-fixture.json",
+      "sha256": "51cffedef5162eadafd263c6ccf63edb71d432a04b44d7f1c9f2ca4a6bb66c99",
+      "bytes": 2177
+    }
+  ]
+}

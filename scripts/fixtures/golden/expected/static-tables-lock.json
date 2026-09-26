@@ -1,0 +1,103 @@
+{
+  "capturedAt": "2026-09-26T13:22:16.649Z",
+  "tables": [
+    {
+      "id": "NEPAL_COUNTRY_CODE",
+      "sourceFile": "src/config/nepal-telecom.config.ts",
+      "sourceSha256": "1a1e3075903e90916c37bc851caedfede73cdb0fd34ddad986f99a5e788c5503",
+      "tableSha256": "cb202b9224c6ac9bc2ce667a5f50ce649fcdb1bdc4f12221fdb620c182bebc36",
+      "size": 3
+    },
+    {
+      "id": "NTA_MOBILE_PREFIXES",
+      "sourceFile": "src/config/nepal-telecom.config.ts",
+      "sourceSha256": "1a1e3075903e90916c37bc851caedfede73cdb0fd34ddad986f99a5e788c5503",
+      "tableSha256": "8513026af913e81648881284d770743d510d0f0f1962b74055101b9dfd817f03",
+      "size": 14
+    },
+    {
+      "id": "NTA_LANDLINE_AREA_CODES",
+      "sourceFile": "src/config/nepal-telecom.config.ts",
+      "sourceSha256": "1a1e3075903e90916c37bc851caedfede73cdb0fd34ddad986f99a5e788c5503",
+      "tableSha256": "1ee11aed7c089f1dc157a7dd4628de223a0e9812a2aa4a70104cbedebb024fbc",
+      "size": 37
+    },
+    {
+      "id": "REGISTERED_LOCALITY_CLUSTERS",
+      "sourceFile": "src/config/geo-localities.config.ts",
+      "sourceSha256": "d840b7128e44dc1591c0365fa5755bba3ef77fefbe46b1f68fec24e3161188e9",
+      "tableSha256": "cecd41f6f5942c93d6e20e8b8f193dfae6091d0ed44638b2e7aa944b955eb380",
+      "size": 18
+    },
+    {
+      "id": "DOCUMENT_PLATFORM_DOMAINS",
+      "sourceFile": "src/config/directory-domains.config.ts",
+      "sourceSha256": "6458b367c14012d5a4f7013f67acb02058c9d32ea3bfe7031be815e8dd7eafa5",
+      "tableSha256": "813aa0908ee32114861a6016f25cc7ef50996e97c5edd96e91bc9d6f859d8f50",
+      "size": 9
+    },
+    {
+      "id": "EXTRA_DIRECTORY_DOMAINS",
+      "sourceFile": "src/config/directory-domains.config.ts",
+      "sourceSha256": "6458b367c14012d5a4f7013f67acb02058c9d32ea3bfe7031be815e8dd7eafa5",
+      "tableSha256": "3bb6bf82dffdf6aa5311426d288353c6dea183d6b81b86d247c607c618523526",
+      "size": 4
+    },
+    {
+      "id": "SHARED_DIRECTORY_DOMAINS",
+      "sourceFile": "src/config/directory-domains.config.ts",
+      "sourceSha256": "6458b367c14012d5a4f7013f67acb02058c9d32ea3bfe7031be815e8dd7eafa5",
+      "tableSha256": "5b3f9e883e9ab918a7832bee3279cc2de79eff4ff005271c23cbe7d923e35a9d",
+      "size": 92
+    },
+    {
+      "id": "CATEGORY_EXPANSION_POLICIES",
+      "sourceFile": "src/config/category-expansion.config.ts",
+      "sourceSha256": "1eeecf19d701b341d30fc27ddc741b90ac6614582402ac43dbbd8636182715d1",
+      "tableSha256": "1bb09595a2fd501dd1b170d87dedbd7d2c8390e0fddd68f357edf9f34d6b529d",
+      "size": 1
+    },
+    {
+      "id": "CATEGORY_STEM_MAPPINGS",
+      "sourceFile": "src/config/category-expansion.config.ts",
+      "sourceSha256": "1eeecf19d701b341d30fc27ddc741b90ac6614582402ac43dbbd8636182715d1",
+      "tableSha256": "1e4b048094bcc4f1c873ec7a8915ed18372e479b5f364a894f853f90ffeda845",
+      "size": 1
+    },
+    {
+      "id": "BROAD_QUERY_PATTERNS",
+      "sourceFile": "src/config/category-expansion.config.ts",
+      "sourceSha256": "1eeecf19d701b341d30fc27ddc741b90ac6614582402ac43dbbd8636182715d1",
+      "tableSha256": "508fef426e44ebcf391d826a923e234837f7ffdb9e70ba4eba5eb611ed26a695",
+      "size": 1
+    },
+    {
+      "id": "UNIVERSAL_STOPWORDS",
+      "sourceFile": "src/services/business-extractor.service.ts",
+      "sourceSha256": "89cacc4806d6b77ae06de1d56d5b0830a199a49607e8a9ffcd5115caa9c44dde",
+      "tableSha256": "cb7e0aa132e8cd9912aa30028a0b03800ac14f017ea361353cd8cd6d919be577",
+      "size": 24
+    },
+    {
+      "id": "INDUSTRY_GENERIC_TOKENS",
+      "sourceFile": "src/services/business-extractor.service.ts",
+      "sourceSha256": "89cacc4806d6b77ae06de1d56d5b0830a199a49607e8a9ffcd5115caa9c44dde",
+      "tableSha256": "0cce001cf1cae18703164a3604c815a2750d7e738d1f4c99108150029f3d9e06",
+      "size": 164
+    },
+    {
+      "id": "NEPAL_LOCALITY_TOKENS",
+      "sourceFile": "src/services/business-extractor.service.ts",
+      "sourceSha256": "89cacc4806d6b77ae06de1d56d5b0830a199a49607e8a9ffcd5115caa9c44dde",
+      "tableSha256": "d981aeb39f9ecf3ab1cb5887aaf9620dc14eb01abc4a4a2254787978dfc10c82",
+      "size": 30
+    },
+    {
+      "id": "CATEGORY_GENERIC_TOKENS",
+      "sourceFile": "src/services/business-extractor.service.ts",
+      "sourceSha256": "89cacc4806d6b77ae06de1d56d5b0830a199a49607e8a9ffcd5115caa9c44dde",
+      "tableSha256": "450f68656d405742338f1c3fbfd554ca3175fdc83a125dd001dbe6695a61bc50",
+      "size": 13
+    }
+  ]
+}
