@@ -6,7 +6,7 @@ The engine discovers authentic local businesses by fusing Google Maps Places wit
 
 ---
 
-##  System Architecture
+## System Architecture
 
 ```
                                ┌──────────────────────────────────────────┐
@@ -23,10 +23,10 @@ The engine discovers authentic local businesses by fusing Google Maps Places wit
                │    • Captures: Title, address, phone, GPS, rating, placeId       │
                │                                                                  │
                │ 2. Dynamic Geocoding & Boundary Gate (geographic-evaluator)      │
-               │    • extractCanonicalLocality: Strips trailing district qualifiers│
+               │    • extractCanonicalLocality:Strips trailing district qualifiers│
                │    • Dynamic OSM Nominatim geocoding with clamped radius formula │
                │      R = min(max(bboxRadius * 1.25, 2.0km), 8.0km)               │
-               │    • Static registry fallback with ward aliasing (Satungal-11..13)│
+               │    • Static registry fallback with ward aliasing(Satungal-11..13)│
                │    • Strict exclusion of out-of-boundary Places                  │
                │                                                                  │
                │ 3. Yield-Protecting Overfetch Buffer (W2-08)                     │
@@ -36,7 +36,7 @@ The engine discovers authentic local businesses by fusing Google Maps Places wit
                │                                                                  │
                │ 4. Universal Website Discovery Gate (website-discovery-gate)     │
                │    • Evaluates all Maps candidates lacking websites              │
-               │    • Zero-HTTP Token Ranker: First-party match vs directory block │
+               │    • Zero-HTTP Token Ranker:First-party match vs directory block │
                │    • Multi-tenant template detection (/service/{slug}, etc.)     │
                │    • Phone Attribution Guard: Snippet phones from own domain only│
                │                                                                  │
@@ -63,7 +63,7 @@ The engine discovers authentic local businesses by fusing Google Maps Places wit
                │ 4. Raw HTML Safety Net: Native fast fetch for icon-only socials, │
                │    tel:, mailto: links stripped by markdown parsers              │
                │ 5. AJAX / Componentized Footer Recovery (/footer.html)           │
-               │ 6. Address Re-check: Revalidates extracted addresses against geo│
+               │ 6. Address Re-check:  Revalidates extracted addresses against geo│
                │                                                                  │
                │ Verified Evidence Builder (verification.service.ts)              │
                │ • Extracts Phones, Mobiles, Emails, Social Links, Favicons       │
@@ -103,7 +103,7 @@ The engine discovers authentic local businesses by fusing Google Maps Places wit
 
 ---
 
-##  Core Engine Capabilities
+## Core Engine Capabilities
 
 ### 1. Maps-First Discovery & Dynamic Geocoding
 - **Google Maps Ingestion**: Queries Serper `/places` for authoritative business listings, ratings, and GPS coordinates.
@@ -156,7 +156,7 @@ The engine discovers authentic local businesses by fusing Google Maps Places wit
 
 ---
 
-##  Storage, Cache Lookup & Run History
+## Storage, Cache Lookup & Run History
 
 MongoDB is an **optional** persistence layer. With `MONGODB_URI` unset the engine behaves exactly
 as before (a full run every time) and nothing throws.
@@ -212,52 +212,80 @@ an unchanged `firstSeenAt`, and an incremented `runCount`.
 
 ---
 
-##  Repository Structure
+## Repository Structure
 
 ```
 searchDump/
-├── .cache/
-│   ├── geocoding/                   # Persistent OSM Nominatim geocoding cache
-│   └── search-results.json          # 7-day shared disk cache (Maps + Web + Tavily)
-├── output/
-│   ├── latest/                      # Most recent run (overwritten each execution)
-│   │   ├── businesses.json          # Verified BusinessListing[] ready for consumption
-│   │   └── summary-report.json      # Run KPIs and execution telemetry
-│   └── history/                     # Permanent timestamped run archives
-│       └── <timestamp>-<slug>/      # Complete audit trail (Stage 0, 1, 2, 3 artifacts)
+├── .cache/                             # Local-only (gitignored)
+│   ├── geocoding/                      # Persistent OSM Nominatim geocoding cache
+│   └── search-results.json             # 7-day shared disk cache (Maps + Web + Tavily)
+├── output/                             # Local-only (gitignored)
+│   ├── latest/                         # Most recent run (overwritten each execution)
+│   │   ├── businesses.json             # Verified BusinessListing[] ready for consumption
+│   │   └── summary-report.json         # Run KPIs, cache status and execution telemetry
+│   └── history/                        # Permanent timestamped run archives
+│       └── <timestamp>-<slug>/         # Complete audit trail (stage 0-3 artifacts)
 ├── src/
-│   ├── config/
-│   │   ├── geo-localities.config.ts    # OSM centroids & ward-level geographic boundaries
-│   │   ├── nepal-telecom.config.ts     # Authoritative NTA mobile & landline prefix tables
-│   │   └── website-discovery.config.ts # Discovery budget policy (production vs benchmark)
-│   ├── services/
-│   │   ├── business-extractor.service.ts   # Phone/email/social normalization & contact role matrix
-│   │   ├── candidate-classifier.service.ts # Fast regex candidate filter & directory blocklist
-│   │   ├── candidate-validation.service.ts # Country and geographic candidate validation
-│   │   ├── confidence.service.ts           # Multi-dimensional deterministic confidence model
-│   │   ├── discovery-state.service.ts      # Canonical DiscoveryState enum & schemas
-│   │   ├── entity-resolution.service.ts    # Phone/Domain/Jaccard entity matching cascade
-│   │   ├── geocoding.service.ts            # Dynamic OSM Nominatim geocoder & query normalizer
-│   │   ├── geographic-evaluator.service.ts # Ward alias & Haversine distance boundary gate
-│   │   ├── maps-discovery.service.ts       # Google Maps Places pagination & safeguards
-│   │   ├── output-storage.service.ts       # Dual-write output storage & session management
-│   │   ├── research-candidate.service.ts   # Candidate pool builder & state preservation
-│   │   ├── search-fallback.service.ts      # Serper to DuckDuckGo search fallback
-│   │   ├── tavily-extract.service.ts       # Tavily Extract client with disk caching
-│   │   ├── verification.service.ts         # Verified business evidence builder
-│   │   ├── website-discovery-gate.service.ts  # Universal evaluation gate & audit telemetry
-│   │   ├── website-relationship.service.ts # Website relationship & cascade rejection classifier
-│   │   └── website-search-ranker.service.ts   # Zero-HTTP token ranker & penalty model
+│   ├── types/                          # Domain contracts (12 files) — zero runtime deps
+│   │   ├── business-listing.ts         # BusinessListing schema + type
+│   │   ├── research-candidate.ts       # Candidate / decision contracts
+│   │   ├── verification.ts             # Verified evidence + confidence breakdown
+│   │   └── runs.ts                     # Run record / cache passthrough types
+│   ├── config/                         # Pure policy modules (8 files, no I/O)
+│   │   ├── geo-localities.config.ts    # OSM centroids & ward-level boundaries
+│   │   ├── nepal-telecom.config.ts     # Authoritative NTA mobile/landline tables
+│   │   ├── website-discovery.config.ts # Discovery budget (production vs benchmark)
+│   │   ├── freshness.config.ts         # Cache freshness windows per category
+│   │   ├── directory-domains.config.ts # Shared directory/aggregator blocklist
+│   │   └── token-vocabulary.config.ts  # Category/industry/locality token vocabularies
+│   ├── lib/                            # Pure utilities (cycle-free leaf modules)
+│   │   └── geo-distance.ts             # Haversine math shared by geocoding + evaluator
+│   ├── services/                       # Engine (5 domain layers + compat shims)
+│   │   ├── external/                   # Network edge: Serper, Tavily, OpenRouter, UnoRouter
+│   │   ├── discovery/                  # Maps/web search, website gate, ranker, workflow discovery
+│   │   ├── extraction/                 # Phone/email/social/branch/page extractors
+│   │   ├── resolution/                 # Geocoding, geography, entity dedup, verification
+│   │   ├── storage/                    # MongoDB, output storage, cache, LibSQL, ledger
+│   │   └── *.service.ts                # Thin re-export shims (backward compatibility)
 │   └── mastra/
-│       ├── index.ts                        # Mastra configuration & registered workflows
-│       ├── agents/                         # Supervisor agents & schema definitions
-│       ├── Tools/                          # Mastra execution tools (Maps, Search, Extract)
+│       ├── index.ts                    # Mastra registration (agents + workflow + storage)
+│       ├── agents/                     # search-worker, gemma/uno supervisors + schemas
+│       ├── tools/                      # broad-search, deep-extract, google-maps-search
 │       └── workflows/
-│           └── research-workflow.ts        # Core 4-stage business research workflow
-├── .env.example
-├── cspell.json
-├── package.json
-└── tsconfig.json
+│           ├── research-workflow.ts    # Core 4-step workflow (incl. M1 cache guard)
+│           └── research-prompts.ts     # Supervisor prompt builders
+├── scripts/
+│   ├── test-*.ts                       # 17 core suites tracked; 14 phase suites local-only
+│   ├── run-*.ts / seed-*.ts / probe-*.ts  # Benchmarks & utilities (local-only)
+│   └── fixtures/golden/                # Offline behavior-proof harness (tracked)
+├── .env.example                        # Environment template (no secrets)
+├── cspell.json                         # Spell-check dictionary (~930 domain terms)
+├── package.json                        # Scripts, dependencies
+└── tsconfig.json                       # Strict TS + `@/*` path aliases
+```
+
+---
+
+## Testing & Quality Gates
+
+Two test tiers — 17 core suites are tracked in git, 14 phase-specific suites exist
+locally only (run them with `test:full` or directly):
+
+| Command | Scope | Use when |
+|---|---|---|
+| `npm test` | **17 core suites** — ranker, discovery gate/budget, social/contact matching, geography, entity sweeps, MongoDB storage, M2 suites | Default fast loop |
+| `npm run test:full` | **All 31 suites** — core + phase 7c/8d-8o defect regression suites | Before every commit or push |
+
+Release gates (all must pass before merge):
+
+```bash
+npm run typecheck                 # tsc strict, 0 errors
+npm run spellcheck                # cspell, 0 issues
+npm test                          # 17/17 core suites
+npm run test:full                 # 31/31 full regression (local suites)
+npx tsx scripts/fixtures/golden/replay-golden.ts       # offline replay, 0 drift
+npx tsx scripts/fixtures/golden/check-shim-exports.ts  # shim reference identity
+npx madge --circular --extensions ts --ts-config tsconfig.json src   # 0 cycles
 ```
 
 ---
@@ -421,6 +449,6 @@ Notes:
 - Sparse localities (e.g. residential Satungal) may honestly return `[]` or few listings — that is data sparsity, not a pipeline defect. Run defect-hunting sweeps at denser localities (Thamel, Baneshwor, Lazimpat) when you need real candidates.
 
 ---
-##  License
+## License
 
 ISC License. Built for agentic business research and extraction.

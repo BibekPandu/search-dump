@@ -5,7 +5,7 @@ import {
   findRegisteredLocalityCluster,
   normalizeLocalityString,
 } from '@/config/geo-localities.config.js';
-import { calculateHaversineDistanceKm } from '@/services/resolution/geographic-evaluator.service';
+import { calculateHaversineDistanceKm } from '@/lib/geo-distance';
 
 export interface NominatimGeocodeResult {
   place_id: number;

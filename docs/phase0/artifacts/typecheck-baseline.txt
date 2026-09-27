@@ -1,5 +1,0 @@
-
-> searchdump@1.0.0 typecheck
-> tsc -p tsconfig.json
-
-TYPECHECK_EXIT=0

@@ -5,6 +5,12 @@ import {
   REGISTERED_LOCALITY_CLUSTERS,
 } from '@/config/geo-localities.config.js';
 import { incrementTelemetry } from '@/services/telemetry.service';
+import { calculateHaversineDistanceKm } from '@/lib/geo-distance';
+
+// Re-exported for backward compatibility: entity-resolution and the phase8a
+// suite import it from this module path. The canonical implementation lives in
+// the cycle-free leaf module `@/lib/geo-distance`.
+export { calculateHaversineDistanceKm };
 
 export type GeographicStatus = 'inside' | 'outside' | 'ambiguous';
 
@@ -70,28 +76,6 @@ export function isStreetNameOccurrence(text: string, localityToken: string): boo
   }
 
   return totalOccurrences > 0 && streetOccurrences === totalOccurrences;
-}
-
-/**
- * Calculates Great-Circle distance between two GPS coordinates in kilometers using Haversine formula.
- */
-export function calculateHaversineDistanceKm(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number
-): number {
-  const R = 6371; // Earth radius in km
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return Math.round(R * c * 100) / 100;
 }
 
 /**
