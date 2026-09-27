@@ -21,9 +21,11 @@ console.error = (...args: any[]) => {
 
 import { Mastra } from '@mastra/core';
 import { createMemoryStorage } from '@/services/storage/db.service';
-import { searchWorkerAgent } from './agents/search-worker/config';
-import { gemmaSupervisorAgent } from './agents/gemma-supervisor/config';
-import { unoSupervisorAgent } from './agents/uno-supervisor/config';
+import {
+  searchWorkerAgent,
+  gemmaSupervisorAgent,
+  unoSupervisorAgent,
+} from '@/mastra/agents';
 import { researchWorkflow } from './workflows/research-workflow';
 
 const storage = createMemoryStorage('mastra-storage');
