@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-26T16:00:46.004Z",
+  "generatedAt": "2026-09-27T10:47:50.913Z",
   "target": "src/services/business-extractor.service.ts",
   "totalLines": 3702,
   "declarationCount": 98,
@@ -85,7 +85,7 @@
       "isExported": true,
       "isAsync": false,
       "startLine": 74,
-      "endLine": 80,
+      "endLine": 76,
       "mutable": true,
       "refs": []
     },
@@ -302,7 +302,7 @@
       "isExported": false,
       "isAsync": false,
       "startLine": 370,
-      "endLine": 405,
+      "endLine": 404,
       "mutable": true,
       "refs": []
     },
@@ -312,7 +312,7 @@
       "isExported": false,
       "isAsync": false,
       "startLine": 406,
-      "endLine": 422,
+      "endLine": 421,
       "mutable": true,
       "refs": []
     },
@@ -322,7 +322,7 @@
       "isExported": false,
       "isAsync": false,
       "startLine": 423,
-      "endLine": 438,
+      "endLine": 434,
       "mutable": true,
       "refs": []
     },
@@ -332,7 +332,7 @@
       "isExported": true,
       "isAsync": false,
       "startLine": 439,
-      "endLine": 470,
+      "endLine": 466,
       "mutable": true,
       "refs": []
     },
@@ -342,7 +342,7 @@
       "isExported": true,
       "isAsync": false,
       "startLine": 471,
-      "endLine": 481,
+      "endLine": 477,
       "mutable": true,
       "refs": []
     },
@@ -352,11 +352,9 @@
       "isExported": true,
       "isAsync": false,
       "startLine": 482,
-      "endLine": 494,
+      "endLine": 487,
       "mutable": true,
-      "refs": [
-        "UNIVERSAL_STOPWORDS"
-      ]
+      "refs": []
     },
     {
       "name": "CATEGORY_GENERIC_TOKENS",
@@ -424,7 +422,7 @@
       "isExported": true,
       "isAsync": false,
       "startLine": 684,
-      "endLine": 701,
+      "endLine": 697,
       "mutable": true,
       "refs": []
     },
@@ -446,7 +444,7 @@
       "isExported": true,
       "isAsync": false,
       "startLine": 774,
-      "endLine": 786,
+      "endLine": 781,
       "mutable": true,
       "refs": []
     },
@@ -456,7 +454,7 @@
       "isExported": true,
       "isAsync": false,
       "startLine": 787,
-      "endLine": 796,
+      "endLine": 795,
       "mutable": true,
       "refs": []
     },
@@ -601,7 +599,7 @@
       "isExported": true,
       "isAsync": false,
       "startLine": 1822,
-      "endLine": 1827,
+      "endLine": 1826,
       "mutable": true,
       "refs": []
     },
@@ -611,7 +609,7 @@
       "isExported": true,
       "isAsync": false,
       "startLine": 1828,
-      "endLine": 1837,
+      "endLine": 1836,
       "mutable": true,
       "refs": []
     },
@@ -621,7 +619,7 @@
       "isExported": true,
       "isAsync": false,
       "startLine": 1838,
-      "endLine": 1846,
+      "endLine": 1841,
       "mutable": true,
       "refs": []
     },
@@ -711,7 +709,7 @@
       "isExported": true,
       "isAsync": false,
       "startLine": 2109,
-      "endLine": 2112,
+      "endLine": 2159,
       "mutable": false,
       "refs": [
         "ContactSignalSnapshot"
@@ -761,7 +759,7 @@
       "isExported": false,
       "isAsync": false,
       "startLine": 2360,
-      "endLine": 2406,
+      "endLine": 2416,
       "mutable": false,
       "refs": [
         "TEL_PROTECT_REGEX",
@@ -958,7 +956,7 @@
       "isExported": true,
       "isAsync": false,
       "startLine": 2802,
-      "endLine": 2805,
+      "endLine": 2830,
       "mutable": false,
       "refs": []
     },
@@ -1035,7 +1033,7 @@
       "isExported": false,
       "isAsync": false,
       "startLine": 2959,
-      "endLine": 2979,
+      "endLine": 2978,
       "mutable": true,
       "refs": []
     },
@@ -1083,7 +1081,7 @@
       "isExported": true,
       "isAsync": false,
       "startLine": 3131,
-      "endLine": 3183,
+      "endLine": 3184,
       "mutable": false,
       "refs": []
     },
@@ -1186,12 +1184,6 @@
         "sanitizePhoneString",
         "ClassifiedPhone",
         "formatPhoneDisplay"
-      ]
-    },
-    {
-      "from": "NEPAL_LOCALITY_TOKENS",
-      "to": [
-        "UNIVERSAL_STOPWORDS"
       ]
     },
     {

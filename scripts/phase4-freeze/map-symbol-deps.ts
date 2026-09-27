@@ -26,7 +26,6 @@ const OUT = path.join(ROOT, 'docs', 'phase0', 'artifacts', 'phase4-symbol-deps.j
 const lines = fs.readFileSync(TARGET, 'utf8').split(/\r?\n/);
 
 const HEADER = /^(?:export\s+)?(?:declare\s+)?(?:async\s+)?(function|const|let|var|class|interface|type|enum)\s+([A-Za-z_$][\w$]*)/;
-const CLOSER = /^\}|\];$|^\];$|^\}\);$|^\}\);?$|^\};?$|^\}\)[\];,]?$/;
 const MUTABLE_CONTAINER = /^(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?::[^=]*)?=\s*(new\s+(?:Set|Map)\b|\[|\{)/;
 
 interface Decl {
@@ -62,12 +61,85 @@ lines.forEach((text, i) => {
 });
 
 /** Locate the line that closes a top-level declaration body. */
-function findEnd(startIdx: number, nextHeaderLine: number): number {
-  for (let i = startIdx + 1; i < nextHeaderLine - 1; i += 1) {
-    const t = lines[i];
-    if (t.length === 0) continue;
-    if (t.startsWith(' ') || t.startsWith('\t') || t.startsWith('*') || t.startsWith('//')) continue;
-    if (CLOSER.test(t)) return i + 1;
+function findEnd(startLine: number, nextHeaderLine: number): number {
+  let openBraces = 0;
+  let openParens = 0;
+  let openBrackets = 0;
+  let inString: string | null = null;
+  let inRegex = false;
+  let inBlockComment = false;
+  let sawOpen = false;
+  let lastNonWs = '';
+
+  for (let lineNum = startLine; lineNum < nextHeaderLine; lineNum++) {
+    const line = lines[lineNum - 1];
+    for (let col = 0; col < line.length; col++) {
+      const ch = line[col];
+      const nextCh = line[col + 1];
+
+      if (inBlockComment) {
+        if (ch === '*' && nextCh === '/') {
+          inBlockComment = false;
+          col++;
+        }
+        continue;
+      }
+      if (inString) {
+        if (ch === '\\') {
+          col++;
+        } else if (ch === inString) {
+          inString = null;
+        }
+        continue;
+      }
+      if (inRegex) {
+        if (ch === '\\') {
+          col++;
+        } else if (ch === '/') {
+          inRegex = false;
+          lastNonWs = '/';
+        }
+        continue;
+      }
+
+      if (ch === '/' && nextCh === '/') {
+        break;
+      }
+      if (ch === '/' && nextCh === '*') {
+        inBlockComment = true;
+        col++;
+        continue;
+      }
+
+      if (ch === "'" || ch === '"' || ch === '`') {
+        inString = ch;
+        lastNonWs = ch;
+        continue;
+      }
+
+      if (ch === '/') {
+        const isRegexStart = /^[=(:,\[!&|?~;]/.test(lastNonWs) || lastNonWs === '' || /(?:return|case|typeof)$/.test(line.slice(0, col).trim());
+        if (isRegexStart) {
+          inRegex = true;
+          continue;
+        }
+      }
+
+      if (ch === '{') { openBraces++; sawOpen = true; }
+      else if (ch === '}') { openBraces--; }
+      else if (ch === '(') { openParens++; sawOpen = true; }
+      else if (ch === ')') { openParens--; }
+      else if (ch === '[') { openBrackets++; sawOpen = true; }
+      else if (ch === ']') { openBrackets--; }
+
+      if (!/\s/.test(ch)) {
+        lastNonWs = ch;
+      }
+    }
+
+    if (sawOpen && openBraces === 0 && openParens === 0 && openBrackets === 0) {
+      return lineNum;
+    }
   }
   return nextHeaderLine - 1;
 }
