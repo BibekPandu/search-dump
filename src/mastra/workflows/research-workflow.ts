@@ -3352,43 +3352,11 @@ export function normalizeListingPhones(listing: z.infer<typeof businessListingSc
 import { buildSupervisorPrompt } from './research-prompts';
 export { buildSupervisorPrompt };
 
-function buildCandidateLedgerId(candidate: UnifiedSearchResult): string {
-  const placeId = (candidate as any).placeId;
-  if (typeof placeId === 'string' && placeId.trim()) return `maps:${placeId.trim()}`;
-
-  const domain = candidate.domain && !candidate.domain.includes('google.com')
-    ? domainFromUrlOrHost(candidate.domain)
-    : '';
-  const name = normalizeNameKey(candidate.title || 'unknown');
-  const phone = normalizePhoneDigits(candidate.phoneNumber || '');
-  const identity = [domain, name, phone].filter(Boolean).join('|');
-  return `candidate:${identity || normalizeUrl(candidate.url)}`;
-}
-
-function candidateMatchesListing(
-  candidate: UnifiedSearchResult,
-  listing: z.infer<typeof businessListingSchema>
-): boolean {
-  const candidateDomain = candidate.domain && !candidate.domain.includes('google.com')
-    ? domainFromUrlOrHost(candidate.domain)
-    : '';
-  if (candidateDomain && listing.websites.some((website) => domainFromUrlOrHost(website) === candidateDomain)) {
-    return true;
-  }
-
-  const candidatePhone = normalizePhoneDigits(candidate.phoneNumber || '');
-  if (candidatePhone && [...listing.phones, ...listing.mobiles].some((phone) => normalizePhoneDigits(phone) === candidatePhone)) {
-    return true;
-  }
-
-  const candidateName = normalizeNameKey(candidate.title || '');
-  const listingName = normalizeNameKey(listing.name || '');
-  return Boolean(
-    candidateName &&
-      listingName &&
-      (candidateName.includes(listingName) || listingName.includes(candidateName))
-  );
-}
+import {
+  buildCandidateLedgerId,
+  candidateMatchesListing,
+} from '@/services/storage/candidate-ledger.service';
+export { buildCandidateLedgerId, candidateMatchesListing };
 
 export function buildFallbackListing(
   candidate: UnifiedSearchResult,
