@@ -27,7 +27,13 @@ __tests__/
 *.spec.*
 
 # Phase-specific test suites — run locally (npm run test:full), not tracked
-# (the 17 core suites are force-tracked via `git add -f`)
+# (the core suites are force-tracked via `git add -f`)
+#
+# IMPORTANT: the rule above (`scripts/test-*.ts`) also matches the CORE suites.
+# `git add -A` silently skips them, so a new core suite referenced from
+# package.json can end up neither committed nor reported by `git status`.
+# Always add a new tracked suite with `git add -f`, then confirm with
+# `git ls-files scripts/test-<name>.ts` that it is really tracked.
 
 # One-shot refactoring tooling — local only, not part of the project
 scripts/phase4-freeze/
