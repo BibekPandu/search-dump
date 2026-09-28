@@ -6,6 +6,7 @@ import {
   normalizeLocalityString,
 } from '@/config/geo-localities.config.js';
 import { calculateHaversineDistanceKm } from '@/lib/geo-distance';
+import { getProjectRootDir } from '@/services/storage/db.service';
 
 export interface NominatimGeocodeResult {
   place_id: number;
@@ -24,7 +25,17 @@ export interface NominatimGeocodeResult {
 }
 
 const memoryGeocodeCache = new Map<string, LocalityClusterConfig>();
-const CACHE_DIR = path.resolve(process.cwd(), '.cache', 'geocoding');
+
+/**
+ * Geocoding cache directory, anchored on the project root rather than the
+ * process working directory. This mirrors the convention `cache.service.ts`
+ * already uses for `.cache/search-results.json`.
+ */
+export function getGeocodeCacheDir(): string {
+  return path.join(getProjectRootDir(), '.cache', 'geocoding');
+}
+
+const CACHE_DIR = getGeocodeCacheDir();
 
 function ensureCacheDir(): void {
   try {
