@@ -189,6 +189,22 @@ const RELATIONSHIP_HISTORICAL: readonly string[] = [
   'furniturehub.com.np',
 ];
 
+/** Staging, demo, and developer hosting platforms — never a business's official site. */
+export const STAGING_AND_DEMO_PLATFORM_DOMAINS: readonly string[] = [
+  'vercel.app',
+  'netlify.app',
+  'github.io',
+  'pages.dev',
+  'webflow.io',
+  'render.com',
+  'railway.app',
+  'herokuapp.com',
+  'surge.sh',
+  'glitch.me',
+  'firebaseapp.com',
+  'web.app',
+];
+
 /**
  * Canonical directory/platform domain set shared by classifier, relationship,
  * ranker (via THIRD_PARTY_DOMAINS), and isUsableOfficialWebsite.
@@ -198,4 +214,5 @@ export const SHARED_DIRECTORY_DOMAINS: ReadonlySet<string> = new Set<string>([
   ...RELATIONSHIP_HISTORICAL,
   ...DOCUMENT_PLATFORM_DOMAINS,
   ...EXTRA_DIRECTORY_DOMAINS,
+  ...STAGING_AND_DEMO_PLATFORM_DOMAINS,
 ]);

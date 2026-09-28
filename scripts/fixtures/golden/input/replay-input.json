@@ -1,0 +1,3251 @@
+{
+  "phase": "0.3",
+  "purpose": "Semantic golden replay input for pure transformation stages (no network, no Mongo, no workflow execution)",
+  "provenance": {
+    "generatedAt": "2026-09-26T13:19:59.663Z",
+    "generator": "scripts/fixtures/golden/extract-fixture.ts",
+    "sources": [
+      {
+        "file": "output/history/2026-09-25T11-49-07-627Z-consultancy/2b-verified-evidence.json",
+        "sha256": "c92fe0cdfd1f1cc097e0f0bfb6d810aa2e244a4e910812fae2b0671f8d5a7364",
+        "bytes": 26677493
+      },
+      {
+        "file": "output/history/2026-09-25T11-49-07-627Z-consultancy/3-final-listings.json",
+        "sha256": "77817ac4af468d1c07b64c34ed79b67e9c55a02024bb1832f26626e5bcbddf76",
+        "bytes": 261518
+      },
+      {
+        "file": "output/history/2026-09-25T11-49-07-627Z-consultancy/0-research-candidates.json",
+        "sha256": "412e2a364b39ebce521441f4c8e4c7467b689d0605b7883f6a49d087d9f68d26",
+        "bytes": 113191
+      },
+      {
+        "file": "output/history/2026-09-25T07-48-18-469Z-consultancy/1-broad-search.json",
+        "sha256": "169a46e56fb469f175d3ed7777eef62b539cacaf7c15a150758dc598fb5885d5",
+        "bytes": 5603
+      }
+    ],
+    "reductions": [
+      "places limited to the first 8 Maps candidates",
+      "web results limited to 4 Maps-corroborated results",
+      "websiteEvidence.pages[].rawHtml removed",
+      "websiteEvidence.pages[].content truncated to 2000 characters",
+      "runStartedAt pinned to 1970-01-01T00:00:00.000Z"
+    ],
+    "pairBuckets": [
+      "verified_first_party_with_content:CIC Education Hub",
+      "transient_failure_no_pages:Optimus Global Education Consultancy",
+      "unverified_with_content:NEC- Nepal Education Consultancy Pvt. Ltd"
+    ]
+  },
+  "runStartedAt": "1970-01-01T00:00:00.000Z",
+  "defaultLocation": "Kathmandu",
+  "buildResearchCandidates": {
+    "places": [
+      {
+        "position": 1,
+        "title": "CIC Education Hub",
+        "address": "Kathmandu, Bagmati Province 44600, Nepal",
+        "latitude": 27.704898999999997,
+        "longitude": 85.3226317,
+        "rating": 4.9,
+        "ratingCount": 1999,
+        "category": "Educational consultant",
+        "phoneNumber": "+977 985-1180403",
+        "website": "https://ciceducationhub.com/",
+        "placeId": "ChIJj35UKeYZ6zkRLGuYz-nb9o0",
+        "description": "Educational consultant in Kathmandu, Bagmati Province 44600, Nepal. Phone: +977 985-1180403. Rating: 4.9 (1999 reviews)"
+      },
+      {
+        "position": 2,
+        "title": "KIEC Putalisadak",
+        "address": "KIEC Avenue 44/05, Lalupate Marg, Kathmandu, Bagmati Province 44600, Nepal",
+        "latitude": 27.7048801,
+        "longitude": 85.323404,
+        "rating": 4.9,
+        "ratingCount": 1407,
+        "category": "Educational consultant",
+        "phoneNumber": "+977 1-5971526",
+        "website": "https://kiec.edu.np/",
+        "placeId": "ChIJJ9rBtrsZ6zkRG2gcQvqXHDo",
+        "description": "Educational consultant in KIEC Avenue 44/05, Lalupate Marg, Kathmandu, Bagmati Province 44600, Nepal. Phone: +977 1-5971526. Rating: 4.9 (1407 reviews)"
+      },
+      {
+        "position": 3,
+        "title": "CSC Global",
+        "address": "Putalisadak Chowk, Kathmandu 44600, Nepal",
+        "latitude": 27.705718599999997,
+        "longitude": 85.3227101,
+        "rating": 4.9,
+        "ratingCount": 1002,
+        "category": "Educational consultant",
+        "phoneNumber": "+977 1-5368547",
+        "website": "http://csc.edu.np/",
+        "placeId": "ChIJ___GiFcY6zkRJKHa8tMqxBo",
+        "description": "Educational consultant in Putalisadak Chowk, Kathmandu 44600, Nepal. Phone: +977 1-5368547. Rating: 4.9 (1002 reviews)"
+      },
+      {
+        "position": 4,
+        "title": "NEC- Nepal Education Consultancy Pvt. Ltd",
+        "address": "Opposite of Star Mall, Putali Sadak, Kathmandu, Bagmati Province 44600, Nepal",
+        "latitude": 27.7068968,
+        "longitude": 85.32254669999999,
+        "rating": 4.8,
+        "ratingCount": 908,
+        "category": "Educational consultant",
+        "phoneNumber": "+977 1-5910770",
+        "website": "https://applynec.com/",
+        "placeId": "ChIJneCDTwYZ6zkRz1bsOQWTT_4",
+        "description": "Educational consultant in Opposite of Star Mall, Putali Sadak, Kathmandu, Bagmati Province 44600, Nepal. Phone: +977 1-5910770. Rating: 4.8 (908 reviews)"
+      },
+      {
+        "position": 5,
+        "title": "NIEC - Nepal International Educational Consultancy",
+        "address": "Kathmandu, Bagmati Province 44600, Nepal",
+        "latitude": 27.704141399999997,
+        "longitude": 85.32242389999999,
+        "rating": 4.6,
+        "ratingCount": 875,
+        "category": "Educational consultant",
+        "phoneNumber": "+977 1-5356600",
+        "website": "https://niec.edu.np/",
+        "placeId": "ChIJZ6YiP6gZ6zkRFTDZ6bC00Ws",
+        "description": "Educational consultant in Kathmandu, Bagmati Province 44600, Nepal. Phone: +977 1-5356600. Rating: 4.6 (875 reviews)"
+      },
+      {
+        "position": 6,
+        "title": "Edwise Foundation",
+        "address": "Shubhashree Complex 6th & 7th floor, New Plaza Rd, Kathmandu, Bagmati Province 44600, Nepal",
+        "latitude": 27.701095199999997,
+        "longitude": 85.32263139999999,
+        "rating": 4.9,
+        "ratingCount": 556,
+        "category": "Educational consultant",
+        "phoneNumber": "+977 1-4528908",
+        "website": "https://edwisefoundation.com/",
+        "placeId": "ChIJA7Pwv6gZ6zkRDINdRyWZI0s",
+        "description": "Educational consultant in Shubhashree Complex 6th & 7th floor, New Plaza Rd, Kathmandu, Bagmati Province 44600, Nepal. Phone: +977 1-4528908. Rating: 4.9 (556 reviews)"
+      },
+      {
+        "position": 7,
+        "title": "SD Miracle Pvt. Ltd.",
+        "address": "Bag Bazar Sadak, Kathmandu, Bagmati Province 44600, Nepal",
+        "latitude": 27.7054945,
+        "longitude": 85.3222636,
+        "rating": 4.9,
+        "ratingCount": 548,
+        "category": "Educational consultant",
+        "phoneNumber": "+977 1-5358568",
+        "website": "http://sdmiracle.com.np/",
+        "placeId": "ChIJXRcxfAcZ6zkRP9QeOmbCs_E",
+        "description": "Educational consultant in Bag Bazar Sadak, Kathmandu, Bagmati Province 44600, Nepal. Phone: +977 1-5358568. Rating: 4.9 (548 reviews)"
+      },
+      {
+        "position": 8,
+        "title": "AAEC GLOBAL",
+        "address": "Kathmandu, Bagmati Province 44600, Nepal",
+        "latitude": 27.7033232,
+        "longitude": 85.3224961,
+        "rating": 4.9,
+        "ratingCount": 437,
+        "category": "Educational consultant",
+        "phoneNumber": "+977 1-5348043",
+        "website": "https://aaecglobal.com/",
+        "placeId": "ChIJK8AzlNsZ6zkRFzA5ImC7OoE",
+        "description": "Educational consultant in Kathmandu, Bagmati Province 44600, Nepal. Phone: +977 1-5348043. Rating: 4.9 (437 reviews)"
+      }
+    ],
+    "webUsable": [
+      {
+        "candidate": {
+          "rank": 1,
+          "title": "Best Education Consultancy in Nepal | Study Abroad with KIEC",
+          "url": "https://kiec.edu.np/",
+          "originalUrl": "https://kiec.edu.np/",
+          "domain": "kiec.edu.np",
+          "description": "KIEC helps Nepali students achieve their study abroad goals through expert counseling, university selection, application support, test preparation, and visa ...",
+          "extraSnippets": [],
+          "provider": "serper"
+        },
+        "decision": {
+          "url": "https://kiec.edu.np/",
+          "domain": "kiec.edu.np",
+          "title": "Best Education Consultancy in Nepal | Study Abroad with KIEC",
+          "classification": "business",
+          "confidence": 1,
+          "reason": "Golden fixture: deterministic acceptance of a Maps-corroborated web result",
+          "source": "deterministic"
+        }
+      },
+      {
+        "candidate": {
+          "rank": 6,
+          "title": "Best Consultancy in Nepal 2026 - NIEC Kathmandu",
+          "url": "https://niec.edu.np/",
+          "originalUrl": "https://niec.edu.np/",
+          "domain": "niec.edu.np",
+          "description": "NIEC: Best Consultancy in Nepal 2026. Best ... Europe Discovery Day July 17, 2026. VENUE: NIEC 4th & 5th Floor Share Market Complex, Putalisadak, Kathmandu.",
+          "extraSnippets": [],
+          "provider": "serper"
+        },
+        "decision": {
+          "url": "https://niec.edu.np/",
+          "domain": "niec.edu.np",
+          "title": "Best Consultancy in Nepal 2026 - NIEC Kathmandu",
+          "classification": "business",
+          "confidence": 1,
+          "reason": "Golden fixture: deterministic acceptance of a Maps-corroborated web result",
+          "source": "deterministic"
+        }
+      },
+      {
+        "candidate": {
+          "rank": 10,
+          "title": "Edwise Foundation: Best Education Consultancy in ...",
+          "url": "https://edwisefoundation.com/",
+          "originalUrl": "https://edwisefoundation.com/",
+          "domain": "edwisefoundation.com",
+          "description": "Edwise Foundation, a leading consultancy in Kathmandu, Nepal, specializes in providing affordable, high-quality test preparation and accurate advising services.",
+          "extraSnippets": [],
+          "provider": "serper"
+        },
+        "decision": {
+          "url": "https://edwisefoundation.com/",
+          "domain": "edwisefoundation.com",
+          "title": "Edwise Foundation: Best Education Consultancy in ...",
+          "classification": "business",
+          "confidence": 1,
+          "reason": "Golden fixture: deterministic acceptance of a Maps-corroborated web result",
+          "source": "deterministic"
+        }
+      }
+    ]
+  },
+  "sanitizePairs": [
+    {
+      "bucket": "verified_first_party_with_content",
+      "listing": {
+        "name": "CIC Education Hub",
+        "location": "Kathmandu, Bagmati Province 44600, Nepal",
+        "emails": [
+          "info@ciceducationhub.com"
+        ],
+        "phones": [],
+        "mobiles": [
+          "+977-985-1180403",
+          "+977-980-2338788",
+          "+977-980-2347644",
+          "+977-980-2336911"
+        ],
+        "websites": [
+          "https://ciceducationhub.com/"
+        ],
+        "icon": "https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/favicon.png",
+        "socialLinks": {
+          "facebook": "https://facebook.com/ciceducationhub",
+          "tiktok": "https://tiktok.com/@ciceducationhub",
+          "instagram": "https://instagram.com/ciceducationhub_official",
+          "other": {
+            "youtube": "https://youtube.com/@ciceducationhub4884",
+            "linkedin": "https://linkedin.com/company/cic-education-hub"
+          }
+        },
+        "otherDetails": {
+          "categories": [
+            "Educational consultant",
+            "Career guidance service",
+            "English language school",
+            "Student career counseling office",
+            "Test preparation center"
+          ],
+          "hours": "Friday: 9:30 AM–5:30 PM, Saturday: Closed, Sunday: 9:30 AM–5:30 PM, Monday: 9:30 AM–5:30 PM, Tuesday: 9:30 AM–5:30 PM, Wednesday: 9:30 AM–5:30 PM, Thursday: 9:30 AM–5:30 PM",
+          "businessDescription": "Educational consultant in Kathmandu, Bagmati Province 44600, Nepal. Phone: +977 985-1180403. Rating: 4.9 (1999 reviews)",
+          "thumbnailUrl": "https://lh3.googleusercontent.com/grass-cs/ACvplmOC-yUbcKmvtd-PDf_oj6fCs6Nz84JCvlybclOT0junMFIlbS7ckV_5y5a5TEf-4wXKIMxlZzF2aV-dCmj7K3Yiid6zsRPVKw1eLCqPsz5ZEuYg5ItPSFw_YqKr2U11J4Eu3xOjdA",
+          "bookingLinks": [
+            "https://ciceducationhub.com/"
+          ],
+          "snippet": "Educational consultant in Kathmandu, Bagmati Province 44600, Nepal. Phone: +977 985-1180403. Rating: 4.9 (1999 reviews)",
+          "address": "Kathmandu, Bagmati Province 44600, Nepal",
+          "rating": 4.9,
+          "ratingCount": 1999,
+          "businessType": "Educational consultant",
+          "placeId": "ChIJj35UKeYZ6zkRLGuYz-nb9o0",
+          "services": [
+            "Educational consultant",
+            "Career guidance service",
+            "English language school",
+            "Student career counseling office",
+            "Test preparation center"
+          ],
+          "mapsPhone": "+977 985-1180403",
+          "websiteRelationship": "first_party",
+          "branches": [
+            {
+              "name": "Putalisadak Branch",
+              "address": "Putalisadak Branch: Putalisadak, Kathmandu Putalisadak, Kathmandu - a blan",
+              "phones": [
+                "+977-01-5332834"
+              ],
+              "mobiles": [
+                "+977-985-1180403"
+              ],
+              "emails": []
+            },
+            {
+              "name": "Pokhara Branch",
+              "address": "Pokhara Branch: Mahendra Pool, Pokhara Mahendra Pool, Pokhara a blank",
+              "phones": [
+                "+977 061591171"
+              ],
+              "mobiles": [
+                "+977-984-1778666"
+              ],
+              "emails": []
+            },
+            {
+              "name": "Baneshwor Branch",
+              "address": "Baneshwor Branch: BAS Plaza New Baneshwor BAS Plaza New Baneshwor - 01- 28 a ta",
+              "phones": [],
+              "mobiles": [
+                "+977-980-2330366"
+              ],
+              "emails": []
+            },
+            {
+              "name": "Jhapa Branch",
+              "address": "Jhapa Branch: Best Consultancy in Birtamode, Jhapa Best Consultancy in Birtamode, Jhapa Mukti Chowk, Birtamode a",
+              "phones": [],
+              "mobiles": [
+                "+977-980-2347640"
+              ],
+              "emails": []
+            }
+          ],
+          "classifiedContacts": [
+            {
+              "value": "info@ciceducationhub.com",
+              "type": "email",
+              "role": "primary_business",
+              "owner": "business",
+              "channels": [],
+              "context": "ert guidance for students planning to study in Canada, USA, UK, New Zealand, and Australia. [Email: info@ciceducationhub.com](mailto:info@ciceducationhub.com) ###### Useful Links ###### Study Abroad ###### Test Preparation #",
+              "pageUrl": "https://ciceducationhub.com/",
+              "pagesSeenOn": [
+                "https://ciceducationhub.com",
+                "https://ciceducationhub.com/get-in-touch",
+                "https://ciceducationhub.com/about-cic-education-hub",
+                "https://ciceducationhub.com/study-in-canada-from-nepal"
+              ]
+            },
+            {
+              "value": "+977-01-5332834",
+              "canonicalDigits": "15332834",
+              "type": "phone",
+              "phoneType": "landline",
+              "role": "branch_contact",
+              "owner": "branch",
+              "channels": [
+                "call"
+              ],
+              "context": "Putalisadak Branch: Putalisadak, Kathmandu Putalisadak, Kathmandu - a blan",
+              "blockId": "branch-putalisadak",
+              "pageUrl": "https://ciceducationhub.com/",
+              "pagesSeenOn": [
+                "https://ciceducationhub.com",
+                "https://ciceducationhub.com/get-in-touch",
+                "https://ciceducationhub.com/about-cic-education-hub",
+                "https://ciceducationhub.com/study-in-canada-from-nepal"
+              ]
+            },
+            {
+              "value": "+977 061591171",
+              "canonicalDigits": "977061591171",
+              "type": "phone",
+              "phoneType": "international",
+              "role": "branch_contact",
+              "owner": "branch",
+              "channels": [
+                "call"
+              ],
+              "context": "Pokhara Branch: Mahendra Pool, Pokhara Mahendra Pool, Pokhara a blank",
+              "blockId": "branch-pokhara",
+              "pageUrl": "https://ciceducationhub.com/",
+              "pagesSeenOn": [
+                "https://ciceducationhub.com",
+                "https://ciceducationhub.com/get-in-touch",
+                "https://ciceducationhub.com/about-cic-education-hub",
+                "https://ciceducationhub.com/study-in-canada-from-nepal"
+              ]
+            },
+            {
+              "value": "+977 023 591640",
+              "canonicalDigits": "977023591640",
+              "type": "phone",
+              "phoneType": "international",
+              "role": "branch_contact",
+              "owner": "branch",
+              "channels": [
+                "call"
+              ],
+              "context": "Jhapa Branch: Best Consultancy in Birtamode, Jhapa Best Consultancy in Birtamode, Jhapa Mukti Chowk, Birtamode a",
+              "blockId": "branch-jhapa",
+              "pageUrl": "https://ciceducationhub.com/",
+              "pagesSeenOn": [
+                "https://ciceducationhub.com",
+                "https://ciceducationhub.com/get-in-touch",
+                "https://ciceducationhub.com/about-cic-education-hub",
+                "https://ciceducationhub.com/study-in-canada-from-nepal"
+              ]
+            },
+            {
+              "value": "+977-980-2330366",
+              "canonicalDigits": "9802330366",
+              "type": "phone",
+              "phoneType": "mobile",
+              "role": "branch_contact",
+              "owner": "branch",
+              "channels": [
+                "call"
+              ],
+              "context": "Baneshwor Branch: BAS Plaza New Baneshwor BAS Plaza New Baneshwor - 01- 28 a ta",
+              "blockId": "branch-baneshwor",
+              "pageUrl": "https://ciceducationhub.com/",
+              "pagesSeenOn": [
+                "https://ciceducationhub.com",
+                "https://ciceducationhub.com/get-in-touch",
+                "https://ciceducationhub.com/about-cic-education-hub",
+                "https://ciceducationhub.com/study-in-canada-from-nepal"
+              ],
+              "associatedPerson": "Plaza New Baneshwor"
+            },
+            {
+              "value": "+977-985-1180403",
+              "canonicalDigits": "9851180403",
+              "type": "phone",
+              "phoneType": "mobile",
+              "role": "branch_contact",
+              "owner": "branch",
+              "channels": [
+                "call"
+              ],
+              "context": "Putalisadak Branch: Putalisadak, Kathmandu Putalisadak, Kathmandu - a blan",
+              "blockId": "branch-putalisadak",
+              "pageUrl": "https://ciceducationhub.com/",
+              "pagesSeenOn": [
+                "https://ciceducationhub.com",
+                "https://ciceducationhub.com/get-in-touch",
+                "https://ciceducationhub.com/about-cic-education-hub",
+                "https://ciceducationhub.com/study-in-canada-from-nepal"
+              ]
+            },
+            {
+              "value": "+977-984-1778666",
+              "canonicalDigits": "9841778666",
+              "type": "phone",
+              "phoneType": "mobile",
+              "role": "branch_contact",
+              "owner": "branch",
+              "channels": [
+                "call"
+              ],
+              "context": "Pokhara Branch: Mahendra Pool, Pokhara Mahendra Pool, Pokhara a blank",
+              "blockId": "branch-pokhara",
+              "pageUrl": "https://ciceducationhub.com/",
+              "pagesSeenOn": [
+                "https://ciceducationhub.com",
+                "https://ciceducationhub.com/get-in-touch",
+                "https://ciceducationhub.com/about-cic-education-hub",
+                "https://ciceducationhub.com/study-in-canada-from-nepal"
+              ]
+            },
+            {
+              "value": "+977-980-2347640",
+              "canonicalDigits": "9802347640",
+              "type": "phone",
+              "phoneType": "mobile",
+              "role": "branch_contact",
+              "owner": "branch",
+              "channels": [
+                "call"
+              ],
+              "context": "Jhapa Branch: Best Consultancy in Birtamode, Jhapa Best Consultancy in Birtamode, Jhapa Mukti Chowk, Birtamode a",
+              "blockId": "branch-jhapa",
+              "pageUrl": "https://ciceducationhub.com/",
+              "pagesSeenOn": [
+                "https://ciceducationhub.com",
+                "https://ciceducationhub.com/get-in-touch",
+                "https://ciceducationhub.com/about-cic-education-hub",
+                "https://ciceducationhub.com/study-in-canada-from-nepal"
+              ]
+            },
+            {
+              "value": "+977-980-2338788",
+              "canonicalDigits": "9802338788",
+              "type": "phone",
+              "phoneType": "mobile",
+              "role": "primary_business",
+              "owner": "business",
+              "channels": [
+                "call"
+              ],
+              "context": "alt=\"icon\"> +977 9802338788 <i class=\"fa-solid fa",
+              "pageUrl": "https://ciceducationhub.com/",
+              "pagesSeenOn": [
+                "https://ciceducationhub.com",
+                "https://ciceducationhub.com/get-in-touch",
+                "https://ciceducationhub.com/about-cic-education-hub",
+                "https://ciceducationhub.com/study-in-canada-from-nepal"
+              ]
+            },
+            {
+              "value": "+977-980-2347644",
+              "canonicalDigits": "9802347644",
+              "type": "phone",
+              "phoneType": "mobile",
+              "role": "primary_business",
+              "owner": "business",
+              "channels": [
+                "call"
+              ],
+              "context": "alt=\"icon\"> +977 9802347644 <i class=\"fa-solid fa",
+              "pageUrl": "https://ciceducationhub.com/",
+              "pagesSeenOn": [
+                "https://ciceducationhub.com",
+                "https://ciceducationhub.com/get-in-touch",
+                "https://ciceducationhub.com/about-cic-education-hub",
+                "https://ciceducationhub.com/study-in-canada-from-nepal"
+              ]
+            },
+            {
+              "value": "+977-980-2336911",
+              "canonicalDigits": "9802336911",
+              "type": "phone",
+              "phoneType": "mobile",
+              "role": "primary_business",
+              "owner": "business",
+              "channels": [
+                "call"
+              ],
+              "context": "alt=\"icon\"> +977 9802336911 <i class=\"fa-solid fa",
+              "pageUrl": "https://ciceducationhub.com/",
+              "pagesSeenOn": [
+                "https://ciceducationhub.com",
+                "https://ciceducationhub.com/get-in-touch",
+                "https://ciceducationhub.com/about-cic-education-hub",
+                "https://ciceducationhub.com/study-in-canada-from-nepal"
+              ]
+            }
+          ]
+        },
+        "metadata": {
+          "source": "google_maps",
+          "extractedAt": "2026-09-25T11:55:24.338Z",
+          "runStartedAt": "2026-09-25T11:55:11.383Z",
+          "confidence": 1,
+          "confidenceBreakdown": {
+            "mapsIdentityConfidence": 1,
+            "websiteEvidenceConfidence": 1,
+            "contactConfidence": 1,
+            "overallConfidence": 1,
+            "conflictPenalty": 1,
+            "evidenceSummary": {
+              "mapsVerified": true,
+              "websiteVerified": true,
+              "phoneVerified": true,
+              "emailVerified": true,
+              "ratingCount": 1999,
+              "relationshipType": "first_party"
+            }
+          }
+        },
+        "process": "Evidence-verified via first_party website (status: verified, confidence: 1)",
+        "links": [
+          "https://ciceducationhub.com/"
+        ],
+        "gpsCoordinates": {
+          "latitude": 27.704898999999997,
+          "longitude": 85.3226317
+        },
+        "rating": 4.9,
+        "ratingCount": 1999,
+        "businessType": "Educational consultant",
+        "placeId": "ChIJj35UKeYZ6zkRLGuYz-nb9o0"
+      },
+      "evidence": {
+        "candidate": {
+          "name": "CIC Education Hub",
+          "location": "Kathmandu, Bagmati Province 44600, Nepal",
+          "website": "https://ciceducationhub.com/",
+          "phone": "+977 985-1180403",
+          "coordinates": {
+            "lat": 27.704898999999997,
+            "lng": 85.3226317
+          },
+          "rating": 4.9,
+          "ratingCount": 1999,
+          "category": "Educational consultant",
+          "categories": [
+            "Educational consultant",
+            "Career guidance service",
+            "English language school",
+            "Student career counseling office",
+            "Test preparation center"
+          ],
+          "hours": {
+            "Friday": "9:30 AM–5:30 PM",
+            "Saturday": "Closed",
+            "Sunday": "9:30 AM–5:30 PM",
+            "Monday": "9:30 AM–5:30 PM",
+            "Tuesday": "9:30 AM–5:30 PM",
+            "Wednesday": "9:30 AM–5:30 PM",
+            "Thursday": "9:30 AM–5:30 PM"
+          },
+          "thumbnailUrl": "https://lh3.googleusercontent.com/grass-cs/ACvplmOC-yUbcKmvtd-PDf_oj6fCs6Nz84JCvlybclOT0junMFIlbS7ckV_5y5a5TEf-4wXKIMxlZzF2aV-dCmj7K3Yiid6zsRPVKw1eLCqPsz5ZEuYg5ItPSFw_YqKr2U11J4Eu3xOjdA",
+          "bookingLinks": [
+            "https://ciceducationhub.com/"
+          ],
+          "discoverySource": "google_maps",
+          "nameSource": "maps_title",
+          "sources": {
+            "googleMaps": {
+              "found": true,
+              "placeId": "ChIJj35UKeYZ6zkRLGuYz-nb9o0",
+              "address": "Kathmandu, Bagmati Province 44600, Nepal",
+              "phone": "+977 985-1180403",
+              "website": "https://ciceducationhub.com/"
+            },
+            "webSearch": []
+          },
+          "entityMatch": {
+            "matched": false,
+            "confidence": 0,
+            "method": "none"
+          },
+          "classification": {
+            "status": "usable",
+            "type": "business",
+            "confidence": 1,
+            "reason": "Verified Google Maps business listing"
+          }
+        },
+        "websiteEvidence": {
+          "url": "https://ciceducationhub.com/",
+          "domain": "ciceducationhub.com",
+          "pages": [
+            {
+              "url": "https://ciceducationhub.com/",
+              "content": "![logo](https://ciceducationhub.com/wp-content/uploads/2025/01/Best-consultancy-In-Nepal-CIC-logo.png)\n\n# #1 Best Consultancy in Nepal for Study Abroad\n\n##### CIC Education Hub – Your Trusted Study Abroad Partner\n\nExpert Guidance for Admission, Visa Processing, and Career Success!\n\n## Why CIC Education is the Best Consultancy in Nepal for Study Abroad?\n\nCIC Education Hub is the best study consultancy in Nepal, offering expert guidance for students aiming to study abroad. With a proven track record, CIC provides personalized support, from university selection to visa processing, ensuring a smooth and hassle-free experience for students.\n\nAs a top consultancy in Nepal for Canada, USA, UK, Australia, and New Zealand, CIC is known for its transparent and comprehensive services.  Their strong connections with global institutions and dedicated team help students secure admissions, scholarships, and post-study opportunities, making CIC the trusted choice for the study abroad journey.\n\n  \n[Learn More](https://ciceducationhub.com/about-cic-education-hub/)\n\nCIC Education Hub is the best study consultancy in Nepal, offering expert guidance for students aiming to study abroad. With a proven track record, CIC provides personalized support, from university selection to visa processing, ensuring a smooth and hassle-free experience for students.\n\nAs a top consultancy in Nepal for Canada, USA, UK, Australia, and New Zealand, CIC is known for its transparent and comprehensive services.  Their strong connections with global institutions and dedicated team help students secure admissions, scholarships, and post-study opportunities, making CIC the trusted choice for the study abroad journey.\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/icon.png)\n![img](https://ciceducationhub.com/wp-content/uploads/2025/02/countries-4.png)\n![#](https://ciceducationhub.com/wp-content/uploads/2025/02/Skylie-countries.png)\n\n## Study Destinations\n\n![Canada](https://ciced",
+              "favicon": "",
+              "success": true,
+              "discoverySource": "homepage",
+              "pageType": "home"
+            },
+            {
+              "url": "https://ciceducationhub.com",
+              "content": "![logo](https://ciceducationhub.com/wp-content/uploads/2025/01/Best-consultancy-In-Nepal-CIC-logo.png)\n\n# #1 Best Consultancy in Nepal for Study Abroad\n\n##### CIC Education Hub – Your Trusted Study Abroad Partner\n\nExpert Guidance for Admission, Visa Processing, and Career Success!\n\n## Why CIC Education is the Best Consultancy in Nepal for Study Abroad?\n\nCIC Education Hub is the best study consultancy in Nepal, offering expert guidance for students aiming to study abroad. With a proven track record, CIC provides personalized support, from university selection to visa processing, ensuring a smooth and hassle-free experience for students.\n\nAs a top consultancy in Nepal for Canada, USA, UK, Australia, and New Zealand, CIC is known for its transparent and comprehensive services.  Their strong connections with global institutions and dedicated team help students secure admissions, scholarships, and post-study opportunities, making CIC the trusted choice for the study abroad journey.\n\n  \n[Learn More](https://ciceducationhub.com/about-cic-education-hub/)\n\nCIC Education Hub is the best study consultancy in Nepal, offering expert guidance for students aiming to study abroad. With a proven track record, CIC provides personalized support, from university selection to visa processing, ensuring a smooth and hassle-free experience for students.\n\nAs a top consultancy in Nepal for Canada, USA, UK, Australia, and New Zealand, CIC is known for its transparent and comprehensive services.  Their strong connections with global institutions and dedicated team help students secure admissions, scholarships, and post-study opportunities, making CIC the trusted choice for the study abroad journey.\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/icon.png)\n![img](https://ciceducationhub.com/wp-content/uploads/2025/02/countries-4.png)\n![#](https://ciceducationhub.com/wp-content/uploads/2025/02/Skylie-countries.png)\n\n## Study Destinations\n\n![Canada](https://ciced",
+              "favicon": "",
+              "success": true,
+              "discoverySource": "homepage",
+              "pageType": "home"
+            },
+            {
+              "url": "https://ciceducationhub.com/get-in-touch",
+              "content": "![logo](https://ciceducationhub.com/wp-content/uploads/2025/01/Best-consultancy-In-Nepal-CIC-logo.png)\n\n# Contact Us\n\nContact us foy any Queries\n\n### Contact Us\n\n### Talk with expert\n\n#### Mr. Dipesh KC\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/whatsapp.png)\n\n#### Mr. Abhinay Adhikari\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/whatsapp.png)\n\n#### Mr. Nabin Subedi\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/whatsapp.png)\n\n#### Mr. Rajesh Adhikari\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/whatsapp.png)\n\n#### Ms. Aashma Luitel\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/whatsapp.png)\n\n#### Mr. Rajiv Raj Karki\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/whatsapp.png)\n\n#### Ms. Ruby Chand\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/whatsapp.png)\n\n## Our Offices\n\n##### New Baneshwor,Kathmandu\n\n#### BAS Plaza New Baneshwor\n\n##### Putalisadak Kathmandu\n\n#### Putalisadak, Kathmandu\n\n##### Pokhara\n\n#### Mahendra Pool, Pokhara\n\n##### Best Consultancy in Birtamode, Jhapa\n\n#### Mukti Chowk, Birtamode\n\n## Talk with expert\n\n#### Mr. Dipesh KC\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/whatsapp.png)\n\n#### Mr. Abhinay Adhikari\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/whatsapp.png)\n\n#### Mr. Nabin Subedi\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/whatsapp.png)\n\n#### Mr. Rajesh Adhikari\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/whatsapp.png)\n\n#### Ms. Aashma Luitel\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/whatsapp.png)\n\n#### Mr. Rajiv Raj Karki\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/i",
+              "favicon": "",
+              "success": true,
+              "discoverySource": "internal_link",
+              "pageType": "contact"
+            },
+            {
+              "url": "https://ciceducationhub.com/about-cic-education-hub",
+              "content": "![logo](https://ciceducationhub.com/wp-content/uploads/2025/01/Best-consultancy-In-Nepal-CIC-logo.png)\n\n# About CIC Education Hub\n\n![#](https://ciceducationhub.com/wp-content/uploads/2025/05/55.png)\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/icon.png)\n\n## Our Story\n\nAt CIC Education Hub, we cherish humanity, emotions, and empathy. We understand how important and crucial it is to handle a student’s career. We work towards achieving the best for every student. We know the importance of correct, proper, and genuine guidance and here at CIC Education, we respect that. Our work is not only to admit students to colleges in Canada, USA, UK, Australia, and New Zealand but also to ensure that they are choosing and making decisions that will boost their careers.\n\nWe have a friendly and familiar environment where the attachment is the key. We enjoy the student’s success and celebrate it together. We share laughter and tears. Here, at CIC Education we live life and celebrate life, career, and success as success is the key to a happy and peaceful life. Walk-in and experience the successful life at CIC Education Hub!!!\n\n![#](https://ciceducationhub.com/wp-content/uploads/2024/01/6227c386c91730a8dca1a45509181397-removebg-preview.png)\n\n## Mission & Vision\n\nOur mission involves building strong relationships with partner institutions based on shared values. We strive to be the top consultancy in Nepal for students aiming to study in Canada, USA, UK, Australia, and New Zealand, ensuring their academic success. With our dedicated team, we offer reliable services, personalized guidance, and a smooth journey from application to admission. At CIC Education Hub, our mission is to be the best consultancy in Nepal for Canada, USA, UK, Australia, and New Zealand, guiding students towards academic success.\n\nOur vision is to empower students to reach their goals through careful career counseling. We’re dedicated to creating value, not just for students but ",
+              "favicon": "",
+              "success": true,
+              "discoverySource": "internal_link",
+              "pageType": "other"
+            },
+            {
+              "url": "https://ciceducationhub.com/study-in-canada-from-nepal",
+              "content": "![logo](https://ciceducationhub.com/wp-content/uploads/2025/01/Best-consultancy-In-Nepal-CIC-logo.png)\n\n##### Menu\n\n## Study in Canada from Nepal in 2026\n\n**Study in Canada from Nepal** has become a leading choice for students who want high-quality education, [top-ranked universities](https://ciceducationhub.com/top-universities-in-canada/), and strong career prospects. Canada is known for its excellent academic standards, research-focused programs, and safe, welcoming environment making it one of the most trusted destinations for Nepali students in 2026.\n\n  \n\nCanada also offers affordable tuition fees, reasonable living costs, and flexible accommodation options such as dormitories, homestays, and shared apartments. With scholarships, part-time work opportunities, and clear post-study work pathways, [**study in Canada from Nepal**](https://ciceducationhub.com/study-in-canada-guide-2026/) provides long-term value and a strong foundation for future career growth.\n\n**Study in Canada from Nepal** has become a leading choice for students who want high-quality education, [top-ranked universities](https://ciceducationhub.com/top-universities-in-canada/), and strong career prospects. Canada is known for its excellent academic standards, research-focused programs, and safe, welcoming environment making it one of the most trusted destinations for Nepali students in 2026.\n\nCanada also offers affordable tuition fees, reasonable living costs, and flexible accommodation options such as dormitories, homestays, and shared apartments. With scholarships, part-time work opportunities, and clear post-study work pathways, [**study in Canada from Nepal**](https://ciceducationhub.com/study-in-canada-guide-2026/) provides long-term value and a strong foundation for future career growth.\n\n### Why Study In Canada from Nepal?\n\n![icon](https://ciceducationhub.com/wp-content/uploads/2024/01/reading.png)\n\nBest Study Destination\n\n![icon](https://ciceducationhub.com/wp-content/uploads/2024/01/scho",
+              "favicon": "",
+              "success": true,
+              "discoverySource": "internal_link",
+              "pageType": "other"
+            }
+          ],
+          "extractedEmails": [
+            "info@ciceducationhub.com"
+          ],
+          "extractedPhones": [
+            "+977-01-5332834",
+            "+977 061591171",
+            "+977 023 591640"
+          ],
+          "extractedMobiles": [
+            "+977-980-2330366",
+            "+977-985-1180403",
+            "+977-984-1778666",
+            "+977-980-2347640",
+            "+977-980-2338788",
+            "+977-980-2347644",
+            "+977-980-2336911"
+          ],
+          "extractedPhoneEvidence": [
+            {
+              "raw": "1-5332834",
+              "canonicalDigits": "15332834",
+              "display": "+977-01-5332834",
+              "type": "landline",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com/"
+            },
+            {
+              "raw": "+977 061591171",
+              "canonicalDigits": "977061591171",
+              "display": "+977 061591171",
+              "type": "international",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com/"
+            },
+            {
+              "raw": "+977 023 591640",
+              "canonicalDigits": "977023591640",
+              "display": "+977 023 591640",
+              "type": "international",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com/"
+            },
+            {
+              "raw": "+977 9802330366",
+              "canonicalDigits": "9802330366",
+              "display": "+977-980-2330366",
+              "type": "mobile",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com/"
+            },
+            {
+              "raw": "+977 9851180403",
+              "canonicalDigits": "9851180403",
+              "display": "+977-985-1180403",
+              "type": "mobile",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com/"
+            },
+            {
+              "raw": "+977 9841778666",
+              "canonicalDigits": "9841778666",
+              "display": "+977-984-1778666",
+              "type": "mobile",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com/"
+            },
+            {
+              "raw": "9802347640",
+              "canonicalDigits": "9802347640",
+              "display": "+977-980-2347640",
+              "type": "mobile",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com/"
+            },
+            {
+              "raw": "+977 9802338788",
+              "canonicalDigits": "9802338788",
+              "display": "+977-980-2338788",
+              "type": "mobile",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com/"
+            },
+            {
+              "raw": "+977 9802347644",
+              "canonicalDigits": "9802347644",
+              "display": "+977-980-2347644",
+              "type": "mobile",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com/"
+            },
+            {
+              "raw": "+977 9802336911",
+              "canonicalDigits": "9802336911",
+              "display": "+977-980-2336911",
+              "type": "mobile",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com/"
+            },
+            {
+              "raw": "1-5332834",
+              "canonicalDigits": "15332834",
+              "display": "+977-01-5332834",
+              "type": "landline",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com"
+            },
+            {
+              "raw": "+977 061591171",
+              "canonicalDigits": "977061591171",
+              "display": "+977 061591171",
+              "type": "international",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com"
+            },
+            {
+              "raw": "+977 023 591640",
+              "canonicalDigits": "977023591640",
+              "display": "+977 023 591640",
+              "type": "international",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com"
+            },
+            {
+              "raw": "+977 9802330366",
+              "canonicalDigits": "9802330366",
+              "display": "+977-980-2330366",
+              "type": "mobile",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com"
+            },
+            {
+              "raw": "+977 9851180403",
+              "canonicalDigits": "9851180403",
+              "display": "+977-985-1180403",
+              "type": "mobile",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com"
+            },
+            {
+              "raw": "+977 9841778666",
+              "canonicalDigits": "9841778666",
+              "display": "+977-984-1778666",
+              "type": "mobile",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com"
+            },
+            {
+              "raw": "9802347640",
+              "canonicalDigits": "9802347640",
+              "display": "+977-980-2347640",
+              "type": "mobile",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com"
+            },
+            {
+              "raw": "+977 9802338788",
+              "canonicalDigits": "9802338788",
+              "display": "+977-980-2338788",
+              "type": "mobile",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com"
+            },
+            {
+              "raw": "+977 9802347644",
+              "canonicalDigits": "9802347644",
+              "display": "+977-980-2347644",
+              "type": "mobile",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com"
+            },
+            {
+              "raw": "+977 9802336911",
+              "canonicalDigits": "9802336911",
+              "display": "+977-980-2336911",
+              "type": "mobile",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com"
+            },
+            {
+              "raw": "1-5332834",
+              "canonicalDigits": "15332834",
+              "display": "+977-01-5332834",
+              "type": "landline",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com/get-in-touch"
+            },
+            {
+              "raw": "+977 061591171",
+              "canonicalDigits": "977061591171",
+              "display": "+977 061591171",
+              "type": "international",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com/get-in-touch"
+            },
+            {
+              "raw": "+977 023 591640",
+              "canonicalDigits": "977023591640",
+              "display": "+977 023 591640",
+              "type": "international",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com/get-in-touch"
+            },
+            {
+              "raw": "+977 9851180403",
+              "canonicalDigits": "9851180403",
+              "display": "+977-985-1180403",
+              "type": "mobile",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com/get-in-touch"
+            },
+            {
+              "raw": "+977 9802338788",
+              "canonicalDigits": "9802338788",
+              "display": "+977-980-2338788",
+              "type": "mobile",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com/get-in-touch"
+            },
+            {
+              "raw": "+977 9802330366",
+              "canonicalDigits": "9802330366",
+              "display": "+977-980-2330366",
+              "type": "mobile",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com/get-in-touch"
+            },
+            {
+              "raw": "+977 9841778666",
+              "canonicalDigits": "9841778666",
+              "display": "+977-984-1778666",
+              "type": "mobile",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com/get-in-touch"
+            },
+            {
+              "raw": "+977 9802347640",
+              "canonicalDigits": "9802347640",
+              "display": "+977-980-2347640",
+              "type": "mobile",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com/get-in-touch"
+            },
+            {
+              "raw": "+977 9802347644",
+              "canonicalDigits": "9802347644",
+              "display": "+977-980-2347644",
+              "type": "mobile",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com/get-in-touch"
+            },
+            {
+              "raw": "+977 9802336911",
+              "canonicalDigits": "9802336911",
+              "display": "+977-980-2336911",
+              "type": "mobile",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com/get-in-touch"
+            },
+            {
+              "raw": "1-5332834",
+              "canonicalDigits": "15332834",
+              "display": "+977-01-5332834",
+              "type": "landline",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com/about-cic-education-hub"
+            },
+            {
+              "raw": "+977 061591171",
+              "canonicalDigits": "977061591171",
+              "display": "+977 061591171",
+              "type": "international",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com/about-cic-education-hub"
+            },
+            {
+              "raw": "+977 023 591640",
+              "canonicalDigits": "977023591640",
+              "display": "+977 023 591640",
+              "type": "international",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com/about-cic-education-hub"
+            },
+            {
+              "raw": "+977 9802330366",
+              "canonicalDigits": "9802330366",
+              "display": "+977-980-2330366",
+              "type": "mobile",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com/about-cic-education-hub"
+            },
+            {
+              "raw": "+977 9851180403",
+              "canonicalDigits": "9851180403",
+              "display": "+977-985-1180403",
+              "type": "mobile",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com/about-cic-education-hub"
+            },
+            {
+              "raw": "+977 9841778666",
+              "canonicalDigits": "9841778666",
+              "display": "+977-984-1778666",
+              "type": "mobile",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com/about-cic-education-hub"
+            },
+            {
+              "raw": "9802347640",
+              "canonicalDigits": "9802347640",
+              "display": "+977-980-2347640",
+              "type": "mobile",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com/about-cic-education-hub"
+            },
+            {
+              "raw": "+977 9802338788",
+              "canonicalDigits": "9802338788",
+              "display": "+977-980-2338788",
+              "type": "mobile",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com/about-cic-education-hub"
+            },
+            {
+              "raw": "+977 9802347644",
+              "canonicalDigits": "9802347644",
+              "display": "+977-980-2347644",
+              "type": "mobile",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com/about-cic-education-hub"
+            },
+            {
+              "raw": "+977 9802336911",
+              "canonicalDigits": "9802336911",
+              "display": "+977-980-2336911",
+              "type": "mobile",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com/about-cic-education-hub"
+            },
+            {
+              "raw": "1-5332834",
+              "canonicalDigits": "15332834",
+              "display": "+977-01-5332834",
+              "type": "landline",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com/study-in-canada-from-nepal"
+            },
+            {
+              "raw": "+977 061591171",
+              "canonicalDigits": "977061591171",
+              "display": "+977 061591171",
+              "type": "international",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com/study-in-canada-from-nepal"
+            },
+            {
+              "raw": "+977 023 591640",
+              "canonicalDigits": "977023591640",
+              "display": "+977 023 591640",
+              "type": "international",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com/study-in-canada-from-nepal"
+            },
+            {
+              "raw": "+977 9851180403",
+              "canonicalDigits": "9851180403",
+              "display": "+977-985-1180403",
+              "type": "mobile",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com/study-in-canada-from-nepal"
+            },
+            {
+              "raw": "+977 9802338788",
+              "canonicalDigits": "9802338788",
+              "display": "+977-980-2338788",
+              "type": "mobile",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com/study-in-canada-from-nepal"
+            },
+            {
+              "raw": "+977 9802330366",
+              "canonicalDigits": "9802330366",
+              "display": "+977-980-2330366",
+              "type": "mobile",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com/study-in-canada-from-nepal"
+            },
+            {
+              "raw": "+977 9841778666",
+              "canonicalDigits": "9841778666",
+              "display": "+977-984-1778666",
+              "type": "mobile",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com/study-in-canada-from-nepal"
+            },
+            {
+              "raw": "+977 9802347640",
+              "canonicalDigits": "9802347640",
+              "display": "+977-980-2347640",
+              "type": "mobile",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com/study-in-canada-from-nepal"
+            },
+            {
+              "raw": "+977 9802347644",
+              "canonicalDigits": "9802347644",
+              "display": "+977-980-2347644",
+              "type": "mobile",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com/study-in-canada-from-nepal"
+            },
+            {
+              "raw": "+977 9802336911",
+              "canonicalDigits": "9802336911",
+              "display": "+977-980-2336911",
+              "type": "mobile",
+              "source": "rawHtml",
+              "pageUrl": "https://ciceducationhub.com/study-in-canada-from-nepal"
+            }
+          ],
+          "extractedClassifiedContacts": [
+            {
+              "value": "info@ciceducationhub.com",
+              "type": "email",
+              "role": "primary_business",
+              "owner": "business",
+              "channels": [],
+              "context": "ert guidance for students planning to study in Canada, USA, UK, New Zealand, and Australia. [Email: info@ciceducationhub.com](mailto:info@ciceducationhub.com) ###### Useful Links ###### Study Abroad ###### Test Preparation #",
+              "pageUrl": "https://ciceducationhub.com/",
+              "pagesSeenOn": [
+                "https://ciceducationhub.com",
+                "https://ciceducationhub.com/get-in-touch",
+                "https://ciceducationhub.com/about-cic-education-hub",
+                "https://ciceducationhub.com/study-in-canada-from-nepal"
+              ]
+            },
+            {
+              "value": "+977-01-5332834",
+              "canonicalDigits": "15332834",
+              "type": "phone",
+              "phoneType": "landline",
+              "role": "branch_contact",
+              "owner": "branch",
+              "channels": [
+                "call"
+              ],
+              "context": "Putalisadak Branch: Putalisadak, Kathmandu Putalisadak, Kathmandu - a blan",
+              "blockId": "branch-putalisadak",
+              "pageUrl": "https://ciceducationhub.com/",
+              "pagesSeenOn": [
+                "https://ciceducationhub.com",
+                "https://ciceducationhub.com/get-in-touch",
+                "https://ciceducationhub.com/about-cic-education-hub",
+                "https://ciceducationhub.com/study-in-canada-from-nepal"
+              ]
+            },
+            {
+              "value": "+977 061591171",
+              "canonicalDigits": "977061591171",
+              "type": "phone",
+              "phoneType": "international",
+              "role": "branch_contact",
+              "owner": "branch",
+              "channels": [
+                "call"
+              ],
+              "context": "Pokhara Branch: Mahendra Pool, Pokhara Mahendra Pool, Pokhara a blank",
+              "blockId": "branch-pokhara",
+              "pageUrl": "https://ciceducationhub.com/",
+              "pagesSeenOn": [
+                "https://ciceducationhub.com",
+                "https://ciceducationhub.com/get-in-touch",
+                "https://ciceducationhub.com/about-cic-education-hub",
+                "https://ciceducationhub.com/study-in-canada-from-nepal"
+              ]
+            },
+            {
+              "value": "+977 023 591640",
+              "canonicalDigits": "977023591640",
+              "type": "phone",
+              "phoneType": "international",
+              "role": "branch_contact",
+              "owner": "branch",
+              "channels": [
+                "call"
+              ],
+              "context": "Jhapa Branch: Best Consultancy in Birtamode, Jhapa Best Consultancy in Birtamode, Jhapa Mukti Chowk, Birtamode a",
+              "blockId": "branch-jhapa",
+              "pageUrl": "https://ciceducationhub.com/",
+              "pagesSeenOn": [
+                "https://ciceducationhub.com",
+                "https://ciceducationhub.com/get-in-touch",
+                "https://ciceducationhub.com/about-cic-education-hub",
+                "https://ciceducationhub.com/study-in-canada-from-nepal"
+              ]
+            },
+            {
+              "value": "+977-980-2330366",
+              "canonicalDigits": "9802330366",
+              "type": "phone",
+              "phoneType": "mobile",
+              "role": "branch_contact",
+              "owner": "branch",
+              "channels": [
+                "call"
+              ],
+              "associatedPerson": "Plaza New Baneshwor",
+              "context": "Baneshwor Branch: BAS Plaza New Baneshwor BAS Plaza New Baneshwor - 01- 28 a ta",
+              "blockId": "branch-baneshwor",
+              "pageUrl": "https://ciceducationhub.com/",
+              "pagesSeenOn": [
+                "https://ciceducationhub.com",
+                "https://ciceducationhub.com/get-in-touch",
+                "https://ciceducationhub.com/about-cic-education-hub",
+                "https://ciceducationhub.com/study-in-canada-from-nepal"
+              ]
+            },
+            {
+              "value": "+977-985-1180403",
+              "canonicalDigits": "9851180403",
+              "type": "phone",
+              "phoneType": "mobile",
+              "role": "branch_contact",
+              "owner": "branch",
+              "channels": [
+                "call"
+              ],
+              "context": "Putalisadak Branch: Putalisadak, Kathmandu Putalisadak, Kathmandu - a blan",
+              "blockId": "branch-putalisadak",
+              "pageUrl": "https://ciceducationhub.com/",
+              "pagesSeenOn": [
+                "https://ciceducationhub.com",
+                "https://ciceducationhub.com/get-in-touch",
+                "https://ciceducationhub.com/about-cic-education-hub",
+                "https://ciceducationhub.com/study-in-canada-from-nepal"
+              ]
+            },
+            {
+              "value": "+977-984-1778666",
+              "canonicalDigits": "9841778666",
+              "type": "phone",
+              "phoneType": "mobile",
+              "role": "branch_contact",
+              "owner": "branch",
+              "channels": [
+                "call"
+              ],
+              "context": "Pokhara Branch: Mahendra Pool, Pokhara Mahendra Pool, Pokhara a blank",
+              "blockId": "branch-pokhara",
+              "pageUrl": "https://ciceducationhub.com/",
+              "pagesSeenOn": [
+                "https://ciceducationhub.com",
+                "https://ciceducationhub.com/get-in-touch",
+                "https://ciceducationhub.com/about-cic-education-hub",
+                "https://ciceducationhub.com/study-in-canada-from-nepal"
+              ]
+            },
+            {
+              "value": "+977-980-2347640",
+              "canonicalDigits": "9802347640",
+              "type": "phone",
+              "phoneType": "mobile",
+              "role": "branch_contact",
+              "owner": "branch",
+              "channels": [
+                "call"
+              ],
+              "context": "Jhapa Branch: Best Consultancy in Birtamode, Jhapa Best Consultancy in Birtamode, Jhapa Mukti Chowk, Birtamode a",
+              "blockId": "branch-jhapa",
+              "pageUrl": "https://ciceducationhub.com/",
+              "pagesSeenOn": [
+                "https://ciceducationhub.com",
+                "https://ciceducationhub.com/get-in-touch",
+                "https://ciceducationhub.com/about-cic-education-hub",
+                "https://ciceducationhub.com/study-in-canada-from-nepal"
+              ]
+            },
+            {
+              "value": "+977-980-2338788",
+              "canonicalDigits": "9802338788",
+              "type": "phone",
+              "phoneType": "mobile",
+              "role": "primary_business",
+              "owner": "business",
+              "channels": [
+                "call"
+              ],
+              "context": "alt=\"icon\"> +977 9802338788 <i class=\"fa-solid fa",
+              "pageUrl": "https://ciceducationhub.com/",
+              "pagesSeenOn": [
+                "https://ciceducationhub.com",
+                "https://ciceducationhub.com/get-in-touch",
+                "https://ciceducationhub.com/about-cic-education-hub",
+                "https://ciceducationhub.com/study-in-canada-from-nepal"
+              ]
+            },
+            {
+              "value": "+977-980-2347644",
+              "canonicalDigits": "9802347644",
+              "type": "phone",
+              "phoneType": "mobile",
+              "role": "primary_business",
+              "owner": "business",
+              "channels": [
+                "call"
+              ],
+              "context": "alt=\"icon\"> +977 9802347644 <i class=\"fa-solid fa",
+              "pageUrl": "https://ciceducationhub.com/",
+              "pagesSeenOn": [
+                "https://ciceducationhub.com",
+                "https://ciceducationhub.com/get-in-touch",
+                "https://ciceducationhub.com/about-cic-education-hub",
+                "https://ciceducationhub.com/study-in-canada-from-nepal"
+              ]
+            },
+            {
+              "value": "+977-980-2336911",
+              "canonicalDigits": "9802336911",
+              "type": "phone",
+              "phoneType": "mobile",
+              "role": "primary_business",
+              "owner": "business",
+              "channels": [
+                "call"
+              ],
+              "context": "alt=\"icon\"> +977 9802336911 <i class=\"fa-solid fa",
+              "pageUrl": "https://ciceducationhub.com/",
+              "pagesSeenOn": [
+                "https://ciceducationhub.com",
+                "https://ciceducationhub.com/get-in-touch",
+                "https://ciceducationhub.com/about-cic-education-hub",
+                "https://ciceducationhub.com/study-in-canada-from-nepal"
+              ]
+            }
+          ],
+          "extractedSocialLinks": {
+            "facebook": "https://facebook.com/ciceducationhub",
+            "instagram": "https://instagram.com/ciceducationhub_official",
+            "tiktok": "https://tiktok.com/@ciceducationhub",
+            "other": {
+              "youtube": "https://youtube.com/@ciceducationhub4884",
+              "linkedin": "https://linkedin.com/company/cic-education-hub"
+            }
+          },
+          "extractedServices": [],
+          "favicon": "https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/favicon.png",
+          "rawContentSummary": "![logo](https://ciceducationhub.com/wp-content/uploads/2025/01/Best-consultancy-In-Nepal-CIC-logo.png) # #1 Best Consultancy in Nepal for Study Abroad ##### CIC Education Hub – Your Trusted Study Abro ... ![logo](https://ciceducationhub.com/wp-content/uploads/2025/01/Best-consultancy-In-Nepal-CIC-logo.png) # #1 Best Consultancy in Nepal for Study Abroad ##### CIC Education Hub – Your Trusted Study Abro ... ![logo](https://ciceducationhub.com/wp-content/uploads/2025/01/Best-consultancy-In-Nepal-CIC-logo.png) # Contact Us Contact us foy any Queries ### Contact Us ### Talk with expert #### Mr. Di"
+        },
+        "verification": {
+          "status": "verified",
+          "overallConfidence": 1,
+          "checks": {
+            "websiteIsUsableOfficial": true,
+            "websiteDomainMatchesCandidate": true,
+            "businessNameFoundOnWebsite": true,
+            "phoneMatchesMaps": true,
+            "addressOrLocationFoundOnWebsite": true,
+            "emailFoundOnWebsite": true,
+            "socialLinksFoundOnWebsite": true
+          },
+          "notes": []
+        },
+        "websiteRelationship": "first_party",
+        "websiteLifecycle": "first_party_owned",
+        "sourceHealth": "verified"
+      }
+    },
+    {
+      "bucket": "transient_failure_no_pages",
+      "listing": {
+        "name": "Optimus Global Education Consultancy",
+        "location": "Putalisadak, Way to, Kathmandu 44605, Nepal",
+        "emails": [],
+        "phones": [],
+        "mobiles": [
+          "+977-985-1310002"
+        ],
+        "websites": [
+          "https://optimusglobaledu.com/"
+        ],
+        "icon": "",
+        "socialLinks": {
+          "facebook": "",
+          "tiktok": "",
+          "instagram": "",
+          "other": {}
+        },
+        "otherDetails": {
+          "categories": [
+            "Educational consultant"
+          ],
+          "hours": "Friday: 12–6 AM, 9 AM–12 AM, Saturday: 12–6 AM, Sunday: 9 AM–12 AM, Monday: 12–6 AM, 9 AM–12 AM, Tuesday: 12–6 AM, 9 AM–12 AM, Wednesday: 12–6 AM, 9 AM–12 AM, Thursday: 12–6 AM, 9 AM–12 AM",
+          "businessDescription": "Educational consultant in Putalisadak, Way to, Kathmandu 44605, Nepal. Phone: +977 985-1310002. Rating: 4.8 (257 reviews)",
+          "thumbnailUrl": "https://lh3.googleusercontent.com/grass-cs/ACvplmNIAc5ugwvb1eVjoXosbtCQQMKGQMimM00VPwD-Iy5VlEWCDYB8HnigHCWvinh4Kl4RRhF5pKVZvcAxsD4u87G3-WZPkC7JxyvdbnAp2IPULBMleIOYwnMwtzoYskb0l5CIhKhEYDerIyM",
+          "snippet": "Educational consultant in Putalisadak, Way to, Kathmandu 44605, Nepal. Phone: +977 985-1310002. Rating: 4.8 (257 reviews)",
+          "address": "Putalisadak, Way to, Kathmandu 44605, Nepal",
+          "rating": 4.8,
+          "ratingCount": 257,
+          "businessType": "Educational consultant",
+          "placeId": "ChIJb6aPo5YZ6zkR8vsJorAdaE0",
+          "services": [
+            "Educational consultant"
+          ],
+          "mapsPhone": "+977 985-1310002",
+          "websiteRelationship": "unverified",
+          "classifiedContacts": [
+            {
+              "value": "+977 985-1310002",
+              "canonicalDigits": "9851310002",
+              "type": "phone",
+              "phoneType": "mobile",
+              "role": "unknown",
+              "owner": "unknown",
+              "channels": [
+                "call"
+              ],
+              "context": "Optimus Global Education Consultancy"
+            }
+          ]
+        },
+        "metadata": {
+          "source": "google_maps",
+          "extractedAt": "2026-09-25T11:55:24.353Z",
+          "runStartedAt": "2026-09-25T11:55:11.383Z",
+          "confidence": 0.3,
+          "confidenceBreakdown": {
+            "mapsIdentityConfidence": 1,
+            "websiteEvidenceConfidence": 0,
+            "contactConfidence": 0,
+            "overallConfidence": 0.3,
+            "conflictPenalty": 1,
+            "evidenceSummary": {
+              "mapsVerified": true,
+              "websiteVerified": false,
+              "phoneVerified": true,
+              "emailVerified": false,
+              "ratingCount": 257,
+              "relationshipType": "unverified"
+            }
+          }
+        },
+        "process": "Verified via Google Maps Places (Direct fallback)",
+        "links": [
+          "https://optimusglobaledu.com/"
+        ],
+        "gpsCoordinates": {
+          "latitude": 27.7055515,
+          "longitude": 85.32341509999999
+        },
+        "rating": 4.8,
+        "ratingCount": 257,
+        "businessType": "Educational consultant",
+        "placeId": "ChIJb6aPo5YZ6zkR8vsJorAdaE0"
+      },
+      "evidence": {
+        "candidate": {
+          "name": "Optimus Global Education Consultancy",
+          "location": "Putalisadak, Way to, Kathmandu 44605, Nepal",
+          "website": "https://optimusglobaledu.com/",
+          "phone": "+977 985-1310002",
+          "coordinates": {
+            "lat": 27.7055515,
+            "lng": 85.32341509999999
+          },
+          "rating": 4.8,
+          "ratingCount": 257,
+          "category": "Educational consultant",
+          "categories": [
+            "Educational consultant"
+          ],
+          "hours": {
+            "Friday": "12–6 AM, 9 AM–12 AM",
+            "Saturday": "12–6 AM",
+            "Sunday": "9 AM–12 AM",
+            "Monday": "12–6 AM, 9 AM–12 AM",
+            "Tuesday": "12–6 AM, 9 AM–12 AM",
+            "Wednesday": "12–6 AM, 9 AM–12 AM",
+            "Thursday": "12–6 AM, 9 AM–12 AM"
+          },
+          "thumbnailUrl": "https://lh3.googleusercontent.com/grass-cs/ACvplmNIAc5ugwvb1eVjoXosbtCQQMKGQMimM00VPwD-Iy5VlEWCDYB8HnigHCWvinh4Kl4RRhF5pKVZvcAxsD4u87G3-WZPkC7JxyvdbnAp2IPULBMleIOYwnMwtzoYskb0l5CIhKhEYDerIyM",
+          "discoverySource": "google_maps",
+          "nameSource": "maps_title",
+          "sources": {
+            "googleMaps": {
+              "found": true,
+              "placeId": "ChIJb6aPo5YZ6zkR8vsJorAdaE0",
+              "address": "Putalisadak, Way to, Kathmandu 44605, Nepal",
+              "phone": "+977 985-1310002",
+              "website": "https://www.optimusglobaledu.com/"
+            },
+            "webSearch": []
+          },
+          "entityMatch": {
+            "matched": false,
+            "confidence": 0,
+            "method": "none"
+          },
+          "classification": {
+            "status": "usable",
+            "type": "business",
+            "confidence": 1,
+            "reason": "Verified Google Maps business listing"
+          }
+        },
+        "verification": {
+          "status": "failed",
+          "overallConfidence": 0,
+          "checks": {
+            "websiteIsUsableOfficial": true,
+            "websiteDomainMatchesCandidate": false,
+            "businessNameFoundOnWebsite": false,
+            "phoneMatchesMaps": false,
+            "addressOrLocationFoundOnWebsite": false,
+            "emailFoundOnWebsite": false,
+            "socialLinksFoundOnWebsite": false
+          },
+          "notes": [
+            "Website extraction failed — no page evidence available."
+          ]
+        },
+        "websiteRelationship": "unverified",
+        "websiteLifecycle": "usable",
+        "sourceHealth": "transient_failure"
+      }
+    },
+    {
+      "bucket": "unverified_with_content",
+      "listing": {
+        "name": "NEC- Nepal Education Consultancy Pvt. Ltd",
+        "location": "Opposite of Star Mall, Putali Sadak, Kathmandu, Bagmati Province 44600, Nepal",
+        "emails": [],
+        "phones": [
+          "+977-01-5910770"
+        ],
+        "mobiles": [],
+        "websites": [
+          "https://applynec.com/"
+        ],
+        "icon": "",
+        "socialLinks": {
+          "facebook": "",
+          "tiktok": "",
+          "instagram": "",
+          "other": {}
+        },
+        "otherDetails": {
+          "categories": [
+            "Educational consultant"
+          ],
+          "hours": "Friday: 9:30 AM–6 PM, Saturday: Closed, Sunday: 9:30 AM–6 PM, Monday: 9:30 AM–6 PM, Tuesday: 9:30 AM–6 PM, Wednesday: 9:30 AM–6 PM, Thursday: 9:30 AM–6 PM",
+          "businessDescription": "Educational consultant in Opposite of Star Mall, Putali Sadak, Kathmandu, Bagmati Province 44600, Nepal. Phone: +977 1-5910770. Rating: 4.8 (908 reviews)",
+          "thumbnailUrl": "https://lh3.googleusercontent.com/grass-cs/ACvplmOn7mSvOLKI41f4VwpnVVqxmWOSO0hOVPqj_i5eBYIsylhV8fA14mGCYUiXOvaeDgdFM0hwNcL1Nn-eBP8cWgUZRKci1_bolF0ykOd-amjHf1bRA0peLLimeFMi7PMFTJdTum5JyQ",
+          "snippet": "Educational consultant in Opposite of Star Mall, Putali Sadak, Kathmandu, Bagmati Province 44600, Nepal. Phone: +977 1-5910770. Rating: 4.8 (908 reviews)",
+          "address": "Opposite of Star Mall, Putali Sadak, Kathmandu, Bagmati Province 44600, Nepal",
+          "rating": 4.8,
+          "ratingCount": 908,
+          "businessType": "Educational consultant",
+          "placeId": "ChIJneCDTwYZ6zkRz1bsOQWTT_4",
+          "services": [
+            "Educational consultant"
+          ],
+          "mapsPhone": "+977 1-5910770",
+          "websiteRelationship": "unverified",
+          "branches": [
+            {
+              "name": "Putalisadak Branch",
+              "address": "h us and our counselors will guide you toward the right course, university, and destination. Email: WhatsApp: Phone: Ramshah Path, Putalisadak, Kathmandu, Nepal Opposite of [provisionalsource",
+              "phones": [
+                "+977-01-5910770"
+              ],
+              "mobiles": [
+                "+977-980-2364830"
+              ],
+              "emails": [
+                "inquiry@applynec.com"
+              ]
+            }
+          ],
+          "classifiedContacts": [
+            {
+              "value": "inquiry@applynec.com",
+              "type": "email",
+              "role": "branch_contact",
+              "owner": "branch",
+              "channels": [],
+              "context": "h us and our counselors will guide you toward the right course, university, and destination. Email: inquiry@applynec.com WhatsApp: +977 9802364830 Phone: 01-5910770 Ramshah Path, Putalisadak, Kathmandu, Nepal Opposite of [provisional_source]",
+              "pageUrl": "https://applynec.com/",
+              "pagesSeenOn": [
+                "https://applynec.com",
+                "https://applynec.com/contact",
+                "https://applynec.com/about-us",
+                "https://applynec.com/team"
+              ]
+            },
+            {
+              "value": "inquiry@nepalec.edu.np",
+              "type": "email",
+              "role": "primary_business",
+              "owner": "business",
+              "channels": [],
+              "context": "Basketball Court Email: inquiry@applynec.com WhatsApp: +977 9802364830 Phone: 01-5910770 015911235 inquiry@nepalec.edu.np Follow us on: Follow us on: <!-- Last Published: Wed Sep 23 2026 11:03:40 GMT+0000 ( [provisional_source]",
+              "pageUrl": "https://applynec.com/",
+              "pagesSeenOn": [
+                "https://applynec.com",
+                "https://applynec.com/contact",
+                "https://applynec.com/about-us",
+                "https://applynec.com/team"
+              ]
+            },
+            {
+              "value": "abcd@gmail.com",
+              "type": "email",
+              "role": "unknown",
+              "owner": "unknown",
+              "channels": [],
+              "context": "ontent\"> Email abcd@gmail.com <svg x [provisional_source]",
+              "pageUrl": "https://applynec.com/",
+              "pagesSeenOn": [
+                "https://applynec.com"
+              ]
+            },
+            {
+              "value": "+977-01-5910770",
+              "canonicalDigits": "15910770",
+              "type": "phone",
+              "phoneType": "landline",
+              "role": "branch_contact",
+              "owner": "branch",
+              "channels": [
+                "call",
+                "whatsapp"
+              ],
+              "context": "t course, university, and destination. Email: inquiry@applynec.com WhatsApp: +977 9802364830 Phone: 01-5910770 Ramshah Path, Putalisadak, Kathmandu, Nepal Opposite of Star Mall Bhanimandal, Lalitpur, Nepal Oppo [provisional_source]",
+              "pageUrl": "https://applynec.com/",
+              "pagesSeenOn": [
+                "https://applynec.com",
+                "https://applynec.com/contact",
+                "https://applynec.com/about-us",
+                "https://applynec.com/team"
+              ]
+            },
+            {
+              "value": "+977-01-5911235",
+              "canonicalDigits": "15911235",
+              "type": "phone",
+              "phoneType": "landline",
+              "role": "primary_business",
+              "owner": "business",
+              "channels": [
+                "call",
+                "whatsapp"
+              ],
+              "context": "pposite of Basketball Court Email: inquiry@applynec.com WhatsApp: +977 9802364830 Phone: 01-5910770 015911235 inquiry@nepalec.edu.np Follow us on: Follow us on: [provisional_source]",
+              "pageUrl": "https://applynec.com/",
+              "pagesSeenOn": [
+                "https://applynec.com",
+                "https://applynec.com/contact",
+                "https://applynec.com/about-us",
+                "https://applynec.com/team"
+              ]
+            },
+            {
+              "value": "+977-980-2364830",
+              "canonicalDigits": "9802364830",
+              "type": "phone",
+              "phoneType": "mobile",
+              "role": "branch_contact",
+              "owner": "branch",
+              "channels": [
+                "call",
+                "whatsapp"
+              ],
+              "context": "ide you toward the right course, university, and destination. Email: inquiry@applynec.com WhatsApp: +977 9802364830 Phone: 01-5910770 Ramshah Path, Putalisadak, Kathmandu, Nepal Opposite of Star Mall Bhanimandal, La [provisional_source]",
+              "pageUrl": "https://applynec.com/",
+              "pagesSeenOn": [
+                "https://applynec.com",
+                "https://applynec.com/contact",
+                "https://applynec.com/about-us",
+                "https://applynec.com/team"
+              ]
+            },
+            {
+              "value": "+91 9876543210",
+              "canonicalDigits": "919876543210",
+              "type": "phone",
+              "phoneType": "international",
+              "role": "primary_business",
+              "owner": "business",
+              "channels": [
+                "call",
+                "whatsapp"
+              ],
+              "context": "ent\"> Whatsapp +91 9876543210 Contac [provisional_source]",
+              "pageUrl": "https://applynec.com/",
+              "pagesSeenOn": [
+                "https://applynec.com"
+              ]
+            }
+          ]
+        },
+        "metadata": {
+          "source": "google_maps",
+          "extractedAt": "2026-09-25T11:55:24.342Z",
+          "runStartedAt": "2026-09-25T11:55:11.383Z",
+          "confidence": 0.65,
+          "confidenceBreakdown": {
+            "mapsIdentityConfidence": 1,
+            "websiteEvidenceConfidence": 0.1,
+            "contactConfidence": 0.9,
+            "overallConfidence": 0.65,
+            "conflictPenalty": 1,
+            "evidenceSummary": {
+              "mapsVerified": true,
+              "websiteVerified": true,
+              "phoneVerified": true,
+              "emailVerified": false,
+              "ratingCount": 908,
+              "relationshipType": "unverified"
+            }
+          }
+        },
+        "process": "Verified via Google Maps Places (Direct fallback)",
+        "links": [
+          "https://applynec.com/"
+        ],
+        "gpsCoordinates": {
+          "latitude": 27.7068968,
+          "longitude": 85.32254669999999
+        },
+        "rating": 4.8,
+        "ratingCount": 908,
+        "businessType": "Educational consultant",
+        "placeId": "ChIJneCDTwYZ6zkRz1bsOQWTT_4"
+      },
+      "evidence": {
+        "candidate": {
+          "name": "NEC- Nepal Education Consultancy Pvt. Ltd",
+          "location": "Opposite of Star Mall, Putali Sadak, Kathmandu, Bagmati Province 44600, Nepal",
+          "website": "https://applynec.com/",
+          "phone": "+977 1-5910770",
+          "coordinates": {
+            "lat": 27.7068968,
+            "lng": 85.32254669999999
+          },
+          "rating": 4.8,
+          "ratingCount": 908,
+          "category": "Educational consultant",
+          "categories": [
+            "Educational consultant"
+          ],
+          "hours": {
+            "Friday": "9:30 AM–6 PM",
+            "Saturday": "Closed",
+            "Sunday": "9:30 AM–6 PM",
+            "Monday": "9:30 AM–6 PM",
+            "Tuesday": "9:30 AM–6 PM",
+            "Wednesday": "9:30 AM–6 PM",
+            "Thursday": "9:30 AM–6 PM"
+          },
+          "thumbnailUrl": "https://lh3.googleusercontent.com/grass-cs/ACvplmOn7mSvOLKI41f4VwpnVVqxmWOSO0hOVPqj_i5eBYIsylhV8fA14mGCYUiXOvaeDgdFM0hwNcL1Nn-eBP8cWgUZRKci1_bolF0ykOd-amjHf1bRA0peLLimeFMi7PMFTJdTum5JyQ",
+          "discoverySource": "google_maps",
+          "nameSource": "maps_title",
+          "sources": {
+            "googleMaps": {
+              "found": true,
+              "placeId": "ChIJneCDTwYZ6zkRz1bsOQWTT_4",
+              "address": "Opposite of Star Mall, Putali Sadak, Kathmandu, Bagmati Province 44600, Nepal",
+              "phone": "+977 1-5910770",
+              "website": "https://applynec.com/"
+            },
+            "webSearch": []
+          },
+          "entityMatch": {
+            "matched": false,
+            "confidence": 0,
+            "method": "none"
+          },
+          "classification": {
+            "status": "usable",
+            "type": "business",
+            "confidence": 1,
+            "reason": "Verified Google Maps business listing"
+          }
+        },
+        "websiteEvidence": {
+          "url": "https://applynec.com/",
+          "domain": "applynec.com",
+          "pages": [
+            {
+              "url": "https://applynec.com/",
+              "content": "![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a3e26e10b7fbd3266460696_Rectangle%20102.png)\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a3e26e10b7fbd3266460696_Rectangle%20102.png)\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a3e26e10b7fbd3266460696_Rectangle%20102.png)\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a3e26e10b7fbd3266460696_Rectangle%20102.png)\n\n## About Us\n\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6ab110a74af57cee3e739d17_arrow%20(2).svg)\n\n## Student Services\n\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6ab110a74af57cee3e739d17_arrow%20(2).svg)\n\n## Study Destinations\n\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6ab110a74af57cee3e739d17_arrow%20(2).svg)\n\n## Courses & Faculties\n\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6ab110a74af57cee3e739d17_arrow%20(2).svg)\n\n## Resources\n\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6ab110a74af57cee3e739d17_arrow%20(2).svg)\n\n## Contact\n\n# Clear Paths. Global Dreams. Bright Futures.\n\nAt NEC, we help students transform their potential into success on the global stage.\n\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a5efd7aea36a515fa473db6_ivy-league.png)\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a3e26e10b7fbd3266460713_skills-icon.svg)\n\n## Planning to study abroad? Begin with these basics:\n\nFind a program that aligns with your passion and career goals.\n\nConsider job prospects in your chosen field and country and how they can help establish your career.\n\nChoose the destination that suits your lifestyle and aspirations.\n\nSelect a reputable institution to give you the best learning experience.\n\nPlan your budget smartly, from tuition to living expenses.\n\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a3e26e10b7fbd3266460651_home-basics_background-right.webp)\n\n## At NEC, we provide end",
+              "favicon": "",
+              "success": true,
+              "discoverySource": "homepage",
+              "pageType": "home"
+            },
+            {
+              "url": "https://applynec.com",
+              "content": "![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a3e26e10b7fbd3266460696_Rectangle%20102.png)\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a3e26e10b7fbd3266460696_Rectangle%20102.png)\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a3e26e10b7fbd3266460696_Rectangle%20102.png)\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a3e26e10b7fbd3266460696_Rectangle%20102.png)\n\n## About Us\n\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6ab110a74af57cee3e739d17_arrow%20(2).svg)\n\n## Student Services\n\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6ab110a74af57cee3e739d17_arrow%20(2).svg)\n\n## Study Destinations\n\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6ab110a74af57cee3e739d17_arrow%20(2).svg)\n\n## Courses & Faculties\n\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6ab110a74af57cee3e739d17_arrow%20(2).svg)\n\n## Resources\n\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6ab110a74af57cee3e739d17_arrow%20(2).svg)\n\n## Contact\n\n# Clear Paths. Global Dreams. Bright Futures.\n\nAt NEC, we help students transform their potential into success on the global stage.\n\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a5efd7aea36a515fa473db6_ivy-league.png)\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a3e26e10b7fbd3266460713_skills-icon.svg)\n\n## Planning to study abroad? Begin with these basics:\n\nFind a program that aligns with your passion and career goals.\n\nConsider job prospects in your chosen field and country and how they can help establish your career.\n\nChoose the destination that suits your lifestyle and aspirations.\n\nSelect a reputable institution to give you the best learning experience.\n\nPlan your budget smartly, from tuition to living expenses.\n\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a3e26e10b7fbd3266460651_home-basics_background-right.webp)\n\n## At NEC, we provide end",
+              "favicon": "",
+              "success": true,
+              "discoverySource": "homepage",
+              "pageType": "home"
+            },
+            {
+              "url": "https://applynec.com/contact",
+              "content": "![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6aab84d06b371648c731ddab_location-map%20(1).png)\n\n## Branches\n\nRamshah Path, Putalisadak, Kathmandu, Nepal   \nOpposite of Star Mall\n\nBhanimandal, Lalitpur, Nepal Opposite of Basketball Court\n\nEmail: inquiry@applynec.com\n\nWhatsApp: +977 9802364830\n\nPhone: 01-5910770\n\n015911235\n\ninquiry@nepalec.edu.np\n\nFollow us on:\n\nFollow us on:\n\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a3e26e10b7fbd3266460696_Rectangle%20102.png)\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a3e26e10b7fbd3266460696_Rectangle%20102.png)\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a3e26e10b7fbd3266460696_Rectangle%20102.png)\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a3e26e10b7fbd3266460696_Rectangle%20102.png)\n\n## About Us\n\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6ab110a74af57cee3e739d17_arrow%20(2).svg)\n\n## Student Services\n\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6ab110a74af57cee3e739d17_arrow%20(2).svg)\n\n## Study Destinations\n\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6ab110a74af57cee3e739d17_arrow%20(2).svg)\n\n## Courses & Faculties\n\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6ab110a74af57cee3e739d17_arrow%20(2).svg)\n\n## Resources\n\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6ab110a74af57cee3e739d17_arrow%20(2).svg)\n\n## Contact",
+              "favicon": "",
+              "success": true,
+              "discoverySource": "internal_link",
+              "pageType": "contact"
+            },
+            {
+              "url": "https://applynec.com/about-us",
+              "content": "![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a3e26e10b7fbd3266460696_Rectangle%20102.png)\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a3e26e10b7fbd3266460696_Rectangle%20102.png)\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a3e26e10b7fbd3266460696_Rectangle%20102.png)\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a3e26e10b7fbd3266460696_Rectangle%20102.png)\n\n## About Us\n\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6ab110a74af57cee3e739d17_arrow%20(2).svg)\n\n## Student Services\n\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6ab110a74af57cee3e739d17_arrow%20(2).svg)\n\n## Study Destinations\n\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6ab110a74af57cee3e739d17_arrow%20(2).svg)\n\n## Courses & Faculties\n\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6ab110a74af57cee3e739d17_arrow%20(2).svg)\n\n## Resources\n\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6ab110a74af57cee3e739d17_arrow%20(2).svg)\n\n## Contact\n\n# Trusted by 100,000+ students for over 25 years.\n\nNEC has grown from a small counselling service to one of Nepal’s most trusted education consultancies, partnering with top universities worldwide.  \n‍\n\nFrom choosing the right course to securing a place at top-ranked universities worldwide, NEC offers honest and comprehensive support to turn your study abroad dreams into reality.\n\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a3e26e10b7fbd3266460678_career05.svg)\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a3e26e10b7fbd3266460677_career06.svg)\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a3e26e10b7fbd3266460679_about-us-03.svg)\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a3e26e10b7fbd326646067a_about-us-4.svg)\n\n## We specialize in:\n\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a3e26e10b7fbd326646063d_Pers",
+              "favicon": "",
+              "success": true,
+              "discoverySource": "internal_link",
+              "pageType": "about"
+            },
+            {
+              "url": "https://applynec.com/team",
+              "content": "![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a3e26e10b7fbd3266460696_Rectangle%20102.png)\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a3e26e10b7fbd3266460696_Rectangle%20102.png)\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a3e26e10b7fbd3266460696_Rectangle%20102.png)\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a3e26e10b7fbd3266460696_Rectangle%20102.png)\n\n## About Us\n\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6ab110a74af57cee3e739d17_arrow%20(2).svg)\n\n## Student Services\n\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6ab110a74af57cee3e739d17_arrow%20(2).svg)\n\n## Study Destinations\n\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6ab110a74af57cee3e739d17_arrow%20(2).svg)\n\n## Courses & Faculties\n\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6ab110a74af57cee3e739d17_arrow%20(2).svg)\n\n## Resources\n\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6ab110a74af57cee3e739d17_arrow%20(2).svg)\n\n## Contact\n\n# These are the experts dedicated to your global education success.\n\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a3e26e10b7fbd32664606ad_ANANTA.png)\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a3e26e10b7fbd326646066e_YUKI%20POUDYAL.png)\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a86b3f0017cf21128274f6a_Tharendra%20Raj%20Adhikari%20(2).png)\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a3e26e10b7fbd3266460694_YUKI%20POUDYAL.png)\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a3e26e10b7fbd326646065e_AVASH%20GHIMIRE.png)\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a3e26e10b7fbd3266460664_MADHAV%20GAUTAM.png)\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a3e26e10b7fbd3266460658_ADITYA%20ACHARYA.png)\n![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a3e26e",
+              "favicon": "",
+              "success": true,
+              "discoverySource": "internal_link",
+              "pageType": "team"
+            }
+          ],
+          "extractedEmails": [
+            "inquiry@applynec.com",
+            "inquiry@nepalec.edu.np",
+            "abcd@gmail.com"
+          ],
+          "extractedPhones": [
+            "+977-01-5910770",
+            "+977-01-5911235",
+            "+91 9876543210"
+          ],
+          "extractedMobiles": [
+            "+977-980-2364830"
+          ],
+          "extractedPhoneEvidence": [
+            {
+              "raw": "01-5910770",
+              "canonicalDigits": "15910770",
+              "display": "+977-01-5910770",
+              "type": "landline",
+              "source": "markdown",
+              "pageUrl": "https://applynec.com/"
+            },
+            {
+              "raw": "015911235",
+              "canonicalDigits": "15911235",
+              "display": "+977-01-5911235",
+              "type": "landline",
+              "source": "markdown",
+              "pageUrl": "https://applynec.com/"
+            },
+            {
+              "raw": "+977 9802364830",
+              "canonicalDigits": "9802364830",
+              "display": "+977-980-2364830",
+              "type": "mobile",
+              "source": "markdown",
+              "pageUrl": "https://applynec.com/"
+            },
+            {
+              "raw": "01-5910770",
+              "canonicalDigits": "15910770",
+              "display": "+977-01-5910770",
+              "type": "landline",
+              "source": "rawHtml",
+              "pageUrl": "https://applynec.com/"
+            },
+            {
+              "raw": "015911235",
+              "canonicalDigits": "15911235",
+              "display": "+977-01-5911235",
+              "type": "landline",
+              "source": "rawHtml",
+              "pageUrl": "https://applynec.com/"
+            },
+            {
+              "raw": "+91 9876543210",
+              "canonicalDigits": "919876543210",
+              "display": "+91 9876543210",
+              "type": "international",
+              "source": "rawHtml",
+              "pageUrl": "https://applynec.com/"
+            },
+            {
+              "raw": "+977 9802364830",
+              "canonicalDigits": "9802364830",
+              "display": "+977-980-2364830",
+              "type": "mobile",
+              "source": "rawHtml",
+              "pageUrl": "https://applynec.com/"
+            },
+            {
+              "raw": "01-5910770",
+              "canonicalDigits": "15910770",
+              "display": "+977-01-5910770",
+              "type": "landline",
+              "source": "markdown",
+              "pageUrl": "https://applynec.com"
+            },
+            {
+              "raw": "015911235",
+              "canonicalDigits": "15911235",
+              "display": "+977-01-5911235",
+              "type": "landline",
+              "source": "markdown",
+              "pageUrl": "https://applynec.com"
+            },
+            {
+              "raw": "+977 9802364830",
+              "canonicalDigits": "9802364830",
+              "display": "+977-980-2364830",
+              "type": "mobile",
+              "source": "markdown",
+              "pageUrl": "https://applynec.com"
+            },
+            {
+              "raw": "01-5910770",
+              "canonicalDigits": "15910770",
+              "display": "+977-01-5910770",
+              "type": "landline",
+              "source": "rawHtml",
+              "pageUrl": "https://applynec.com"
+            },
+            {
+              "raw": "015911235",
+              "canonicalDigits": "15911235",
+              "display": "+977-01-5911235",
+              "type": "landline",
+              "source": "rawHtml",
+              "pageUrl": "https://applynec.com"
+            },
+            {
+              "raw": "+91 9876543210",
+              "canonicalDigits": "919876543210",
+              "display": "+91 9876543210",
+              "type": "international",
+              "source": "rawHtml",
+              "pageUrl": "https://applynec.com"
+            },
+            {
+              "raw": "+977 9802364830",
+              "canonicalDigits": "9802364830",
+              "display": "+977-980-2364830",
+              "type": "mobile",
+              "source": "rawHtml",
+              "pageUrl": "https://applynec.com"
+            },
+            {
+              "raw": "01-5910770",
+              "canonicalDigits": "15910770",
+              "display": "+977-01-5910770",
+              "type": "landline",
+              "source": "markdown",
+              "pageUrl": "https://applynec.com/contact"
+            },
+            {
+              "raw": "015911235",
+              "canonicalDigits": "15911235",
+              "display": "+977-01-5911235",
+              "type": "landline",
+              "source": "markdown",
+              "pageUrl": "https://applynec.com/contact"
+            },
+            {
+              "raw": "+977 9802364830",
+              "canonicalDigits": "9802364830",
+              "display": "+977-980-2364830",
+              "type": "mobile",
+              "source": "markdown",
+              "pageUrl": "https://applynec.com/contact"
+            },
+            {
+              "raw": "01-5910770",
+              "canonicalDigits": "15910770",
+              "display": "+977-01-5910770",
+              "type": "landline",
+              "source": "rawHtml",
+              "pageUrl": "https://applynec.com/contact"
+            },
+            {
+              "raw": "015911235",
+              "canonicalDigits": "15911235",
+              "display": "+977-01-5911235",
+              "type": "landline",
+              "source": "rawHtml",
+              "pageUrl": "https://applynec.com/contact"
+            },
+            {
+              "raw": "+977 9802364830",
+              "canonicalDigits": "9802364830",
+              "display": "+977-980-2364830",
+              "type": "mobile",
+              "source": "rawHtml",
+              "pageUrl": "https://applynec.com/contact"
+            },
+            {
+              "raw": "01-5910770",
+              "canonicalDigits": "15910770",
+              "display": "+977-01-5910770",
+              "type": "landline",
+              "source": "markdown",
+              "pageUrl": "https://applynec.com/about-us"
+            },
+            {
+              "raw": "015911235",
+              "canonicalDigits": "15911235",
+              "display": "+977-01-5911235",
+              "type": "landline",
+              "source": "markdown",
+              "pageUrl": "https://applynec.com/about-us"
+            },
+            {
+              "raw": "+977 9802364830",
+              "canonicalDigits": "9802364830",
+              "display": "+977-980-2364830",
+              "type": "mobile",
+              "source": "markdown",
+              "pageUrl": "https://applynec.com/about-us"
+            },
+            {
+              "raw": "01-5910770",
+              "canonicalDigits": "15910770",
+              "display": "+977-01-5910770",
+              "type": "landline",
+              "source": "rawHtml",
+              "pageUrl": "https://applynec.com/about-us"
+            },
+            {
+              "raw": "015911235",
+              "canonicalDigits": "15911235",
+              "display": "+977-01-5911235",
+              "type": "landline",
+              "source": "rawHtml",
+              "pageUrl": "https://applynec.com/about-us"
+            },
+            {
+              "raw": "+977 9802364830",
+              "canonicalDigits": "9802364830",
+              "display": "+977-980-2364830",
+              "type": "mobile",
+              "source": "rawHtml",
+              "pageUrl": "https://applynec.com/about-us"
+            },
+            {
+              "raw": "01-5910770",
+              "canonicalDigits": "15910770",
+              "display": "+977-01-5910770",
+              "type": "landline",
+              "source": "markdown",
+              "pageUrl": "https://applynec.com/team"
+            },
+            {
+              "raw": "015911235",
+              "canonicalDigits": "15911235",
+              "display": "+977-01-5911235",
+              "type": "landline",
+              "source": "markdown",
+              "pageUrl": "https://applynec.com/team"
+            },
+            {
+              "raw": "+977 9802364830",
+              "canonicalDigits": "9802364830",
+              "display": "+977-980-2364830",
+              "type": "mobile",
+              "source": "markdown",
+              "pageUrl": "https://applynec.com/team"
+            },
+            {
+              "raw": "01-5910770",
+              "canonicalDigits": "15910770",
+              "display": "+977-01-5910770",
+              "type": "landline",
+              "source": "rawHtml",
+              "pageUrl": "https://applynec.com/team"
+            },
+            {
+              "raw": "015911235",
+              "canonicalDigits": "15911235",
+              "display": "+977-01-5911235",
+              "type": "landline",
+              "source": "rawHtml",
+              "pageUrl": "https://applynec.com/team"
+            },
+            {
+              "raw": "+977 9802364830",
+              "canonicalDigits": "9802364830",
+              "display": "+977-980-2364830",
+              "type": "mobile",
+              "source": "rawHtml",
+              "pageUrl": "https://applynec.com/team"
+            }
+          ],
+          "extractedClassifiedContacts": [
+            {
+              "value": "inquiry@applynec.com",
+              "type": "email",
+              "role": "primary_business",
+              "owner": "business",
+              "channels": [],
+              "context": "h us and our counselors will guide you toward the right course, university, and destination. Email: inquiry@applynec.com WhatsApp: +977 9802364830 Phone: 01-5910770 Ramshah Path, Putalisadak, Kathmandu, Nepal Opposite of",
+              "pageUrl": "https://applynec.com/",
+              "pagesSeenOn": [
+                "https://applynec.com",
+                "https://applynec.com/contact",
+                "https://applynec.com/about-us",
+                "https://applynec.com/team"
+              ]
+            },
+            {
+              "value": "inquiry@nepalec.edu.np",
+              "type": "email",
+              "role": "primary_business",
+              "owner": "business",
+              "channels": [],
+              "context": "Basketball Court Email: inquiry@applynec.com WhatsApp: +977 9802364830 Phone: 01-5910770 015911235 inquiry@nepalec.edu.np Follow us on: Follow us on: <!-- Last Published: Wed Sep 23 2026 11:03:40 GMT+0000 (",
+              "pageUrl": "https://applynec.com/",
+              "pagesSeenOn": [
+                "https://applynec.com",
+                "https://applynec.com/contact",
+                "https://applynec.com/about-us",
+                "https://applynec.com/team"
+              ]
+            },
+            {
+              "value": "abcd@gmail.com",
+              "type": "email",
+              "role": "unknown",
+              "owner": "unknown",
+              "channels": [],
+              "context": "ontent\"> Email abcd@gmail.com <svg x",
+              "pageUrl": "https://applynec.com/",
+              "pagesSeenOn": [
+                "https://applynec.com"
+              ]
+            },
+            {
+              "value": "+977-01-5910770",
+              "canonicalDigits": "15910770",
+              "type": "phone",
+              "phoneType": "landline",
+              "role": "primary_business",
+              "owner": "business",
+              "channels": [
+                "call",
+                "whatsapp"
+              ],
+              "context": "t course, university, and destination. Email: inquiry@applynec.com WhatsApp: +977 9802364830 Phone: 01-5910770 Ramshah Path, Putalisadak, Kathmandu, Nepal Opposite of Star Mall Bhanimandal, Lalitpur, Nepal Oppo",
+              "pageUrl": "https://applynec.com/",
+              "pagesSeenOn": [
+                "https://applynec.com",
+                "https://applynec.com/contact",
+                "https://applynec.com/about-us",
+                "https://applynec.com/team"
+              ]
+            },
+            {
+              "value": "+977-01-5911235",
+              "canonicalDigits": "15911235",
+              "type": "phone",
+              "phoneType": "landline",
+              "role": "primary_business",
+              "owner": "business",
+              "channels": [
+                "call",
+                "whatsapp"
+              ],
+              "context": "pposite of Basketball Court Email: inquiry@applynec.com WhatsApp: +977 9802364830 Phone: 01-5910770 015911235 inquiry@nepalec.edu.np Follow us on: Follow us on:",
+              "pageUrl": "https://applynec.com/",
+              "pagesSeenOn": [
+                "https://applynec.com",
+                "https://applynec.com/contact",
+                "https://applynec.com/about-us",
+                "https://applynec.com/team"
+              ]
+            },
+            {
+              "value": "+977-980-2364830",
+              "canonicalDigits": "9802364830",
+              "type": "phone",
+              "phoneType": "mobile",
+              "role": "primary_business",
+              "owner": "business",
+              "channels": [
+                "call",
+                "whatsapp"
+              ],
+              "context": "ide you toward the right course, university, and destination. Email: inquiry@applynec.com WhatsApp: +977 9802364830 Phone: 01-5910770 Ramshah Path, Putalisadak, Kathmandu, Nepal Opposite of Star Mall Bhanimandal, La",
+              "pageUrl": "https://applynec.com/",
+              "pagesSeenOn": [
+                "https://applynec.com",
+                "https://applynec.com/contact",
+                "https://applynec.com/about-us",
+                "https://applynec.com/team"
+              ]
+            },
+            {
+              "value": "+91 9876543210",
+              "canonicalDigits": "919876543210",
+              "type": "phone",
+              "phoneType": "international",
+              "role": "primary_business",
+              "owner": "business",
+              "channels": [
+                "call",
+                "whatsapp"
+              ],
+              "context": "ent\"> Whatsapp +91 9876543210 Contac",
+              "pageUrl": "https://applynec.com/",
+              "pagesSeenOn": [
+                "https://applynec.com"
+              ]
+            }
+          ],
+          "extractedSocialLinks": {
+            "facebook": "",
+            "instagram": "",
+            "tiktok": "",
+            "other": {}
+          },
+          "extractedServices": [],
+          "favicon": "https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a3e26e10b7fbd32664605ff_favicon-light.png",
+          "rawContentSummary": "![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a3e26e10b7fbd3266460696_Rectangle%20102.png) ![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a3e26e10b7fbd3266460696_R ... ![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a3e26e10b7fbd3266460696_Rectangle%20102.png) ![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6a3e26e10b7fbd3266460696_R ... ![](https://cdn.prod.website-files.com/6a3e26e10b7fbd32664605e4/6aab84d06b371648c731ddab_location-map%20(1).png) ## Branches Ramshah Path, Putalisadak, Kathmandu, Nepal Opposite of Star Mall"
+        },
+        "verification": {
+          "status": "verified",
+          "overallConfidence": 0.95,
+          "checks": {
+            "websiteIsUsableOfficial": true,
+            "websiteDomainMatchesCandidate": true,
+            "businessNameFoundOnWebsite": true,
+            "phoneMatchesMaps": true,
+            "addressOrLocationFoundOnWebsite": true,
+            "emailFoundOnWebsite": true,
+            "socialLinksFoundOnWebsite": false
+          },
+          "notes": [
+            "No social links found on official website pages."
+          ]
+        },
+        "websiteRelationship": "unverified",
+        "websiteLifecycle": "identity_confirmed",
+        "sourceHealth": "unverified"
+      }
+    }
+  ],
+  "fallbackCases": [
+    {
+      "label": "verified_first_party_with_content:CIC Education Hub",
+      "candidate": {
+        "rank": 1,
+        "title": "CIC Education Hub",
+        "url": "https://ciceducationhub.com/",
+        "originalUrl": "https://ciceducationhub.com/",
+        "domain": "ciceducationhub.com",
+        "description": "Educational consultant in Kathmandu, Bagmati Province 44600, Nepal. Phone: +977 985-1180403. Rating: 4.9 (1999 reviews)",
+        "extraSnippets": [
+          "Kathmandu, Bagmati Province 44600, Nepal"
+        ],
+        "provider": "serper_places",
+        "source": "google_maps",
+        "latitude": 27.704898999999997,
+        "longitude": 85.3226317,
+        "phoneNumber": "+977 985-1180403",
+        "address": "Kathmandu, Bagmati Province 44600, Nepal",
+        "rating": 4.9,
+        "ratingCount": 1999,
+        "placeId": "ChIJj35UKeYZ6zkRLGuYz-nb9o0",
+        "businessType": "Educational consultant"
+      },
+      "extractions": [
+        {
+          "url": "https://ciceducationhub.com/",
+          "content": "![logo](https://ciceducationhub.com/wp-content/uploads/2025/01/Best-consultancy-In-Nepal-CIC-logo.png)\n\n# #1 Best Consultancy in Nepal for Study Abroad\n\n##### CIC Education Hub – Your Trusted Study Abroad Partner\n\nExpert Guidance for Admission, Visa Processing, and Career Success!\n\n## Why CIC Education is the Best Consultancy in Nepal for Study Abroad?\n\nCIC Education Hub is the best study consultancy in Nepal, offering expert guidance for students aiming to study abroad. With a proven track record, CIC provides personalized support, from university selection to visa processing, ensuring a smooth and hassle-free experience for students.\n\nAs a top consultancy in Nepal for Canada, USA, UK, Australia, and New Zealand, CIC is known for its transparent and comprehensive services.  Their strong connections with global institutions and dedicated team help students secure admissions, scholarships, and post-study opportunities, making CIC the trusted choice for the study abroad journey.\n\n  \n[Learn More](https://ciceducationhub.com/about-cic-education-hub/)\n\nCIC Education Hub is the best study consultancy in Nepal, offering expert guidance for students aiming to study abroad. With a proven track record, CIC provides personalized support, from university selection to visa processing, ensuring a smooth and hassle-free experience for students.\n\nAs a top consultancy in Nepal for Canada, USA, UK, Australia, and New Zealand, CIC is known for its transparent and comprehensive services.  Their strong connections with global institutions and dedicated team help students secure admissions, scholarships, and post-study opportunities, making CIC the trusted choice for the study abroad journey.\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/icon.png)\n![img](https://ciceducationhub.com/wp-content/uploads/2025/02/countries-4.png)\n![#](https://ciceducationhub.com/wp-content/uploads/2025/02/Skylie-countries.png)\n\n## Study Destinations\n\n![Canada](https://ciced",
+          "favicon": "",
+          "success": true
+        },
+        {
+          "url": "https://ciceducationhub.com",
+          "content": "![logo](https://ciceducationhub.com/wp-content/uploads/2025/01/Best-consultancy-In-Nepal-CIC-logo.png)\n\n# #1 Best Consultancy in Nepal for Study Abroad\n\n##### CIC Education Hub – Your Trusted Study Abroad Partner\n\nExpert Guidance for Admission, Visa Processing, and Career Success!\n\n## Why CIC Education is the Best Consultancy in Nepal for Study Abroad?\n\nCIC Education Hub is the best study consultancy in Nepal, offering expert guidance for students aiming to study abroad. With a proven track record, CIC provides personalized support, from university selection to visa processing, ensuring a smooth and hassle-free experience for students.\n\nAs a top consultancy in Nepal for Canada, USA, UK, Australia, and New Zealand, CIC is known for its transparent and comprehensive services.  Their strong connections with global institutions and dedicated team help students secure admissions, scholarships, and post-study opportunities, making CIC the trusted choice for the study abroad journey.\n\n  \n[Learn More](https://ciceducationhub.com/about-cic-education-hub/)\n\nCIC Education Hub is the best study consultancy in Nepal, offering expert guidance for students aiming to study abroad. With a proven track record, CIC provides personalized support, from university selection to visa processing, ensuring a smooth and hassle-free experience for students.\n\nAs a top consultancy in Nepal for Canada, USA, UK, Australia, and New Zealand, CIC is known for its transparent and comprehensive services.  Their strong connections with global institutions and dedicated team help students secure admissions, scholarships, and post-study opportunities, making CIC the trusted choice for the study abroad journey.\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/icon.png)\n![img](https://ciceducationhub.com/wp-content/uploads/2025/02/countries-4.png)\n![#](https://ciceducationhub.com/wp-content/uploads/2025/02/Skylie-countries.png)\n\n## Study Destinations\n\n![Canada](https://ciced",
+          "favicon": "",
+          "success": true
+        },
+        {
+          "url": "https://ciceducationhub.com/get-in-touch",
+          "content": "![logo](https://ciceducationhub.com/wp-content/uploads/2025/01/Best-consultancy-In-Nepal-CIC-logo.png)\n\n# Contact Us\n\nContact us foy any Queries\n\n### Contact Us\n\n### Talk with expert\n\n#### Mr. Dipesh KC\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/whatsapp.png)\n\n#### Mr. Abhinay Adhikari\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/whatsapp.png)\n\n#### Mr. Nabin Subedi\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/whatsapp.png)\n\n#### Mr. Rajesh Adhikari\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/whatsapp.png)\n\n#### Ms. Aashma Luitel\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/whatsapp.png)\n\n#### Mr. Rajiv Raj Karki\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/whatsapp.png)\n\n#### Ms. Ruby Chand\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/whatsapp.png)\n\n## Our Offices\n\n##### New Baneshwor,Kathmandu\n\n#### BAS Plaza New Baneshwor\n\n##### Putalisadak Kathmandu\n\n#### Putalisadak, Kathmandu\n\n##### Pokhara\n\n#### Mahendra Pool, Pokhara\n\n##### Best Consultancy in Birtamode, Jhapa\n\n#### Mukti Chowk, Birtamode\n\n## Talk with expert\n\n#### Mr. Dipesh KC\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/whatsapp.png)\n\n#### Mr. Abhinay Adhikari\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/whatsapp.png)\n\n#### Mr. Nabin Subedi\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/whatsapp.png)\n\n#### Mr. Rajesh Adhikari\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/whatsapp.png)\n\n#### Ms. Aashma Luitel\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/whatsapp.png)\n\n#### Mr. Rajiv Raj Karki\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/i",
+          "favicon": "",
+          "success": true
+        },
+        {
+          "url": "https://ciceducationhub.com/about-cic-education-hub",
+          "content": "![logo](https://ciceducationhub.com/wp-content/uploads/2025/01/Best-consultancy-In-Nepal-CIC-logo.png)\n\n# About CIC Education Hub\n\n![#](https://ciceducationhub.com/wp-content/uploads/2025/05/55.png)\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/icon.png)\n\n## Our Story\n\nAt CIC Education Hub, we cherish humanity, emotions, and empathy. We understand how important and crucial it is to handle a student’s career. We work towards achieving the best for every student. We know the importance of correct, proper, and genuine guidance and here at CIC Education, we respect that. Our work is not only to admit students to colleges in Canada, USA, UK, Australia, and New Zealand but also to ensure that they are choosing and making decisions that will boost their careers.\n\nWe have a friendly and familiar environment where the attachment is the key. We enjoy the student’s success and celebrate it together. We share laughter and tears. Here, at CIC Education we live life and celebrate life, career, and success as success is the key to a happy and peaceful life. Walk-in and experience the successful life at CIC Education Hub!!!\n\n![#](https://ciceducationhub.com/wp-content/uploads/2024/01/6227c386c91730a8dca1a45509181397-removebg-preview.png)\n\n## Mission & Vision\n\nOur mission involves building strong relationships with partner institutions based on shared values. We strive to be the top consultancy in Nepal for students aiming to study in Canada, USA, UK, Australia, and New Zealand, ensuring their academic success. With our dedicated team, we offer reliable services, personalized guidance, and a smooth journey from application to admission. At CIC Education Hub, our mission is to be the best consultancy in Nepal for Canada, USA, UK, Australia, and New Zealand, guiding students towards academic success.\n\nOur vision is to empower students to reach their goals through careful career counseling. We’re dedicated to creating value, not just for students but ",
+          "favicon": "",
+          "success": true
+        },
+        {
+          "url": "https://ciceducationhub.com/study-in-canada-from-nepal",
+          "content": "![logo](https://ciceducationhub.com/wp-content/uploads/2025/01/Best-consultancy-In-Nepal-CIC-logo.png)\n\n##### Menu\n\n## Study in Canada from Nepal in 2026\n\n**Study in Canada from Nepal** has become a leading choice for students who want high-quality education, [top-ranked universities](https://ciceducationhub.com/top-universities-in-canada/), and strong career prospects. Canada is known for its excellent academic standards, research-focused programs, and safe, welcoming environment making it one of the most trusted destinations for Nepali students in 2026.\n\n  \n\nCanada also offers affordable tuition fees, reasonable living costs, and flexible accommodation options such as dormitories, homestays, and shared apartments. With scholarships, part-time work opportunities, and clear post-study work pathways, [**study in Canada from Nepal**](https://ciceducationhub.com/study-in-canada-guide-2026/) provides long-term value and a strong foundation for future career growth.\n\n**Study in Canada from Nepal** has become a leading choice for students who want high-quality education, [top-ranked universities](https://ciceducationhub.com/top-universities-in-canada/), and strong career prospects. Canada is known for its excellent academic standards, research-focused programs, and safe, welcoming environment making it one of the most trusted destinations for Nepali students in 2026.\n\nCanada also offers affordable tuition fees, reasonable living costs, and flexible accommodation options such as dormitories, homestays, and shared apartments. With scholarships, part-time work opportunities, and clear post-study work pathways, [**study in Canada from Nepal**](https://ciceducationhub.com/study-in-canada-guide-2026/) provides long-term value and a strong foundation for future career growth.\n\n### Why Study In Canada from Nepal?\n\n![icon](https://ciceducationhub.com/wp-content/uploads/2024/01/reading.png)\n\nBest Study Destination\n\n![icon](https://ciceducationhub.com/wp-content/uploads/2024/01/scho",
+          "favicon": "",
+          "success": true
+        }
+      ],
+      "verifiedEvidence": [
+        {
+          "candidate": {
+            "name": "CIC Education Hub",
+            "location": "Kathmandu, Bagmati Province 44600, Nepal",
+            "website": "https://ciceducationhub.com/",
+            "phone": "+977 985-1180403",
+            "coordinates": {
+              "lat": 27.704898999999997,
+              "lng": 85.3226317
+            },
+            "rating": 4.9,
+            "ratingCount": 1999,
+            "category": "Educational consultant",
+            "categories": [
+              "Educational consultant",
+              "Career guidance service",
+              "English language school",
+              "Student career counseling office",
+              "Test preparation center"
+            ],
+            "hours": {
+              "Friday": "9:30 AM–5:30 PM",
+              "Saturday": "Closed",
+              "Sunday": "9:30 AM–5:30 PM",
+              "Monday": "9:30 AM–5:30 PM",
+              "Tuesday": "9:30 AM–5:30 PM",
+              "Wednesday": "9:30 AM–5:30 PM",
+              "Thursday": "9:30 AM–5:30 PM"
+            },
+            "thumbnailUrl": "https://lh3.googleusercontent.com/grass-cs/ACvplmOC-yUbcKmvtd-PDf_oj6fCs6Nz84JCvlybclOT0junMFIlbS7ckV_5y5a5TEf-4wXKIMxlZzF2aV-dCmj7K3Yiid6zsRPVKw1eLCqPsz5ZEuYg5ItPSFw_YqKr2U11J4Eu3xOjdA",
+            "bookingLinks": [
+              "https://ciceducationhub.com/"
+            ],
+            "discoverySource": "google_maps",
+            "nameSource": "maps_title",
+            "sources": {
+              "googleMaps": {
+                "found": true,
+                "placeId": "ChIJj35UKeYZ6zkRLGuYz-nb9o0",
+                "address": "Kathmandu, Bagmati Province 44600, Nepal",
+                "phone": "+977 985-1180403",
+                "website": "https://ciceducationhub.com/"
+              },
+              "webSearch": []
+            },
+            "entityMatch": {
+              "matched": false,
+              "confidence": 0,
+              "method": "none"
+            },
+            "classification": {
+              "status": "usable",
+              "type": "business",
+              "confidence": 1,
+              "reason": "Verified Google Maps business listing"
+            }
+          },
+          "websiteEvidence": {
+            "url": "https://ciceducationhub.com/",
+            "domain": "ciceducationhub.com",
+            "pages": [
+              {
+                "url": "https://ciceducationhub.com/",
+                "content": "![logo](https://ciceducationhub.com/wp-content/uploads/2025/01/Best-consultancy-In-Nepal-CIC-logo.png)\n\n# #1 Best Consultancy in Nepal for Study Abroad\n\n##### CIC Education Hub – Your Trusted Study Abroad Partner\n\nExpert Guidance for Admission, Visa Processing, and Career Success!\n\n## Why CIC Education is the Best Consultancy in Nepal for Study Abroad?\n\nCIC Education Hub is the best study consultancy in Nepal, offering expert guidance for students aiming to study abroad. With a proven track record, CIC provides personalized support, from university selection to visa processing, ensuring a smooth and hassle-free experience for students.\n\nAs a top consultancy in Nepal for Canada, USA, UK, Australia, and New Zealand, CIC is known for its transparent and comprehensive services.  Their strong connections with global institutions and dedicated team help students secure admissions, scholarships, and post-study opportunities, making CIC the trusted choice for the study abroad journey.\n\n  \n[Learn More](https://ciceducationhub.com/about-cic-education-hub/)\n\nCIC Education Hub is the best study consultancy in Nepal, offering expert guidance for students aiming to study abroad. With a proven track record, CIC provides personalized support, from university selection to visa processing, ensuring a smooth and hassle-free experience for students.\n\nAs a top consultancy in Nepal for Canada, USA, UK, Australia, and New Zealand, CIC is known for its transparent and comprehensive services.  Their strong connections with global institutions and dedicated team help students secure admissions, scholarships, and post-study opportunities, making CIC the trusted choice for the study abroad journey.\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/icon.png)\n![img](https://ciceducationhub.com/wp-content/uploads/2025/02/countries-4.png)\n![#](https://ciceducationhub.com/wp-content/uploads/2025/02/Skylie-countries.png)\n\n## Study Destinations\n\n![Canada](https://ciced",
+                "favicon": "",
+                "success": true,
+                "discoverySource": "homepage",
+                "pageType": "home"
+              },
+              {
+                "url": "https://ciceducationhub.com",
+                "content": "![logo](https://ciceducationhub.com/wp-content/uploads/2025/01/Best-consultancy-In-Nepal-CIC-logo.png)\n\n# #1 Best Consultancy in Nepal for Study Abroad\n\n##### CIC Education Hub – Your Trusted Study Abroad Partner\n\nExpert Guidance for Admission, Visa Processing, and Career Success!\n\n## Why CIC Education is the Best Consultancy in Nepal for Study Abroad?\n\nCIC Education Hub is the best study consultancy in Nepal, offering expert guidance for students aiming to study abroad. With a proven track record, CIC provides personalized support, from university selection to visa processing, ensuring a smooth and hassle-free experience for students.\n\nAs a top consultancy in Nepal for Canada, USA, UK, Australia, and New Zealand, CIC is known for its transparent and comprehensive services.  Their strong connections with global institutions and dedicated team help students secure admissions, scholarships, and post-study opportunities, making CIC the trusted choice for the study abroad journey.\n\n  \n[Learn More](https://ciceducationhub.com/about-cic-education-hub/)\n\nCIC Education Hub is the best study consultancy in Nepal, offering expert guidance for students aiming to study abroad. With a proven track record, CIC provides personalized support, from university selection to visa processing, ensuring a smooth and hassle-free experience for students.\n\nAs a top consultancy in Nepal for Canada, USA, UK, Australia, and New Zealand, CIC is known for its transparent and comprehensive services.  Their strong connections with global institutions and dedicated team help students secure admissions, scholarships, and post-study opportunities, making CIC the trusted choice for the study abroad journey.\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/icon.png)\n![img](https://ciceducationhub.com/wp-content/uploads/2025/02/countries-4.png)\n![#](https://ciceducationhub.com/wp-content/uploads/2025/02/Skylie-countries.png)\n\n## Study Destinations\n\n![Canada](https://ciced",
+                "favicon": "",
+                "success": true,
+                "discoverySource": "homepage",
+                "pageType": "home"
+              },
+              {
+                "url": "https://ciceducationhub.com/get-in-touch",
+                "content": "![logo](https://ciceducationhub.com/wp-content/uploads/2025/01/Best-consultancy-In-Nepal-CIC-logo.png)\n\n# Contact Us\n\nContact us foy any Queries\n\n### Contact Us\n\n### Talk with expert\n\n#### Mr. Dipesh KC\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/whatsapp.png)\n\n#### Mr. Abhinay Adhikari\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/whatsapp.png)\n\n#### Mr. Nabin Subedi\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/whatsapp.png)\n\n#### Mr. Rajesh Adhikari\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/whatsapp.png)\n\n#### Ms. Aashma Luitel\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/whatsapp.png)\n\n#### Mr. Rajiv Raj Karki\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/whatsapp.png)\n\n#### Ms. Ruby Chand\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/whatsapp.png)\n\n## Our Offices\n\n##### New Baneshwor,Kathmandu\n\n#### BAS Plaza New Baneshwor\n\n##### Putalisadak Kathmandu\n\n#### Putalisadak, Kathmandu\n\n##### Pokhara\n\n#### Mahendra Pool, Pokhara\n\n##### Best Consultancy in Birtamode, Jhapa\n\n#### Mukti Chowk, Birtamode\n\n## Talk with expert\n\n#### Mr. Dipesh KC\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/whatsapp.png)\n\n#### Mr. Abhinay Adhikari\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/whatsapp.png)\n\n#### Mr. Nabin Subedi\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/whatsapp.png)\n\n#### Mr. Rajesh Adhikari\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/whatsapp.png)\n\n#### Ms. Aashma Luitel\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/whatsapp.png)\n\n#### Mr. Rajiv Raj Karki\n\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/i",
+                "favicon": "",
+                "success": true,
+                "discoverySource": "internal_link",
+                "pageType": "contact"
+              },
+              {
+                "url": "https://ciceducationhub.com/about-cic-education-hub",
+                "content": "![logo](https://ciceducationhub.com/wp-content/uploads/2025/01/Best-consultancy-In-Nepal-CIC-logo.png)\n\n# About CIC Education Hub\n\n![#](https://ciceducationhub.com/wp-content/uploads/2025/05/55.png)\n![icon](https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/icon.png)\n\n## Our Story\n\nAt CIC Education Hub, we cherish humanity, emotions, and empathy. We understand how important and crucial it is to handle a student’s career. We work towards achieving the best for every student. We know the importance of correct, proper, and genuine guidance and here at CIC Education, we respect that. Our work is not only to admit students to colleges in Canada, USA, UK, Australia, and New Zealand but also to ensure that they are choosing and making decisions that will boost their careers.\n\nWe have a friendly and familiar environment where the attachment is the key. We enjoy the student’s success and celebrate it together. We share laughter and tears. Here, at CIC Education we live life and celebrate life, career, and success as success is the key to a happy and peaceful life. Walk-in and experience the successful life at CIC Education Hub!!!\n\n![#](https://ciceducationhub.com/wp-content/uploads/2024/01/6227c386c91730a8dca1a45509181397-removebg-preview.png)\n\n## Mission & Vision\n\nOur mission involves building strong relationships with partner institutions based on shared values. We strive to be the top consultancy in Nepal for students aiming to study in Canada, USA, UK, Australia, and New Zealand, ensuring their academic success. With our dedicated team, we offer reliable services, personalized guidance, and a smooth journey from application to admission. At CIC Education Hub, our mission is to be the best consultancy in Nepal for Canada, USA, UK, Australia, and New Zealand, guiding students towards academic success.\n\nOur vision is to empower students to reach their goals through careful career counseling. We’re dedicated to creating value, not just for students but ",
+                "favicon": "",
+                "success": true,
+                "discoverySource": "internal_link",
+                "pageType": "other"
+              },
+              {
+                "url": "https://ciceducationhub.com/study-in-canada-from-nepal",
+                "content": "![logo](https://ciceducationhub.com/wp-content/uploads/2025/01/Best-consultancy-In-Nepal-CIC-logo.png)\n\n##### Menu\n\n## Study in Canada from Nepal in 2026\n\n**Study in Canada from Nepal** has become a leading choice for students who want high-quality education, [top-ranked universities](https://ciceducationhub.com/top-universities-in-canada/), and strong career prospects. Canada is known for its excellent academic standards, research-focused programs, and safe, welcoming environment making it one of the most trusted destinations for Nepali students in 2026.\n\n  \n\nCanada also offers affordable tuition fees, reasonable living costs, and flexible accommodation options such as dormitories, homestays, and shared apartments. With scholarships, part-time work opportunities, and clear post-study work pathways, [**study in Canada from Nepal**](https://ciceducationhub.com/study-in-canada-guide-2026/) provides long-term value and a strong foundation for future career growth.\n\n**Study in Canada from Nepal** has become a leading choice for students who want high-quality education, [top-ranked universities](https://ciceducationhub.com/top-universities-in-canada/), and strong career prospects. Canada is known for its excellent academic standards, research-focused programs, and safe, welcoming environment making it one of the most trusted destinations for Nepali students in 2026.\n\nCanada also offers affordable tuition fees, reasonable living costs, and flexible accommodation options such as dormitories, homestays, and shared apartments. With scholarships, part-time work opportunities, and clear post-study work pathways, [**study in Canada from Nepal**](https://ciceducationhub.com/study-in-canada-guide-2026/) provides long-term value and a strong foundation for future career growth.\n\n### Why Study In Canada from Nepal?\n\n![icon](https://ciceducationhub.com/wp-content/uploads/2024/01/reading.png)\n\nBest Study Destination\n\n![icon](https://ciceducationhub.com/wp-content/uploads/2024/01/scho",
+                "favicon": "",
+                "success": true,
+                "discoverySource": "internal_link",
+                "pageType": "other"
+              }
+            ],
+            "extractedEmails": [
+              "info@ciceducationhub.com"
+            ],
+            "extractedPhones": [
+              "+977-01-5332834",
+              "+977 061591171",
+              "+977 023 591640"
+            ],
+            "extractedMobiles": [
+              "+977-980-2330366",
+              "+977-985-1180403",
+              "+977-984-1778666",
+              "+977-980-2347640",
+              "+977-980-2338788",
+              "+977-980-2347644",
+              "+977-980-2336911"
+            ],
+            "extractedPhoneEvidence": [
+              {
+                "raw": "1-5332834",
+                "canonicalDigits": "15332834",
+                "display": "+977-01-5332834",
+                "type": "landline",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com/"
+              },
+              {
+                "raw": "+977 061591171",
+                "canonicalDigits": "977061591171",
+                "display": "+977 061591171",
+                "type": "international",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com/"
+              },
+              {
+                "raw": "+977 023 591640",
+                "canonicalDigits": "977023591640",
+                "display": "+977 023 591640",
+                "type": "international",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com/"
+              },
+              {
+                "raw": "+977 9802330366",
+                "canonicalDigits": "9802330366",
+                "display": "+977-980-2330366",
+                "type": "mobile",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com/"
+              },
+              {
+                "raw": "+977 9851180403",
+                "canonicalDigits": "9851180403",
+                "display": "+977-985-1180403",
+                "type": "mobile",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com/"
+              },
+              {
+                "raw": "+977 9841778666",
+                "canonicalDigits": "9841778666",
+                "display": "+977-984-1778666",
+                "type": "mobile",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com/"
+              },
+              {
+                "raw": "9802347640",
+                "canonicalDigits": "9802347640",
+                "display": "+977-980-2347640",
+                "type": "mobile",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com/"
+              },
+              {
+                "raw": "+977 9802338788",
+                "canonicalDigits": "9802338788",
+                "display": "+977-980-2338788",
+                "type": "mobile",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com/"
+              },
+              {
+                "raw": "+977 9802347644",
+                "canonicalDigits": "9802347644",
+                "display": "+977-980-2347644",
+                "type": "mobile",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com/"
+              },
+              {
+                "raw": "+977 9802336911",
+                "canonicalDigits": "9802336911",
+                "display": "+977-980-2336911",
+                "type": "mobile",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com/"
+              },
+              {
+                "raw": "1-5332834",
+                "canonicalDigits": "15332834",
+                "display": "+977-01-5332834",
+                "type": "landline",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com"
+              },
+              {
+                "raw": "+977 061591171",
+                "canonicalDigits": "977061591171",
+                "display": "+977 061591171",
+                "type": "international",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com"
+              },
+              {
+                "raw": "+977 023 591640",
+                "canonicalDigits": "977023591640",
+                "display": "+977 023 591640",
+                "type": "international",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com"
+              },
+              {
+                "raw": "+977 9802330366",
+                "canonicalDigits": "9802330366",
+                "display": "+977-980-2330366",
+                "type": "mobile",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com"
+              },
+              {
+                "raw": "+977 9851180403",
+                "canonicalDigits": "9851180403",
+                "display": "+977-985-1180403",
+                "type": "mobile",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com"
+              },
+              {
+                "raw": "+977 9841778666",
+                "canonicalDigits": "9841778666",
+                "display": "+977-984-1778666",
+                "type": "mobile",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com"
+              },
+              {
+                "raw": "9802347640",
+                "canonicalDigits": "9802347640",
+                "display": "+977-980-2347640",
+                "type": "mobile",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com"
+              },
+              {
+                "raw": "+977 9802338788",
+                "canonicalDigits": "9802338788",
+                "display": "+977-980-2338788",
+                "type": "mobile",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com"
+              },
+              {
+                "raw": "+977 9802347644",
+                "canonicalDigits": "9802347644",
+                "display": "+977-980-2347644",
+                "type": "mobile",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com"
+              },
+              {
+                "raw": "+977 9802336911",
+                "canonicalDigits": "9802336911",
+                "display": "+977-980-2336911",
+                "type": "mobile",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com"
+              },
+              {
+                "raw": "1-5332834",
+                "canonicalDigits": "15332834",
+                "display": "+977-01-5332834",
+                "type": "landline",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com/get-in-touch"
+              },
+              {
+                "raw": "+977 061591171",
+                "canonicalDigits": "977061591171",
+                "display": "+977 061591171",
+                "type": "international",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com/get-in-touch"
+              },
+              {
+                "raw": "+977 023 591640",
+                "canonicalDigits": "977023591640",
+                "display": "+977 023 591640",
+                "type": "international",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com/get-in-touch"
+              },
+              {
+                "raw": "+977 9851180403",
+                "canonicalDigits": "9851180403",
+                "display": "+977-985-1180403",
+                "type": "mobile",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com/get-in-touch"
+              },
+              {
+                "raw": "+977 9802338788",
+                "canonicalDigits": "9802338788",
+                "display": "+977-980-2338788",
+                "type": "mobile",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com/get-in-touch"
+              },
+              {
+                "raw": "+977 9802330366",
+                "canonicalDigits": "9802330366",
+                "display": "+977-980-2330366",
+                "type": "mobile",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com/get-in-touch"
+              },
+              {
+                "raw": "+977 9841778666",
+                "canonicalDigits": "9841778666",
+                "display": "+977-984-1778666",
+                "type": "mobile",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com/get-in-touch"
+              },
+              {
+                "raw": "+977 9802347640",
+                "canonicalDigits": "9802347640",
+                "display": "+977-980-2347640",
+                "type": "mobile",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com/get-in-touch"
+              },
+              {
+                "raw": "+977 9802347644",
+                "canonicalDigits": "9802347644",
+                "display": "+977-980-2347644",
+                "type": "mobile",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com/get-in-touch"
+              },
+              {
+                "raw": "+977 9802336911",
+                "canonicalDigits": "9802336911",
+                "display": "+977-980-2336911",
+                "type": "mobile",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com/get-in-touch"
+              },
+              {
+                "raw": "1-5332834",
+                "canonicalDigits": "15332834",
+                "display": "+977-01-5332834",
+                "type": "landline",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com/about-cic-education-hub"
+              },
+              {
+                "raw": "+977 061591171",
+                "canonicalDigits": "977061591171",
+                "display": "+977 061591171",
+                "type": "international",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com/about-cic-education-hub"
+              },
+              {
+                "raw": "+977 023 591640",
+                "canonicalDigits": "977023591640",
+                "display": "+977 023 591640",
+                "type": "international",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com/about-cic-education-hub"
+              },
+              {
+                "raw": "+977 9802330366",
+                "canonicalDigits": "9802330366",
+                "display": "+977-980-2330366",
+                "type": "mobile",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com/about-cic-education-hub"
+              },
+              {
+                "raw": "+977 9851180403",
+                "canonicalDigits": "9851180403",
+                "display": "+977-985-1180403",
+                "type": "mobile",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com/about-cic-education-hub"
+              },
+              {
+                "raw": "+977 9841778666",
+                "canonicalDigits": "9841778666",
+                "display": "+977-984-1778666",
+                "type": "mobile",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com/about-cic-education-hub"
+              },
+              {
+                "raw": "9802347640",
+                "canonicalDigits": "9802347640",
+                "display": "+977-980-2347640",
+                "type": "mobile",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com/about-cic-education-hub"
+              },
+              {
+                "raw": "+977 9802338788",
+                "canonicalDigits": "9802338788",
+                "display": "+977-980-2338788",
+                "type": "mobile",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com/about-cic-education-hub"
+              },
+              {
+                "raw": "+977 9802347644",
+                "canonicalDigits": "9802347644",
+                "display": "+977-980-2347644",
+                "type": "mobile",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com/about-cic-education-hub"
+              },
+              {
+                "raw": "+977 9802336911",
+                "canonicalDigits": "9802336911",
+                "display": "+977-980-2336911",
+                "type": "mobile",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com/about-cic-education-hub"
+              },
+              {
+                "raw": "1-5332834",
+                "canonicalDigits": "15332834",
+                "display": "+977-01-5332834",
+                "type": "landline",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com/study-in-canada-from-nepal"
+              },
+              {
+                "raw": "+977 061591171",
+                "canonicalDigits": "977061591171",
+                "display": "+977 061591171",
+                "type": "international",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com/study-in-canada-from-nepal"
+              },
+              {
+                "raw": "+977 023 591640",
+                "canonicalDigits": "977023591640",
+                "display": "+977 023 591640",
+                "type": "international",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com/study-in-canada-from-nepal"
+              },
+              {
+                "raw": "+977 9851180403",
+                "canonicalDigits": "9851180403",
+                "display": "+977-985-1180403",
+                "type": "mobile",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com/study-in-canada-from-nepal"
+              },
+              {
+                "raw": "+977 9802338788",
+                "canonicalDigits": "9802338788",
+                "display": "+977-980-2338788",
+                "type": "mobile",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com/study-in-canada-from-nepal"
+              },
+              {
+                "raw": "+977 9802330366",
+                "canonicalDigits": "9802330366",
+                "display": "+977-980-2330366",
+                "type": "mobile",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com/study-in-canada-from-nepal"
+              },
+              {
+                "raw": "+977 9841778666",
+                "canonicalDigits": "9841778666",
+                "display": "+977-984-1778666",
+                "type": "mobile",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com/study-in-canada-from-nepal"
+              },
+              {
+                "raw": "+977 9802347640",
+                "canonicalDigits": "9802347640",
+                "display": "+977-980-2347640",
+                "type": "mobile",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com/study-in-canada-from-nepal"
+              },
+              {
+                "raw": "+977 9802347644",
+                "canonicalDigits": "9802347644",
+                "display": "+977-980-2347644",
+                "type": "mobile",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com/study-in-canada-from-nepal"
+              },
+              {
+                "raw": "+977 9802336911",
+                "canonicalDigits": "9802336911",
+                "display": "+977-980-2336911",
+                "type": "mobile",
+                "source": "rawHtml",
+                "pageUrl": "https://ciceducationhub.com/study-in-canada-from-nepal"
+              }
+            ],
+            "extractedClassifiedContacts": [
+              {
+                "value": "info@ciceducationhub.com",
+                "type": "email",
+                "role": "primary_business",
+                "owner": "business",
+                "channels": [],
+                "context": "ert guidance for students planning to study in Canada, USA, UK, New Zealand, and Australia. [Email: info@ciceducationhub.com](mailto:info@ciceducationhub.com) ###### Useful Links ###### Study Abroad ###### Test Preparation #",
+                "pageUrl": "https://ciceducationhub.com/",
+                "pagesSeenOn": [
+                  "https://ciceducationhub.com",
+                  "https://ciceducationhub.com/get-in-touch",
+                  "https://ciceducationhub.com/about-cic-education-hub",
+                  "https://ciceducationhub.com/study-in-canada-from-nepal"
+                ]
+              },
+              {
+                "value": "+977-01-5332834",
+                "canonicalDigits": "15332834",
+                "type": "phone",
+                "phoneType": "landline",
+                "role": "branch_contact",
+                "owner": "branch",
+                "channels": [
+                  "call"
+                ],
+                "context": "Putalisadak Branch: Putalisadak, Kathmandu Putalisadak, Kathmandu - a blan",
+                "blockId": "branch-putalisadak",
+                "pageUrl": "https://ciceducationhub.com/",
+                "pagesSeenOn": [
+                  "https://ciceducationhub.com",
+                  "https://ciceducationhub.com/get-in-touch",
+                  "https://ciceducationhub.com/about-cic-education-hub",
+                  "https://ciceducationhub.com/study-in-canada-from-nepal"
+                ]
+              },
+              {
+                "value": "+977 061591171",
+                "canonicalDigits": "977061591171",
+                "type": "phone",
+                "phoneType": "international",
+                "role": "branch_contact",
+                "owner": "branch",
+                "channels": [
+                  "call"
+                ],
+                "context": "Pokhara Branch: Mahendra Pool, Pokhara Mahendra Pool, Pokhara a blank",
+                "blockId": "branch-pokhara",
+                "pageUrl": "https://ciceducationhub.com/",
+                "pagesSeenOn": [
+                  "https://ciceducationhub.com",
+                  "https://ciceducationhub.com/get-in-touch",
+                  "https://ciceducationhub.com/about-cic-education-hub",
+                  "https://ciceducationhub.com/study-in-canada-from-nepal"
+                ]
+              },
+              {
+                "value": "+977 023 591640",
+                "canonicalDigits": "977023591640",
+                "type": "phone",
+                "phoneType": "international",
+                "role": "branch_contact",
+                "owner": "branch",
+                "channels": [
+                  "call"
+                ],
+                "context": "Jhapa Branch: Best Consultancy in Birtamode, Jhapa Best Consultancy in Birtamode, Jhapa Mukti Chowk, Birtamode a",
+                "blockId": "branch-jhapa",
+                "pageUrl": "https://ciceducationhub.com/",
+                "pagesSeenOn": [
+                  "https://ciceducationhub.com",
+                  "https://ciceducationhub.com/get-in-touch",
+                  "https://ciceducationhub.com/about-cic-education-hub",
+                  "https://ciceducationhub.com/study-in-canada-from-nepal"
+                ]
+              },
+              {
+                "value": "+977-980-2330366",
+                "canonicalDigits": "9802330366",
+                "type": "phone",
+                "phoneType": "mobile",
+                "role": "branch_contact",
+                "owner": "branch",
+                "channels": [
+                  "call"
+                ],
+                "associatedPerson": "Plaza New Baneshwor",
+                "context": "Baneshwor Branch: BAS Plaza New Baneshwor BAS Plaza New Baneshwor - 01- 28 a ta",
+                "blockId": "branch-baneshwor",
+                "pageUrl": "https://ciceducationhub.com/",
+                "pagesSeenOn": [
+                  "https://ciceducationhub.com",
+                  "https://ciceducationhub.com/get-in-touch",
+                  "https://ciceducationhub.com/about-cic-education-hub",
+                  "https://ciceducationhub.com/study-in-canada-from-nepal"
+                ]
+              },
+              {
+                "value": "+977-985-1180403",
+                "canonicalDigits": "9851180403",
+                "type": "phone",
+                "phoneType": "mobile",
+                "role": "branch_contact",
+                "owner": "branch",
+                "channels": [
+                  "call"
+                ],
+                "context": "Putalisadak Branch: Putalisadak, Kathmandu Putalisadak, Kathmandu - a blan",
+                "blockId": "branch-putalisadak",
+                "pageUrl": "https://ciceducationhub.com/",
+                "pagesSeenOn": [
+                  "https://ciceducationhub.com",
+                  "https://ciceducationhub.com/get-in-touch",
+                  "https://ciceducationhub.com/about-cic-education-hub",
+                  "https://ciceducationhub.com/study-in-canada-from-nepal"
+                ]
+              },
+              {
+                "value": "+977-984-1778666",
+                "canonicalDigits": "9841778666",
+                "type": "phone",
+                "phoneType": "mobile",
+                "role": "branch_contact",
+                "owner": "branch",
+                "channels": [
+                  "call"
+                ],
+                "context": "Pokhara Branch: Mahendra Pool, Pokhara Mahendra Pool, Pokhara a blank",
+                "blockId": "branch-pokhara",
+                "pageUrl": "https://ciceducationhub.com/",
+                "pagesSeenOn": [
+                  "https://ciceducationhub.com",
+                  "https://ciceducationhub.com/get-in-touch",
+                  "https://ciceducationhub.com/about-cic-education-hub",
+                  "https://ciceducationhub.com/study-in-canada-from-nepal"
+                ]
+              },
+              {
+                "value": "+977-980-2347640",
+                "canonicalDigits": "9802347640",
+                "type": "phone",
+                "phoneType": "mobile",
+                "role": "branch_contact",
+                "owner": "branch",
+                "channels": [
+                  "call"
+                ],
+                "context": "Jhapa Branch: Best Consultancy in Birtamode, Jhapa Best Consultancy in Birtamode, Jhapa Mukti Chowk, Birtamode a",
+                "blockId": "branch-jhapa",
+                "pageUrl": "https://ciceducationhub.com/",
+                "pagesSeenOn": [
+                  "https://ciceducationhub.com",
+                  "https://ciceducationhub.com/get-in-touch",
+                  "https://ciceducationhub.com/about-cic-education-hub",
+                  "https://ciceducationhub.com/study-in-canada-from-nepal"
+                ]
+              },
+              {
+                "value": "+977-980-2338788",
+                "canonicalDigits": "9802338788",
+                "type": "phone",
+                "phoneType": "mobile",
+                "role": "primary_business",
+                "owner": "business",
+                "channels": [
+                  "call"
+                ],
+                "context": "alt=\"icon\"> +977 9802338788 <i class=\"fa-solid fa",
+                "pageUrl": "https://ciceducationhub.com/",
+                "pagesSeenOn": [
+                  "https://ciceducationhub.com",
+                  "https://ciceducationhub.com/get-in-touch",
+                  "https://ciceducationhub.com/about-cic-education-hub",
+                  "https://ciceducationhub.com/study-in-canada-from-nepal"
+                ]
+              },
+              {
+                "value": "+977-980-2347644",
+                "canonicalDigits": "9802347644",
+                "type": "phone",
+                "phoneType": "mobile",
+                "role": "primary_business",
+                "owner": "business",
+                "channels": [
+                  "call"
+                ],
+                "context": "alt=\"icon\"> +977 9802347644 <i class=\"fa-solid fa",
+                "pageUrl": "https://ciceducationhub.com/",
+                "pagesSeenOn": [
+                  "https://ciceducationhub.com",
+                  "https://ciceducationhub.com/get-in-touch",
+                  "https://ciceducationhub.com/about-cic-education-hub",
+                  "https://ciceducationhub.com/study-in-canada-from-nepal"
+                ]
+              },
+              {
+                "value": "+977-980-2336911",
+                "canonicalDigits": "9802336911",
+                "type": "phone",
+                "phoneType": "mobile",
+                "role": "primary_business",
+                "owner": "business",
+                "channels": [
+                  "call"
+                ],
+                "context": "alt=\"icon\"> +977 9802336911 <i class=\"fa-solid fa",
+                "pageUrl": "https://ciceducationhub.com/",
+                "pagesSeenOn": [
+                  "https://ciceducationhub.com",
+                  "https://ciceducationhub.com/get-in-touch",
+                  "https://ciceducationhub.com/about-cic-education-hub",
+                  "https://ciceducationhub.com/study-in-canada-from-nepal"
+                ]
+              }
+            ],
+            "extractedSocialLinks": {
+              "facebook": "https://facebook.com/ciceducationhub",
+              "instagram": "https://instagram.com/ciceducationhub_official",
+              "tiktok": "https://tiktok.com/@ciceducationhub",
+              "other": {
+                "youtube": "https://youtube.com/@ciceducationhub4884",
+                "linkedin": "https://linkedin.com/company/cic-education-hub"
+              }
+            },
+            "extractedServices": [],
+            "favicon": "https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/favicon.png",
+            "rawContentSummary": "![logo](https://ciceducationhub.com/wp-content/uploads/2025/01/Best-consultancy-In-Nepal-CIC-logo.png) # #1 Best Consultancy in Nepal for Study Abroad ##### CIC Education Hub – Your Trusted Study Abro ... ![logo](https://ciceducationhub.com/wp-content/uploads/2025/01/Best-consultancy-In-Nepal-CIC-logo.png) # #1 Best Consultancy in Nepal for Study Abroad ##### CIC Education Hub – Your Trusted Study Abro ... ![logo](https://ciceducationhub.com/wp-content/uploads/2025/01/Best-consultancy-In-Nepal-CIC-logo.png) # Contact Us Contact us foy any Queries ### Contact Us ### Talk with expert #### Mr. Di"
+          },
+          "verification": {
+            "status": "verified",
+            "overallConfidence": 1,
+            "checks": {
+              "websiteIsUsableOfficial": true,
+              "websiteDomainMatchesCandidate": true,
+              "businessNameFoundOnWebsite": true,
+              "phoneMatchesMaps": true,
+              "addressOrLocationFoundOnWebsite": true,
+              "emailFoundOnWebsite": true,
+              "socialLinksFoundOnWebsite": true
+            },
+            "notes": []
+          },
+          "websiteRelationship": "first_party",
+          "websiteLifecycle": "first_party_owned",
+          "sourceHealth": "verified"
+        }
+      ],
+      "fallbackLocation": "Kathmandu",
+      "runStartedAt": "1970-01-01T00:00:00.000Z"
+    },
+    {
+      "label": "transient_failure_no_pages:Optimus Global Education Consultancy",
+      "candidate": {
+        "rank": 13,
+        "title": "Optimus Global Education Consultancy",
+        "url": "https://optimusglobaledu.com/",
+        "originalUrl": "https://optimusglobaledu.com/",
+        "domain": "optimusglobaledu.com",
+        "description": "Educational consultant in Putalisadak, Way to, Kathmandu 44605, Nepal. Phone: +977 985-1310002. Rating: 4.8 (257 reviews)",
+        "extraSnippets": [
+          "Putalisadak, Way to, Kathmandu 44605, Nepal"
+        ],
+        "provider": "serper_places",
+        "source": "google_maps",
+        "latitude": 27.7055515,
+        "longitude": 85.32341509999999,
+        "phoneNumber": "+977 985-1310002",
+        "address": "Putalisadak, Way to, Kathmandu 44605, Nepal",
+        "rating": 4.8,
+        "ratingCount": 257,
+        "placeId": "ChIJb6aPo5YZ6zkR8vsJorAdaE0",
+        "businessType": "Educational consultant"
+      },
+      "extractions": [],
+      "verifiedEvidence": [
+        {
+          "candidate": {
+            "name": "Optimus Global Education Consultancy",
+            "location": "Putalisadak, Way to, Kathmandu 44605, Nepal",
+            "website": "https://optimusglobaledu.com/",
+            "phone": "+977 985-1310002",
+            "coordinates": {
+              "lat": 27.7055515,
+              "lng": 85.32341509999999
+            },
+            "rating": 4.8,
+            "ratingCount": 257,
+            "category": "Educational consultant",
+            "categories": [
+              "Educational consultant"
+            ],
+            "hours": {
+              "Friday": "12–6 AM, 9 AM–12 AM",
+              "Saturday": "12–6 AM",
+              "Sunday": "9 AM–12 AM",
+              "Monday": "12–6 AM, 9 AM–12 AM",
+              "Tuesday": "12–6 AM, 9 AM–12 AM",
+              "Wednesday": "12–6 AM, 9 AM–12 AM",
+              "Thursday": "12–6 AM, 9 AM–12 AM"
+            },
+            "thumbnailUrl": "https://lh3.googleusercontent.com/grass-cs/ACvplmNIAc5ugwvb1eVjoXosbtCQQMKGQMimM00VPwD-Iy5VlEWCDYB8HnigHCWvinh4Kl4RRhF5pKVZvcAxsD4u87G3-WZPkC7JxyvdbnAp2IPULBMleIOYwnMwtzoYskb0l5CIhKhEYDerIyM",
+            "discoverySource": "google_maps",
+            "nameSource": "maps_title",
+            "sources": {
+              "googleMaps": {
+                "found": true,
+                "placeId": "ChIJb6aPo5YZ6zkR8vsJorAdaE0",
+                "address": "Putalisadak, Way to, Kathmandu 44605, Nepal",
+                "phone": "+977 985-1310002",
+                "website": "https://www.optimusglobaledu.com/"
+              },
+              "webSearch": []
+            },
+            "entityMatch": {
+              "matched": false,
+              "confidence": 0,
+              "method": "none"
+            },
+            "classification": {
+              "status": "usable",
+              "type": "business",
+              "confidence": 1,
+              "reason": "Verified Google Maps business listing"
+            }
+          },
+          "verification": {
+            "status": "failed",
+            "overallConfidence": 0,
+            "checks": {
+              "websiteIsUsableOfficial": true,
+              "websiteDomainMatchesCandidate": false,
+              "businessNameFoundOnWebsite": false,
+              "phoneMatchesMaps": false,
+              "addressOrLocationFoundOnWebsite": false,
+              "emailFoundOnWebsite": false,
+              "socialLinksFoundOnWebsite": false
+            },
+            "notes": [
+              "Website extraction failed — no page evidence available."
+            ]
+          },
+          "websiteRelationship": "unverified",
+          "websiteLifecycle": "usable",
+          "sourceHealth": "transient_failure"
+        }
+      ],
+      "fallbackLocation": "Kathmandu",
+      "runStartedAt": "1970-01-01T00:00:00.000Z"
+    }
+  ],
+  "phoneSamples": [
+    "+977 985-1180403",
+    "9851180403",
+    "+977-985-1180403",
+    "9802330366",
+    "+977 980-2338788",
+    "+977-984-1778666",
+    "+977-980-2347644",
+    "+977-980-2336911",
+    "+977-01-5332834",
+    "01-5332834",
+    "+977 1-5971526",
+    "1-5368547",
+    "+977 061591171",
+    "+977 023 591640",
+    "9779779851234567",
+    "+977 (01) 4567890",
+    "27.382262",
+    "85.309623",
+    "984177866",
+    "12345",
+    "12345678901234567",
+    "+1 415 555 2671",
+    "977-9851180403",
+    ""
+  ],
+  "socialSamples": [
+    {
+      "url": "https://www.tiktok.com/@globaleyeeducation",
+      "businessName": "Global Eye Education Consultancy",
+      "websiteDomain": "globaleye.edu.np",
+      "origin": "website_evidence"
+    },
+    {
+      "url": "https://www.facebook.com/globaleyeeducation",
+      "businessName": "Global Eye Education Consultancy",
+      "websiteDomain": "globaleye.edu.np",
+      "origin": "website_evidence"
+    },
+    {
+      "url": "https://www.instagram.com/globaleye.consultancy",
+      "businessName": "Global Eye Education Consultancy",
+      "websiteDomain": "globaleye.edu.np",
+      "origin": "website_evidence"
+    },
+    {
+      "url": "https://www.linkedin.com/company/global-eye-education",
+      "businessName": "Global Eye Education Consultancy",
+      "websiteDomain": "globaleye.edu.np",
+      "origin": "website_evidence"
+    },
+    {
+      "url": "https://facebook.com/ciceducationhub",
+      "businessName": "CIC Education Hub",
+      "websiteDomain": "ciceducationhub.com",
+      "origin": "website_evidence"
+    },
+    {
+      "url": "https://www.facebook.com/tr?id=1395564971716732&ev=PageView",
+      "businessName": "Global Eye Education Consultancy",
+      "websiteDomain": "globaleye.edu.np",
+      "origin": "website_evidence"
+    },
+    {
+      "url": "https://facebook.com/john.doe.12345",
+      "businessName": "CIC Education Hub",
+      "websiteDomain": "ciceducationhub.com",
+      "origin": "serp"
+    },
+    {
+      "url": "https://instagram.com/explore",
+      "businessName": "CIC Education Hub",
+      "websiteDomain": "ciceducationhub.com",
+      "origin": "serp"
+    },
+    {
+      "url": "https://facebook.com/pages/create",
+      "businessName": "CIC Education Hub",
+      "websiteDomain": "ciceducationhub.com",
+      "origin": "serp"
+    },
+    {
+      "url": "https://facebook.com/",
+      "businessName": "CIC Education Hub",
+      "websiteDomain": "ciceducationhub.com",
+      "origin": "serp"
+    },
+    {
+      "url": "",
+      "businessName": "CIC Education Hub",
+      "websiteDomain": "ciceducationhub.com",
+      "origin": "serp"
+    }
+  ]
+}

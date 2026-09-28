@@ -10,10 +10,37 @@ dist
 output/
 
 # Tests & Scripts
-scripts/
+# NOTE: scripts/ itself is intentionally NOT ignored anymore. Phase 1 tracks the
+# golden replay harness via scripts/fixtures/golden/**, while top-level live
+# scripts stay untracked. (`fixtures/` below matches only the repo root because
+# every pattern here containing a slash is anchored.)
+scripts/probe-*.ts
+scripts/run-*.ts
+scripts/seed-*.ts
+scripts/test-*.ts
+scripts/fixtures/*
+!scripts/fixtures/golden/
 tests/
 test/
 __tests__/
 *.test.*
 *.spec.*
-fixtures/
+
+# Phase-specific test suites — run locally (npm run test:full), not tracked
+# (the 17 core suites are force-tracked via `git add -f`)
+
+# One-shot refactoring tooling — local only, not part of the project
+scripts/phase4-freeze/
+scripts/phase4-slicing/
+scripts/check-body-preservation.ts
+scripts/check-stale-service-imports.ts
+scripts/generate-phase3-shims.ts
+scripts/update-service-imports.ts
+scripts/fixtures/golden/alias-probe.ts
+scripts/fixtures/golden/check-scripts.ts
+scripts/fixtures/golden/extract-fixture.ts
+scripts/fixtures/golden/inventory.ts
+scripts/fixtures/golden/run-baseline-tests.ts
+
+# Architecture gate reports / refactoring evidence — removed from the repository
+docs/

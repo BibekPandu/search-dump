@@ -2,11 +2,13 @@ import { Agent } from '@mastra/core/agent';
 import { Memory } from '@mastra/memory';
 import fs from 'fs';
 import path from 'path';
-import { createMemoryStorage, getProjectRootDir } from '../../../services/db.service';
-import { getUnoModel, UNO_FREE_MODELS } from '../../../services/unorouter.service';
-import { broadSearchTool } from '../../Tools/broad-search';
-import { deepExtractTool } from '../../Tools/deep-extract';
-import { googleMapsSearchTool } from '../../Tools/google-maps-search';
+import { createMemoryStorage, getProjectRootDir } from '@/services/storage/db.service';
+import { getUnoModel, UNO_FREE_MODELS } from '@/services/external/unorouter.service';
+import {
+  broadSearchTool,
+  deepExtractTool,
+  googleMapsSearchTool,
+} from '@/mastra/tools';
 
 const instructionsPath = path.join(getProjectRootDir(), 'src/mastra/agents/gemma-supervisor/prompt.md');
 const instructions = fs.existsSync(instructionsPath)

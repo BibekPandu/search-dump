@@ -1,0 +1,1585 @@
+{
+  "capturedAt": "2026-09-26T13:22:16.651Z",
+  "fixture": "scripts/fixtures/golden/input/replay-input.json",
+  "fixtureSha256": "7e1cc958edbe2ed2a9de60b1c5e2f4589aab1537362214cd27ab28b8e1f4247b",
+  "stageHashes": {
+    "buildResearchCandidates": "ff426df43ec9c11168bc5e9ba389560eee190f9e672c15f0f0b8054c6c472c5d",
+    "classifyNepalPhone": "f3246057a690414932f31f7b4d48fb16596eb175ade25923e3656aff64833483",
+    "classifySocialProfile": "c3cf39cd7f6a72d4f5d33dea483f48512d3fc59b5433fca6a34bd32e207bfd01",
+    "sanitizeListingWithEvidence": "02e77981785ae62c272b80052842622b676d2dfd7a08965fab83d07999294ed6",
+    "buildFallbackListing": "6c694c9a15dd43769fb1b3e2325bfd4a727926a6efe788d2aea1671e14becd59"
+  },
+  "stages": {
+    "buildResearchCandidates": {
+      "candidates": [
+        {
+          "categories": [
+            "Educational consultant"
+          ],
+          "category": "Educational consultant",
+          "classification": {
+            "confidence": 1,
+            "reason": "Verified Google Maps business listing",
+            "status": "usable",
+            "type": "business"
+          },
+          "coordinates": {
+            "lat": 27.7033,
+            "lng": 85.3225
+          },
+          "description": "Educational consultant in Kathmandu, Bagmati Province 44600, Nepal. Phone: +977 1-5348043. Rating: 4.9 (437 reviews)",
+          "discoverySource": "google_maps",
+          "entityMatch": {
+            "confidence": 0,
+            "matched": false,
+            "method": "none"
+          },
+          "location": "Kathmandu, Bagmati Province 44600, Nepal",
+          "name": "AAEC GLOBAL",
+          "nameSource": "maps_title",
+          "phone": "+977 1-5348043",
+          "rating": 4.9,
+          "ratingCount": 437,
+          "sources": {
+            "googleMaps": {
+              "address": "Kathmandu, Bagmati Province 44600, Nepal",
+              "found": true,
+              "phone": "+977 1-5348043",
+              "placeId": "ChIJK8AzlNsZ6zkRFzA5ImC7OoE",
+              "website": "https://aaecglobal.com/"
+            },
+            "webSearch": []
+          },
+          "website": "https://aaecglobal.com/"
+        },
+        {
+          "categories": [
+            "Educational consultant"
+          ],
+          "category": "Educational consultant",
+          "classification": {
+            "confidence": 1,
+            "reason": "Verified Google Maps business listing",
+            "status": "usable",
+            "type": "business"
+          },
+          "coordinates": {
+            "lat": 27.7049,
+            "lng": 85.3226
+          },
+          "description": "Educational consultant in Kathmandu, Bagmati Province 44600, Nepal. Phone: +977 985-1180403. Rating: 4.9 (1999 reviews)",
+          "discoverySource": "google_maps",
+          "entityMatch": {
+            "confidence": 0,
+            "matched": false,
+            "method": "none"
+          },
+          "location": "Kathmandu, Bagmati Province 44600, Nepal",
+          "name": "CIC Education Hub",
+          "nameSource": "maps_title",
+          "phone": "+977 985-1180403",
+          "rating": 4.9,
+          "ratingCount": 1999,
+          "sources": {
+            "googleMaps": {
+              "address": "Kathmandu, Bagmati Province 44600, Nepal",
+              "found": true,
+              "phone": "+977 985-1180403",
+              "placeId": "ChIJj35UKeYZ6zkRLGuYz-nb9o0",
+              "website": "https://ciceducationhub.com/"
+            },
+            "webSearch": []
+          },
+          "website": "https://ciceducationhub.com/"
+        },
+        {
+          "categories": [
+            "Educational consultant"
+          ],
+          "category": "Educational consultant",
+          "classification": {
+            "confidence": 1,
+            "reason": "Verified Google Maps business listing",
+            "status": "usable",
+            "type": "business"
+          },
+          "coordinates": {
+            "lat": 27.7057,
+            "lng": 85.3227
+          },
+          "description": "Educational consultant in Putalisadak Chowk, Kathmandu 44600, Nepal. Phone: +977 1-5368547. Rating: 4.9 (1002 reviews)",
+          "discoverySource": "google_maps",
+          "entityMatch": {
+            "confidence": 0,
+            "matched": false,
+            "method": "none"
+          },
+          "location": "Putalisadak Chowk, Kathmandu 44600, Nepal",
+          "name": "CSC Global",
+          "nameSource": "maps_title",
+          "phone": "+977 1-5368547",
+          "rating": 4.9,
+          "ratingCount": 1002,
+          "sources": {
+            "googleMaps": {
+              "address": "Putalisadak Chowk, Kathmandu 44600, Nepal",
+              "found": true,
+              "phone": "+977 1-5368547",
+              "placeId": "ChIJ___GiFcY6zkRJKHa8tMqxBo",
+              "website": "http://csc.edu.np/"
+            },
+            "webSearch": []
+          },
+          "website": "http://csc.edu.np/"
+        },
+        {
+          "categories": [
+            "Educational consultant"
+          ],
+          "category": "Educational consultant",
+          "classification": {
+            "confidence": 1,
+            "reason": "Verified Google Maps business listing",
+            "status": "usable",
+            "type": "business"
+          },
+          "coordinates": {
+            "lat": 27.7011,
+            "lng": 85.3226
+          },
+          "description": "Educational consultant in Shubhashree Complex 6th & 7th floor, New Plaza Rd, Kathmandu, Bagmati Province 44600, Nepal. Phone: +977 1-4528908. Rating: 4.9 (556 reviews)",
+          "discoverySource": "google_maps",
+          "entityMatch": {
+            "confidence": 1,
+            "matched": true,
+            "method": "domain",
+            "reason": "Matching official domain (edwisefoundation.com)"
+          },
+          "location": "Shubhashree Complex 6th & 7th floor, New Plaza Rd, Kathmandu, Bagmati Province 44600, Nepal",
+          "name": "Edwise Foundation",
+          "nameSource": "maps_title",
+          "phone": "+977 1-4528908",
+          "rating": 4.9,
+          "ratingCount": 556,
+          "sources": {
+            "googleMaps": {
+              "address": "Shubhashree Complex 6th & 7th floor, New Plaza Rd, Kathmandu, Bagmati Province 44600, Nepal",
+              "found": true,
+              "phone": "+977 1-4528908",
+              "placeId": "ChIJA7Pwv6gZ6zkRDINdRyWZI0s",
+              "website": "https://edwisefoundation.com/"
+            },
+            "webSearch": [
+              {
+                "domain": "edwisefoundation.com",
+                "provider": "serper",
+                "snippet": "Edwise Foundation, a leading consultancy in Kathmandu, Nepal, specializes in providing affordable, high-quality test preparation and accurate advising services.",
+                "title": "Edwise Foundation: Best Education Consultancy in ...",
+                "url": "https://edwisefoundation.com/"
+              }
+            ]
+          },
+          "website": "https://edwisefoundation.com/"
+        },
+        {
+          "categories": [
+            "Educational consultant"
+          ],
+          "category": "Educational consultant",
+          "classification": {
+            "confidence": 1,
+            "reason": "Verified Google Maps business listing",
+            "status": "usable",
+            "type": "business"
+          },
+          "coordinates": {
+            "lat": 27.7049,
+            "lng": 85.3234
+          },
+          "description": "Educational consultant in KIEC Avenue 44/05, Lalupate Marg, Kathmandu, Bagmati Province 44600, Nepal. Phone: +977 1-5971526. Rating: 4.9 (1407 reviews)",
+          "discoverySource": "google_maps",
+          "entityMatch": {
+            "confidence": 1,
+            "matched": true,
+            "method": "domain",
+            "reason": "Matching official domain (kiec.edu.np)"
+          },
+          "location": "KIEC Avenue 44/05, Lalupate Marg, Kathmandu, Bagmati Province 44600, Nepal",
+          "name": "KIEC Putalisadak",
+          "nameSource": "maps_title",
+          "phone": "+977 1-5971526",
+          "rating": 4.9,
+          "ratingCount": 1407,
+          "sources": {
+            "googleMaps": {
+              "address": "KIEC Avenue 44/05, Lalupate Marg, Kathmandu, Bagmati Province 44600, Nepal",
+              "found": true,
+              "phone": "+977 1-5971526",
+              "placeId": "ChIJJ9rBtrsZ6zkRG2gcQvqXHDo",
+              "website": "https://kiec.edu.np/"
+            },
+            "webSearch": [
+              {
+                "domain": "kiec.edu.np",
+                "provider": "serper",
+                "snippet": "KIEC helps Nepali students achieve their study abroad goals through expert counseling, university selection, application support, test preparation, and visa ...",
+                "title": "Best Education Consultancy in Nepal | Study Abroad with KIEC",
+                "url": "https://kiec.edu.np/"
+              }
+            ]
+          },
+          "website": "https://kiec.edu.np/"
+        },
+        {
+          "categories": [
+            "Educational consultant"
+          ],
+          "category": "Educational consultant",
+          "classification": {
+            "confidence": 1,
+            "reason": "Verified Google Maps business listing",
+            "status": "usable",
+            "type": "business"
+          },
+          "coordinates": {
+            "lat": 27.7069,
+            "lng": 85.3225
+          },
+          "description": "Educational consultant in Opposite of Star Mall, Putali Sadak, Kathmandu, Bagmati Province 44600, Nepal. Phone: +977 1-5910770. Rating: 4.8 (908 reviews)",
+          "discoverySource": "google_maps",
+          "entityMatch": {
+            "confidence": 0,
+            "matched": false,
+            "method": "none"
+          },
+          "location": "Opposite of Star Mall, Putali Sadak, Kathmandu, Bagmati Province 44600, Nepal",
+          "name": "NEC- Nepal Education Consultancy Pvt. Ltd",
+          "nameSource": "maps_title",
+          "phone": "+977 1-5910770",
+          "rating": 4.8,
+          "ratingCount": 908,
+          "sources": {
+            "googleMaps": {
+              "address": "Opposite of Star Mall, Putali Sadak, Kathmandu, Bagmati Province 44600, Nepal",
+              "found": true,
+              "phone": "+977 1-5910770",
+              "placeId": "ChIJneCDTwYZ6zkRz1bsOQWTT_4",
+              "website": "https://applynec.com/"
+            },
+            "webSearch": []
+          },
+          "website": "https://applynec.com/"
+        },
+        {
+          "categories": [
+            "Educational consultant"
+          ],
+          "category": "Educational consultant",
+          "classification": {
+            "confidence": 1,
+            "reason": "Verified Google Maps business listing",
+            "status": "usable",
+            "type": "business"
+          },
+          "coordinates": {
+            "lat": 27.7041,
+            "lng": 85.3224
+          },
+          "description": "Educational consultant in Kathmandu, Bagmati Province 44600, Nepal. Phone: +977 1-5356600. Rating: 4.6 (875 reviews)",
+          "discoverySource": "google_maps",
+          "entityMatch": {
+            "confidence": 1,
+            "matched": true,
+            "method": "domain",
+            "reason": "Matching official domain (niec.edu.np)"
+          },
+          "location": "Kathmandu, Bagmati Province 44600, Nepal",
+          "name": "NIEC - Nepal International Educational Consultancy",
+          "nameSource": "maps_title",
+          "phone": "+977 1-5356600",
+          "rating": 4.6,
+          "ratingCount": 875,
+          "sources": {
+            "googleMaps": {
+              "address": "Kathmandu, Bagmati Province 44600, Nepal",
+              "found": true,
+              "phone": "+977 1-5356600",
+              "placeId": "ChIJZ6YiP6gZ6zkRFTDZ6bC00Ws",
+              "website": "https://niec.edu.np/"
+            },
+            "webSearch": [
+              {
+                "domain": "niec.edu.np",
+                "provider": "serper",
+                "snippet": "NIEC: Best Consultancy in Nepal 2026. Best ... Europe Discovery Day July 17, 2026. VENUE: NIEC 4th & 5th Floor Share Market Complex, Putalisadak, Kathmandu.",
+                "title": "Best Consultancy in Nepal 2026 - NIEC Kathmandu",
+                "url": "https://niec.edu.np/"
+              }
+            ]
+          },
+          "website": "https://niec.edu.np/"
+        },
+        {
+          "categories": [
+            "Educational consultant"
+          ],
+          "category": "Educational consultant",
+          "classification": {
+            "confidence": 1,
+            "reason": "Verified Google Maps business listing",
+            "status": "usable",
+            "type": "business"
+          },
+          "coordinates": {
+            "lat": 27.7055,
+            "lng": 85.3223
+          },
+          "description": "Educational consultant in Bag Bazar Sadak, Kathmandu, Bagmati Province 44600, Nepal. Phone: +977 1-5358568. Rating: 4.9 (548 reviews)",
+          "discoverySource": "google_maps",
+          "entityMatch": {
+            "confidence": 0,
+            "matched": false,
+            "method": "none"
+          },
+          "location": "Bag Bazar Sadak, Kathmandu, Bagmati Province 44600, Nepal",
+          "name": "SD Miracle Pvt. Ltd.",
+          "nameSource": "maps_title",
+          "phone": "+977 1-5358568",
+          "rating": 4.9,
+          "ratingCount": 548,
+          "sources": {
+            "googleMaps": {
+              "address": "Bag Bazar Sadak, Kathmandu, Bagmati Province 44600, Nepal",
+              "found": true,
+              "phone": "+977 1-5358568",
+              "placeId": "ChIJXRcxfAcZ6zkRP9QeOmbCs_E",
+              "website": "http://sdmiracle.com.np/"
+            },
+            "webSearch": []
+          },
+          "website": "http://sdmiracle.com.np/"
+        }
+      ],
+      "matchesMerged": 3
+    },
+    "classifyNepalPhone": [
+      {
+        "classified": {
+          "digits": "",
+          "normalized": "",
+          "reason": "EMPTY",
+          "type": "invalid"
+        },
+        "raw": ""
+      },
+      {
+        "classified": {
+          "digits": "",
+          "normalized": "27.382262",
+          "reason": "COORDINATE_FLOAT",
+          "type": "invalid"
+        },
+        "raw": "27.382262"
+      },
+      {
+        "classified": {
+          "digits": "",
+          "normalized": "85.309623",
+          "reason": "COORDINATE_FLOAT",
+          "type": "invalid"
+        },
+        "raw": "85.309623"
+      },
+      {
+        "classified": {
+          "digits": "12345",
+          "normalized": "12345",
+          "reason": "INCOMPLETE_LANDLINE",
+          "type": "invalid"
+        },
+        "raw": "12345"
+      },
+      {
+        "classified": {
+          "digits": "12345678901234567",
+          "normalized": "12345678901234567",
+          "reason": "TOO_LONG",
+          "type": "invalid"
+        },
+        "raw": "12345678901234567"
+      },
+      {
+        "classified": {
+          "digits": "14155552671",
+          "normalized": "+1 415 555 2671",
+          "type": "international"
+        },
+        "raw": "+1 415 555 2671"
+      },
+      {
+        "classified": {
+          "digits": "14567890",
+          "normalized": "+977-01-4567890",
+          "type": "landline"
+        },
+        "raw": "+977 (01) 4567890"
+      },
+      {
+        "classified": {
+          "digits": "15332834",
+          "normalized": "+977-01-5332834",
+          "type": "landline"
+        },
+        "raw": "+977-01-5332834"
+      },
+      {
+        "classified": {
+          "digits": "15332834",
+          "normalized": "+977-01-5332834",
+          "type": "landline"
+        },
+        "raw": "01-5332834"
+      },
+      {
+        "classified": {
+          "digits": "15368547",
+          "normalized": "+977-01-5368547",
+          "type": "landline"
+        },
+        "raw": "1-5368547"
+      },
+      {
+        "classified": {
+          "digits": "15971526",
+          "normalized": "+977-01-5971526",
+          "type": "landline"
+        },
+        "raw": "+977 1-5971526"
+      },
+      {
+        "classified": {
+          "digits": "977023591640",
+          "normalized": "+977 023 591640",
+          "type": "international"
+        },
+        "raw": "+977 023 591640"
+      },
+      {
+        "classified": {
+          "digits": "977061591171",
+          "normalized": "+977 061591171",
+          "type": "international"
+        },
+        "raw": "+977 061591171"
+      },
+      {
+        "classified": {
+          "digits": "9802330366",
+          "normalized": "+977-980-2330366",
+          "type": "mobile"
+        },
+        "raw": "9802330366"
+      },
+      {
+        "classified": {
+          "digits": "9802336911",
+          "normalized": "+977-980-2336911",
+          "type": "mobile"
+        },
+        "raw": "+977-980-2336911"
+      },
+      {
+        "classified": {
+          "digits": "9802338788",
+          "normalized": "+977-980-2338788",
+          "type": "mobile"
+        },
+        "raw": "+977 980-2338788"
+      },
+      {
+        "classified": {
+          "digits": "9802347644",
+          "normalized": "+977-980-2347644",
+          "type": "mobile"
+        },
+        "raw": "+977-980-2347644"
+      },
+      {
+        "classified": {
+          "digits": "984177866",
+          "normalized": "984177866",
+          "reason": "INCOMPLETE_MOBILE",
+          "type": "invalid"
+        },
+        "raw": "984177866"
+      },
+      {
+        "classified": {
+          "digits": "9841778666",
+          "normalized": "+977-984-1778666",
+          "type": "mobile"
+        },
+        "raw": "+977-984-1778666"
+      },
+      {
+        "classified": {
+          "digits": "9851180403",
+          "normalized": "+977-985-1180403",
+          "type": "mobile"
+        },
+        "raw": "+977 985-1180403"
+      },
+      {
+        "classified": {
+          "digits": "9851180403",
+          "normalized": "+977-985-1180403",
+          "type": "mobile"
+        },
+        "raw": "+977-985-1180403"
+      },
+      {
+        "classified": {
+          "digits": "9851180403",
+          "normalized": "+977-985-1180403",
+          "type": "mobile"
+        },
+        "raw": "977-9851180403"
+      },
+      {
+        "classified": {
+          "digits": "9851180403",
+          "normalized": "+977-985-1180403",
+          "type": "mobile"
+        },
+        "raw": "9851180403"
+      },
+      {
+        "classified": {
+          "digits": "9851234567",
+          "normalized": "+977-985-1234567",
+          "type": "mobile"
+        },
+        "raw": "9779779851234567"
+      }
+    ],
+    "classifySocialProfile": [
+      {
+        "classified": {
+          "canonicalUrl": "https://facebook.com/ciceducationhub",
+          "confidence": 1,
+          "distinctiveTokensFound": [
+            "cic",
+            "education",
+            "hub"
+          ],
+          "handle": "ciceducationhub",
+          "owner": "business",
+          "platform": "facebook",
+          "profileType": "business_page",
+          "rejectionReason": "NONE",
+          "status": "accepted",
+          "url": "https://facebook.com/ciceducationhub"
+        },
+        "sample": {
+          "businessName": "CIC Education Hub",
+          "origin": "website_evidence",
+          "url": "https://facebook.com/ciceducationhub",
+          "websiteDomain": "ciceducationhub.com"
+        }
+      },
+      {
+        "classified": {
+          "canonicalUrl": "https://facebook.com/globaleyeeducation",
+          "confidence": 1,
+          "distinctiveTokensFound": [
+            "education",
+            "eye",
+            "globaleye"
+          ],
+          "handle": "globaleyeeducation",
+          "owner": "business",
+          "platform": "facebook",
+          "profileType": "business_page",
+          "rejectionReason": "NONE",
+          "status": "accepted",
+          "url": "https://facebook.com/globaleyeeducation"
+        },
+        "sample": {
+          "businessName": "Global Eye Education Consultancy",
+          "origin": "website_evidence",
+          "url": "https://facebook.com/globaleyeeducation",
+          "websiteDomain": "globaleye.edu.np"
+        }
+      },
+      {
+        "classified": {
+          "canonicalUrl": "https://facebook.com/john.doe.12345",
+          "confidence": 0.9,
+          "distinctiveTokensFound": [],
+          "handle": "john.doe.12345",
+          "owner": "unknown",
+          "platform": "facebook",
+          "profileType": "business_page",
+          "rejectionReason": "BUSINESS_NAME_MISMATCH",
+          "status": "rejected",
+          "url": "https://facebook.com/john.doe.12345"
+        },
+        "sample": {
+          "businessName": "CIC Education Hub",
+          "origin": "serp",
+          "url": "https://facebook.com/john.doe.12345",
+          "websiteDomain": "ciceducationhub.com"
+        }
+      },
+      {
+        "classified": {
+          "canonicalUrl": "https://instagram.com/globaleye.consultancy",
+          "confidence": 1,
+          "distinctiveTokensFound": [
+            "consultancy",
+            "eye",
+            "globaleye"
+          ],
+          "handle": "globaleye.consultancy",
+          "owner": "business",
+          "platform": "instagram",
+          "profileType": "business_page",
+          "rejectionReason": "NONE",
+          "status": "accepted",
+          "url": "https://instagram.com/globaleye.consultancy"
+        },
+        "sample": {
+          "businessName": "Global Eye Education Consultancy",
+          "origin": "website_evidence",
+          "url": "https://instagram.com/globaleye.consultancy",
+          "websiteDomain": "globaleye.edu.np"
+        }
+      },
+      {
+        "classified": {
+          "canonicalUrl": "https://linkedin.com/company/global-eye-education",
+          "confidence": 1,
+          "distinctiveTokensFound": [
+            "education",
+            "eye",
+            "globaleye"
+          ],
+          "handle": "global-eye-education",
+          "owner": "business",
+          "platform": "linkedin",
+          "profileType": "business_page",
+          "rejectionReason": "NONE",
+          "status": "accepted",
+          "url": "https://linkedin.com/company/global-eye-education"
+        },
+        "sample": {
+          "businessName": "Global Eye Education Consultancy",
+          "origin": "website_evidence",
+          "url": "https://linkedin.com/company/global-eye-education",
+          "websiteDomain": "globaleye.edu.np"
+        }
+      },
+      {
+        "classified": {
+          "canonicalUrl": "https://tiktok.com/@globaleyeeducation",
+          "confidence": 1,
+          "distinctiveTokensFound": [
+            "education",
+            "eye",
+            "globaleye"
+          ],
+          "handle": "globaleyeeducation",
+          "owner": "business",
+          "platform": "tiktok",
+          "profileType": "business_page",
+          "rejectionReason": "NONE",
+          "status": "accepted",
+          "url": "https://tiktok.com/@globaleyeeducation"
+        },
+        "sample": {
+          "businessName": "Global Eye Education Consultancy",
+          "origin": "website_evidence",
+          "url": "https://tiktok.com/@globaleyeeducation",
+          "websiteDomain": "globaleye.edu.np"
+        }
+      },
+      {
+        "classified": {
+          "confidence": 1,
+          "distinctiveTokensFound": [],
+          "handle": "",
+          "owner": "unknown",
+          "platform": "facebook",
+          "profileType": "unknown",
+          "rejectionReason": "NOT_A_REAL_PROFILE",
+          "status": "rejected",
+          "url": "https://facebook.com/"
+        },
+        "sample": {
+          "businessName": "CIC Education Hub",
+          "origin": "serp",
+          "url": "https://facebook.com/",
+          "websiteDomain": "ciceducationhub.com"
+        }
+      },
+      {
+        "classified": {
+          "confidence": 1,
+          "distinctiveTokensFound": [],
+          "handle": "",
+          "owner": "unknown",
+          "platform": "other",
+          "profileType": "unknown",
+          "rejectionReason": "NOT_A_REAL_PROFILE",
+          "status": "rejected",
+          "url": ""
+        },
+        "sample": {
+          "businessName": "CIC Education Hub",
+          "origin": "serp",
+          "url": "",
+          "websiteDomain": "ciceducationhub.com"
+        }
+      },
+      {
+        "classified": {
+          "confidence": 1,
+          "distinctiveTokensFound": [],
+          "handle": "explore",
+          "owner": "unknown",
+          "platform": "instagram",
+          "profileType": "unknown",
+          "rejectionReason": "RESERVED_PATH",
+          "status": "rejected",
+          "url": "https://instagram.com/explore"
+        },
+        "sample": {
+          "businessName": "CIC Education Hub",
+          "origin": "serp",
+          "url": "https://instagram.com/explore",
+          "websiteDomain": "ciceducationhub.com"
+        }
+      },
+      {
+        "classified": {
+          "confidence": 1,
+          "distinctiveTokensFound": [],
+          "handle": "pages",
+          "owner": "unknown",
+          "platform": "facebook",
+          "profileType": "unknown",
+          "rejectionReason": "RESERVED_PATH",
+          "status": "rejected",
+          "url": "https://facebook.com/pages/create"
+        },
+        "sample": {
+          "businessName": "CIC Education Hub",
+          "origin": "serp",
+          "url": "https://facebook.com/pages/create",
+          "websiteDomain": "ciceducationhub.com"
+        }
+      },
+      {
+        "classified": {
+          "confidence": 1,
+          "distinctiveTokensFound": [],
+          "handle": "tr",
+          "owner": "unknown",
+          "platform": "facebook",
+          "profileType": "unknown",
+          "rejectionReason": "RESERVED_PATH",
+          "status": "rejected",
+          "url": "https://facebook.com/tr?ev=PageView&id=1395564971716732"
+        },
+        "sample": {
+          "businessName": "Global Eye Education Consultancy",
+          "origin": "website_evidence",
+          "url": "https://facebook.com/tr?ev=PageView&id=1395564971716732",
+          "websiteDomain": "globaleye.edu.np"
+        }
+      }
+    ],
+    "sanitizeListingWithEvidence": [
+      {
+        "bucket": "transient_failure_no_pages",
+        "listing": {
+          "businessType": "Educational consultant",
+          "emails": [],
+          "gpsCoordinates": {
+            "latitude": 27.7056,
+            "longitude": 85.3234
+          },
+          "icon": "",
+          "links": [
+            "https://optimusglobaledu.com/"
+          ],
+          "location": "Putalisadak, Way to, Kathmandu 44605, Nepal",
+          "metadata": {
+            "confidence": 0.3,
+            "confidenceBreakdown": {
+              "conflictPenalty": 1,
+              "contactConfidence": 0,
+              "evidenceSummary": {
+                "emailVerified": false,
+                "mapsVerified": true,
+                "phoneVerified": true,
+                "ratingCount": 257,
+                "relationshipType": "unverified",
+                "websiteVerified": false
+              },
+              "mapsIdentityConfidence": 1,
+              "overallConfidence": 0.3,
+              "websiteEvidenceConfidence": 0
+            },
+            "source": "google_maps"
+          },
+          "mobiles": [
+            "+977-985-1310002"
+          ],
+          "name": "Optimus Global Education Consultancy",
+          "otherDetails": {
+            "address": "Putalisadak, Way to, Kathmandu 44605, Nepal",
+            "businessDescription": "Educational consultant in Putalisadak, Way to, Kathmandu 44605, Nepal. Phone: +977 985-1310002. Rating: 4.8 (257 reviews)",
+            "businessType": "Educational consultant",
+            "categories": [
+              "Educational consultant"
+            ],
+            "classifiedContacts": [
+              {
+                "canonicalDigits": "9851310002",
+                "channels": [
+                  "call"
+                ],
+                "context": "Optimus Global Education Consultancy",
+                "owner": "unknown",
+                "phoneType": "mobile",
+                "role": "unknown",
+                "type": "phone",
+                "value": "+977 985-1310002"
+              }
+            ],
+            "hours": "Friday: 12–6 AM, 9 AM–12 AM, Saturday: 12–6 AM, Sunday: 9 AM–12 AM, Monday: 12–6 AM, 9 AM–12 AM, Tuesday: 12–6 AM, 9 AM–12 AM, Wednesday: 12–6 AM, 9 AM–12 AM, Thursday: 12–6 AM, 9 AM–12 AM",
+            "mapsPhone": "+977 985-1310002",
+            "placeId": "ChIJb6aPo5YZ6zkR8vsJorAdaE0",
+            "rating": 4.8,
+            "ratingCount": 257,
+            "services": [
+              "Educational consultant"
+            ],
+            "snippet": "Educational consultant in Putalisadak, Way to, Kathmandu 44605, Nepal. Phone: +977 985-1310002. Rating: 4.8 (257 reviews)",
+            "thumbnailUrl": "https://lh3.googleusercontent.com/grass-cs/ACvplmNIAc5ugwvb1eVjoXosbtCQQMKGQMimM00VPwD-Iy5VlEWCDYB8HnigHCWvinh4Kl4RRhF5pKVZvcAxsD4u87G3-WZPkC7JxyvdbnAp2IPULBMleIOYwnMwtzoYskb0l5CIhKhEYDerIyM",
+            "websiteRelationship": "unverified"
+          },
+          "phones": [],
+          "placeId": "ChIJb6aPo5YZ6zkR8vsJorAdaE0",
+          "process": "Verified via Google Maps Places (Direct fallback)",
+          "rating": 4.8,
+          "ratingCount": 257,
+          "socialLinks": {
+            "facebook": "",
+            "instagram": "",
+            "other": {},
+            "tiktok": ""
+          },
+          "websites": [
+            "https://optimusglobaledu.com/"
+          ]
+        }
+      },
+      {
+        "bucket": "unverified_with_content",
+        "listing": {
+          "businessType": "Educational consultant",
+          "emails": [],
+          "gpsCoordinates": {
+            "latitude": 27.7069,
+            "longitude": 85.3225
+          },
+          "icon": "",
+          "links": [
+            "https://applynec.com/"
+          ],
+          "location": "Opposite of Star Mall, Putali Sadak, Kathmandu, Bagmati Province 44600, Nepal",
+          "metadata": {
+            "confidence": 0.65,
+            "confidenceBreakdown": {
+              "conflictPenalty": 1,
+              "contactConfidence": 0.9,
+              "evidenceSummary": {
+                "emailVerified": false,
+                "mapsVerified": true,
+                "phoneVerified": true,
+                "ratingCount": 908,
+                "relationshipType": "unverified",
+                "websiteVerified": true
+              },
+              "mapsIdentityConfidence": 1,
+              "overallConfidence": 0.65,
+              "websiteEvidenceConfidence": 0.1
+            },
+            "source": "google_maps"
+          },
+          "mobiles": [],
+          "name": "NEC- Nepal Education Consultancy Pvt. Ltd",
+          "otherDetails": {
+            "address": "Opposite of Star Mall, Putali Sadak, Kathmandu, Bagmati Province 44600, Nepal",
+            "branches": [
+              {
+                "address": "h us and our counselors will guide you toward the right course, university, and destination. Email: WhatsApp: Phone: Ramshah Path, Putalisadak, Kathmandu, Nepal Opposite of [provisionalsource",
+                "emails": [
+                  "inquiry@applynec.com"
+                ],
+                "mobiles": [
+                  "+977-980-2364830"
+                ],
+                "name": "Putalisadak Branch",
+                "phones": [
+                  "+977-01-5910770"
+                ]
+              }
+            ],
+            "businessDescription": "Educational consultant in Opposite of Star Mall, Putali Sadak, Kathmandu, Bagmati Province 44600, Nepal. Phone: +977 1-5910770. Rating: 4.8 (908 reviews)",
+            "businessType": "Educational consultant",
+            "categories": [
+              "Educational consultant"
+            ],
+            "classifiedContacts": [
+              {
+                "canonicalDigits": "919876543210",
+                "channels": [
+                  "call",
+                  "whatsapp"
+                ],
+                "context": "ent\"> Whatsapp +91 9876543210 Contac [provisional_source]",
+                "owner": "business",
+                "pageUrl": "https://applynec.com/",
+                "pagesSeenOn": [
+                  "https://applynec.com/"
+                ],
+                "phoneType": "international",
+                "role": "primary_business",
+                "type": "phone",
+                "value": "+91 9876543210"
+              },
+              {
+                "canonicalDigits": "15910770",
+                "channels": [
+                  "call",
+                  "whatsapp"
+                ],
+                "context": "t course, university, and destination. Email: inquiry@applynec.com WhatsApp: +977 9802364830 Phone: 01-5910770 Ramshah Path, Putalisadak, Kathmandu, Nepal Opposite of Star Mall Bhanimandal, Lalitpur, Nepal Oppo [provisional_source]",
+                "owner": "branch",
+                "pageUrl": "https://applynec.com/",
+                "pagesSeenOn": [
+                  "https://applynec.com/",
+                  "https://applynec.com/about-us",
+                  "https://applynec.com/contact",
+                  "https://applynec.com/team"
+                ],
+                "phoneType": "landline",
+                "role": "branch_contact",
+                "type": "phone",
+                "value": "+977-01-5910770"
+              },
+              {
+                "canonicalDigits": "15911235",
+                "channels": [
+                  "call",
+                  "whatsapp"
+                ],
+                "context": "pposite of Basketball Court Email: inquiry@applynec.com WhatsApp: +977 9802364830 Phone: 01-5910770 015911235 inquiry@nepalec.edu.np Follow us on: Follow us on: [provisional_source]",
+                "owner": "business",
+                "pageUrl": "https://applynec.com/",
+                "pagesSeenOn": [
+                  "https://applynec.com/",
+                  "https://applynec.com/about-us",
+                  "https://applynec.com/contact",
+                  "https://applynec.com/team"
+                ],
+                "phoneType": "landline",
+                "role": "primary_business",
+                "type": "phone",
+                "value": "+977-01-5911235"
+              },
+              {
+                "canonicalDigits": "9802364830",
+                "channels": [
+                  "call",
+                  "whatsapp"
+                ],
+                "context": "ide you toward the right course, university, and destination. Email: inquiry@applynec.com WhatsApp: +977 9802364830 Phone: 01-5910770 Ramshah Path, Putalisadak, Kathmandu, Nepal Opposite of Star Mall Bhanimandal, La [provisional_source]",
+                "owner": "branch",
+                "pageUrl": "https://applynec.com/",
+                "pagesSeenOn": [
+                  "https://applynec.com/",
+                  "https://applynec.com/about-us",
+                  "https://applynec.com/contact",
+                  "https://applynec.com/team"
+                ],
+                "phoneType": "mobile",
+                "role": "branch_contact",
+                "type": "phone",
+                "value": "+977-980-2364830"
+              },
+              {
+                "channels": [],
+                "context": "ontent\"> Email abcd@gmail.com <svg x [provisional_source]",
+                "owner": "unknown",
+                "pageUrl": "https://applynec.com/",
+                "pagesSeenOn": [
+                  "https://applynec.com/"
+                ],
+                "role": "unknown",
+                "type": "email",
+                "value": "abcd@gmail.com"
+              },
+              {
+                "channels": [],
+                "context": "h us and our counselors will guide you toward the right course, university, and destination. Email: inquiry@applynec.com WhatsApp: +977 9802364830 Phone: 01-5910770 Ramshah Path, Putalisadak, Kathmandu, Nepal Opposite of [provisional_source]",
+                "owner": "branch",
+                "pageUrl": "https://applynec.com/",
+                "pagesSeenOn": [
+                  "https://applynec.com/",
+                  "https://applynec.com/about-us",
+                  "https://applynec.com/contact",
+                  "https://applynec.com/team"
+                ],
+                "role": "branch_contact",
+                "type": "email",
+                "value": "inquiry@applynec.com"
+              },
+              {
+                "channels": [],
+                "context": "Basketball Court Email: inquiry@applynec.com WhatsApp: +977 9802364830 Phone: 01-5910770 015911235 inquiry@nepalec.edu.np Follow us on: Follow us on: <!-- Last Published: Wed Sep 23 2026 11:03:40 GMT+0000 ( [provisional_source]",
+                "owner": "business",
+                "pageUrl": "https://applynec.com/",
+                "pagesSeenOn": [
+                  "https://applynec.com/",
+                  "https://applynec.com/about-us",
+                  "https://applynec.com/contact",
+                  "https://applynec.com/team"
+                ],
+                "role": "primary_business",
+                "type": "email",
+                "value": "inquiry@nepalec.edu.np"
+              }
+            ],
+            "hours": "Friday: 9:30 AM–6 PM, Saturday: Closed, Sunday: 9:30 AM–6 PM, Monday: 9:30 AM–6 PM, Tuesday: 9:30 AM–6 PM, Wednesday: 9:30 AM–6 PM, Thursday: 9:30 AM–6 PM",
+            "mapsPhone": "+977 1-5910770",
+            "placeId": "ChIJneCDTwYZ6zkRz1bsOQWTT_4",
+            "rating": 4.8,
+            "ratingCount": 908,
+            "services": [
+              "Educational consultant"
+            ],
+            "snippet": "Educational consultant in Opposite of Star Mall, Putali Sadak, Kathmandu, Bagmati Province 44600, Nepal. Phone: +977 1-5910770. Rating: 4.8 (908 reviews)",
+            "thumbnailUrl": "https://lh3.googleusercontent.com/grass-cs/ACvplmOn7mSvOLKI41f4VwpnVVqxmWOSO0hOVPqj_i5eBYIsylhV8fA14mGCYUiXOvaeDgdFM0hwNcL1Nn-eBP8cWgUZRKci1_bolF0ykOd-amjHf1bRA0peLLimeFMi7PMFTJdTum5JyQ",
+            "websiteRelationship": "unverified"
+          },
+          "phones": [
+            "+977-01-5910770"
+          ],
+          "placeId": "ChIJneCDTwYZ6zkRz1bsOQWTT_4",
+          "process": "Verified via Google Maps Places (Direct fallback)",
+          "rating": 4.8,
+          "ratingCount": 908,
+          "socialLinks": {
+            "facebook": "",
+            "instagram": "",
+            "other": {},
+            "tiktok": ""
+          },
+          "websites": [
+            "https://applynec.com/"
+          ]
+        }
+      },
+      {
+        "bucket": "verified_first_party_with_content",
+        "listing": {
+          "businessType": "Educational consultant",
+          "emails": [
+            "info@ciceducationhub.com"
+          ],
+          "gpsCoordinates": {
+            "latitude": 27.7049,
+            "longitude": 85.3226
+          },
+          "icon": "https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/favicon.png",
+          "links": [
+            "https://ciceducationhub.com/"
+          ],
+          "location": "Kathmandu, Bagmati Province 44600, Nepal",
+          "metadata": {
+            "confidence": 1,
+            "confidenceBreakdown": {
+              "conflictPenalty": 1,
+              "contactConfidence": 1,
+              "evidenceSummary": {
+                "emailVerified": true,
+                "mapsVerified": true,
+                "phoneVerified": true,
+                "ratingCount": 1999,
+                "relationshipType": "first_party",
+                "websiteVerified": true
+              },
+              "mapsIdentityConfidence": 1,
+              "overallConfidence": 1,
+              "websiteEvidenceConfidence": 1
+            },
+            "source": "google_maps"
+          },
+          "mobiles": [
+            "+977-980-2336911",
+            "+977-980-2338788",
+            "+977-980-2347644",
+            "+977-985-1180403"
+          ],
+          "name": "CIC Education Hub",
+          "otherDetails": {
+            "address": "Kathmandu, Bagmati Province 44600, Nepal",
+            "bookingLinks": [
+              "https://ciceducationhub.com/"
+            ],
+            "branches": [
+              {
+                "address": "Baneshwor Branch: BAS Plaza New Baneshwor BAS Plaza New Baneshwor - 01- 28 a ta",
+                "emails": [],
+                "mobiles": [
+                  "+977-980-2330366"
+                ],
+                "name": "Baneshwor Branch",
+                "phones": []
+              },
+              {
+                "address": "Jhapa Branch: Best Consultancy in Birtamode, Jhapa Best Consultancy in Birtamode, Jhapa Mukti Chowk, Birtamode a",
+                "emails": [],
+                "mobiles": [
+                  "+977-980-2347640"
+                ],
+                "name": "Jhapa Branch",
+                "phones": []
+              },
+              {
+                "address": "Pokhara Branch: Mahendra Pool, Pokhara Mahendra Pool, Pokhara a blank",
+                "emails": [],
+                "mobiles": [
+                  "+977-984-1778666"
+                ],
+                "name": "Pokhara Branch",
+                "phones": [
+                  "+977 061591171"
+                ]
+              },
+              {
+                "address": "Putalisadak Branch: Putalisadak, Kathmandu Putalisadak, Kathmandu - a blan",
+                "emails": [],
+                "mobiles": [
+                  "+977-985-1180403"
+                ],
+                "name": "Putalisadak Branch",
+                "phones": [
+                  "+977-01-5332834"
+                ]
+              }
+            ],
+            "businessDescription": "Educational consultant in Kathmandu, Bagmati Province 44600, Nepal. Phone: +977 985-1180403. Rating: 4.9 (1999 reviews)",
+            "businessType": "Educational consultant",
+            "categories": [
+              "Career guidance service",
+              "Educational consultant",
+              "English language school",
+              "Student career counseling office",
+              "Test preparation center"
+            ],
+            "classifiedContacts": [
+              {
+                "blockId": "branch-jhapa",
+                "canonicalDigits": "977023591640",
+                "channels": [
+                  "call"
+                ],
+                "context": "Jhapa Branch: Best Consultancy in Birtamode, Jhapa Best Consultancy in Birtamode, Jhapa Mukti Chowk, Birtamode a",
+                "owner": "branch",
+                "pageUrl": "https://ciceducationhub.com/",
+                "pagesSeenOn": [
+                  "https://ciceducationhub.com/",
+                  "https://ciceducationhub.com/about-cic-education-hub",
+                  "https://ciceducationhub.com/get-in-touch",
+                  "https://ciceducationhub.com/study-in-canada-from-nepal"
+                ],
+                "phoneType": "international",
+                "role": "branch_contact",
+                "type": "phone",
+                "value": "+977 023 591640"
+              },
+              {
+                "blockId": "branch-pokhara",
+                "canonicalDigits": "977061591171",
+                "channels": [
+                  "call"
+                ],
+                "context": "Pokhara Branch: Mahendra Pool, Pokhara Mahendra Pool, Pokhara a blank",
+                "owner": "branch",
+                "pageUrl": "https://ciceducationhub.com/",
+                "pagesSeenOn": [
+                  "https://ciceducationhub.com/",
+                  "https://ciceducationhub.com/about-cic-education-hub",
+                  "https://ciceducationhub.com/get-in-touch",
+                  "https://ciceducationhub.com/study-in-canada-from-nepal"
+                ],
+                "phoneType": "international",
+                "role": "branch_contact",
+                "type": "phone",
+                "value": "+977 061591171"
+              },
+              {
+                "blockId": "branch-putalisadak",
+                "canonicalDigits": "15332834",
+                "channels": [
+                  "call"
+                ],
+                "context": "Putalisadak Branch: Putalisadak, Kathmandu Putalisadak, Kathmandu - a blan",
+                "owner": "branch",
+                "pageUrl": "https://ciceducationhub.com/",
+                "pagesSeenOn": [
+                  "https://ciceducationhub.com/",
+                  "https://ciceducationhub.com/about-cic-education-hub",
+                  "https://ciceducationhub.com/get-in-touch",
+                  "https://ciceducationhub.com/study-in-canada-from-nepal"
+                ],
+                "phoneType": "landline",
+                "role": "branch_contact",
+                "type": "phone",
+                "value": "+977-01-5332834"
+              },
+              {
+                "associatedPerson": "Plaza New Baneshwor",
+                "blockId": "branch-baneshwor",
+                "canonicalDigits": "9802330366",
+                "channels": [
+                  "call"
+                ],
+                "context": "Baneshwor Branch: BAS Plaza New Baneshwor BAS Plaza New Baneshwor - 01- 28 a ta",
+                "owner": "branch",
+                "pageUrl": "https://ciceducationhub.com/",
+                "pagesSeenOn": [
+                  "https://ciceducationhub.com/",
+                  "https://ciceducationhub.com/about-cic-education-hub",
+                  "https://ciceducationhub.com/get-in-touch",
+                  "https://ciceducationhub.com/study-in-canada-from-nepal"
+                ],
+                "phoneType": "mobile",
+                "role": "branch_contact",
+                "type": "phone",
+                "value": "+977-980-2330366"
+              },
+              {
+                "canonicalDigits": "9802336911",
+                "channels": [
+                  "call"
+                ],
+                "context": "alt=\"icon\"> +977 9802336911 <i class=\"fa-solid fa",
+                "owner": "business",
+                "pageUrl": "https://ciceducationhub.com/",
+                "pagesSeenOn": [
+                  "https://ciceducationhub.com/",
+                  "https://ciceducationhub.com/about-cic-education-hub",
+                  "https://ciceducationhub.com/get-in-touch",
+                  "https://ciceducationhub.com/study-in-canada-from-nepal"
+                ],
+                "phoneType": "mobile",
+                "role": "primary_business",
+                "type": "phone",
+                "value": "+977-980-2336911"
+              },
+              {
+                "canonicalDigits": "9802338788",
+                "channels": [
+                  "call"
+                ],
+                "context": "alt=\"icon\"> +977 9802338788 <i class=\"fa-solid fa",
+                "owner": "business",
+                "pageUrl": "https://ciceducationhub.com/",
+                "pagesSeenOn": [
+                  "https://ciceducationhub.com/",
+                  "https://ciceducationhub.com/about-cic-education-hub",
+                  "https://ciceducationhub.com/get-in-touch",
+                  "https://ciceducationhub.com/study-in-canada-from-nepal"
+                ],
+                "phoneType": "mobile",
+                "role": "primary_business",
+                "type": "phone",
+                "value": "+977-980-2338788"
+              },
+              {
+                "blockId": "branch-jhapa",
+                "canonicalDigits": "9802347640",
+                "channels": [
+                  "call"
+                ],
+                "context": "Jhapa Branch: Best Consultancy in Birtamode, Jhapa Best Consultancy in Birtamode, Jhapa Mukti Chowk, Birtamode a",
+                "owner": "branch",
+                "pageUrl": "https://ciceducationhub.com/",
+                "pagesSeenOn": [
+                  "https://ciceducationhub.com/",
+                  "https://ciceducationhub.com/about-cic-education-hub",
+                  "https://ciceducationhub.com/get-in-touch",
+                  "https://ciceducationhub.com/study-in-canada-from-nepal"
+                ],
+                "phoneType": "mobile",
+                "role": "branch_contact",
+                "type": "phone",
+                "value": "+977-980-2347640"
+              },
+              {
+                "canonicalDigits": "9802347644",
+                "channels": [
+                  "call"
+                ],
+                "context": "alt=\"icon\"> +977 9802347644 <i class=\"fa-solid fa",
+                "owner": "business",
+                "pageUrl": "https://ciceducationhub.com/",
+                "pagesSeenOn": [
+                  "https://ciceducationhub.com/",
+                  "https://ciceducationhub.com/about-cic-education-hub",
+                  "https://ciceducationhub.com/get-in-touch",
+                  "https://ciceducationhub.com/study-in-canada-from-nepal"
+                ],
+                "phoneType": "mobile",
+                "role": "primary_business",
+                "type": "phone",
+                "value": "+977-980-2347644"
+              },
+              {
+                "blockId": "branch-pokhara",
+                "canonicalDigits": "9841778666",
+                "channels": [
+                  "call"
+                ],
+                "context": "Pokhara Branch: Mahendra Pool, Pokhara Mahendra Pool, Pokhara a blank",
+                "owner": "branch",
+                "pageUrl": "https://ciceducationhub.com/",
+                "pagesSeenOn": [
+                  "https://ciceducationhub.com/",
+                  "https://ciceducationhub.com/about-cic-education-hub",
+                  "https://ciceducationhub.com/get-in-touch",
+                  "https://ciceducationhub.com/study-in-canada-from-nepal"
+                ],
+                "phoneType": "mobile",
+                "role": "branch_contact",
+                "type": "phone",
+                "value": "+977-984-1778666"
+              },
+              {
+                "blockId": "branch-putalisadak",
+                "canonicalDigits": "9851180403",
+                "channels": [
+                  "call"
+                ],
+                "context": "Putalisadak Branch: Putalisadak, Kathmandu Putalisadak, Kathmandu - a blan",
+                "owner": "branch",
+                "pageUrl": "https://ciceducationhub.com/",
+                "pagesSeenOn": [
+                  "https://ciceducationhub.com/",
+                  "https://ciceducationhub.com/about-cic-education-hub",
+                  "https://ciceducationhub.com/get-in-touch",
+                  "https://ciceducationhub.com/study-in-canada-from-nepal"
+                ],
+                "phoneType": "mobile",
+                "role": "branch_contact",
+                "type": "phone",
+                "value": "+977-985-1180403"
+              },
+              {
+                "channels": [],
+                "context": "ert guidance for students planning to study in Canada, USA, UK, New Zealand, and Australia. [Email: info@ciceducationhub.com](mailto:info@ciceducationhub.com) ###### Useful Links ###### Study Abroad ###### Test Preparation #",
+                "owner": "business",
+                "pageUrl": "https://ciceducationhub.com/",
+                "pagesSeenOn": [
+                  "https://ciceducationhub.com/",
+                  "https://ciceducationhub.com/about-cic-education-hub",
+                  "https://ciceducationhub.com/get-in-touch",
+                  "https://ciceducationhub.com/study-in-canada-from-nepal"
+                ],
+                "role": "primary_business",
+                "type": "email",
+                "value": "info@ciceducationhub.com"
+              }
+            ],
+            "hours": "Friday: 9:30 AM–5:30 PM, Saturday: Closed, Sunday: 9:30 AM–5:30 PM, Monday: 9:30 AM–5:30 PM, Tuesday: 9:30 AM–5:30 PM, Wednesday: 9:30 AM–5:30 PM, Thursday: 9:30 AM–5:30 PM",
+            "mapsPhone": "+977 985-1180403",
+            "placeId": "ChIJj35UKeYZ6zkRLGuYz-nb9o0",
+            "rating": 4.9,
+            "ratingCount": 1999,
+            "services": [
+              "Career guidance service",
+              "Educational consultant",
+              "English language school",
+              "Student career counseling office",
+              "Test preparation center"
+            ],
+            "snippet": "Educational consultant in Kathmandu, Bagmati Province 44600, Nepal. Phone: +977 985-1180403. Rating: 4.9 (1999 reviews)",
+            "thumbnailUrl": "https://lh3.googleusercontent.com/grass-cs/ACvplmOC-yUbcKmvtd-PDf_oj6fCs6Nz84JCvlybclOT0junMFIlbS7ckV_5y5a5TEf-4wXKIMxlZzF2aV-dCmj7K3Yiid6zsRPVKw1eLCqPsz5ZEuYg5ItPSFw_YqKr2U11J4Eu3xOjdA",
+            "websiteRelationship": "first_party"
+          },
+          "phones": [],
+          "placeId": "ChIJj35UKeYZ6zkRLGuYz-nb9o0",
+          "process": "Evidence-verified via first_party website (status: verified, confidence: 1)",
+          "rating": 4.9,
+          "ratingCount": 1999,
+          "socialLinks": {
+            "facebook": "https://facebook.com/ciceducationhub",
+            "instagram": "https://instagram.com/ciceducationhub_official",
+            "other": {
+              "linkedin": "https://linkedin.com/company/cic-education-hub",
+              "youtube": "https://youtube.com/@ciceducationhub4884"
+            },
+            "tiktok": "https://tiktok.com/@ciceducationhub"
+          },
+          "websites": [
+            "https://ciceducationhub.com/"
+          ]
+        }
+      }
+    ],
+    "buildFallbackListing": [
+      {
+        "label": "transient_failure_no_pages:Optimus Global Education Consultancy",
+        "listing": {
+          "businessType": "Educational consultant",
+          "emails": [],
+          "gpsCoordinates": {
+            "latitude": 27.7056,
+            "longitude": 85.3234
+          },
+          "icon": "",
+          "links": [
+            "https://optimusglobaledu.com/"
+          ],
+          "location": "Putalisadak, Way to, Kathmandu 44605, Nepal",
+          "metadata": {
+            "confidence": 0,
+            "source": "google_maps"
+          },
+          "mobiles": [
+            "+977-985-1310002"
+          ],
+          "name": "Optimus Global Education Consultancy",
+          "otherDetails": {
+            "address": "Putalisadak, Way to, Kathmandu 44605, Nepal",
+            "businessDescription": "Educational consultant in Putalisadak, Way to, Kathmandu 44605, Nepal. Phone: +977 985-1310002. Rating: 4.8 (257 reviews)",
+            "businessType": "Educational consultant",
+            "categories": [
+              "Educational consultant"
+            ],
+            "hours": "Friday: 12–6 AM, 9 AM–12 AM, Saturday: 12–6 AM, Sunday: 9 AM–12 AM, Monday: 12–6 AM, 9 AM–12 AM, Tuesday: 12–6 AM, 9 AM–12 AM, Wednesday: 12–6 AM, 9 AM–12 AM, Thursday: 12–6 AM, 9 AM–12 AM",
+            "placeId": "ChIJb6aPo5YZ6zkR8vsJorAdaE0",
+            "priceRange": "",
+            "rating": 4.8,
+            "ratingCount": 257,
+            "services": [
+              "Educational consultant"
+            ],
+            "snippet": "Educational consultant in Putalisadak, Way to, Kathmandu 44605, Nepal. Phone: +977 985-1310002. Rating: 4.8 (257 reviews)",
+            "thumbnailUrl": "https://lh3.googleusercontent.com/grass-cs/ACvplmNIAc5ugwvb1eVjoXosbtCQQMKGQMimM00VPwD-Iy5VlEWCDYB8HnigHCWvinh4Kl4RRhF5pKVZvcAxsD4u87G3-WZPkC7JxyvdbnAp2IPULBMleIOYwnMwtzoYskb0l5CIhKhEYDerIyM"
+          },
+          "phones": [],
+          "placeId": "ChIJb6aPo5YZ6zkR8vsJorAdaE0",
+          "process": "Verified via Google Maps Places (Direct fallback)",
+          "rating": 4.8,
+          "ratingCount": 257,
+          "socialLinks": {
+            "facebook": "",
+            "instagram": "",
+            "other": {},
+            "tiktok": ""
+          },
+          "websites": [
+            "https://optimusglobaledu.com/"
+          ]
+        }
+      },
+      {
+        "label": "verified_first_party_with_content:CIC Education Hub",
+        "listing": {
+          "businessType": "Educational consultant",
+          "emails": [
+            "info@ciceducationhub.com"
+          ],
+          "gpsCoordinates": {
+            "latitude": 27.7049,
+            "longitude": 85.3226
+          },
+          "icon": "https://ciceducationhub.com/wp-content/themes/ciceducationhub/assets/img/favicon.png",
+          "links": [
+            "https://ciceducationhub.com/"
+          ],
+          "location": "Kathmandu, Bagmati Province 44600, Nepal",
+          "metadata": {
+            "confidence": 0,
+            "source": "google_maps"
+          },
+          "mobiles": [
+            "+977-980-2330366",
+            "+977-980-2336911",
+            "+977-980-2338788",
+            "+977-980-2347640",
+            "+977-980-2347644",
+            "+977-984-1778666",
+            "+977-985-1180403"
+          ],
+          "name": "CIC Education Hub",
+          "otherDetails": {
+            "address": "Kathmandu, Bagmati Province 44600, Nepal",
+            "bookingLinks": [
+              "https://ciceducationhub.com/"
+            ],
+            "businessDescription": "Educational consultant in Kathmandu, Bagmati Province 44600, Nepal. Phone: +977 985-1180403. Rating: 4.9 (1999 reviews)",
+            "businessType": "Educational consultant",
+            "categories": [
+              "Career guidance service",
+              "Educational consultant",
+              "English language school",
+              "Student career counseling office",
+              "Test preparation center"
+            ],
+            "hours": "Friday: 9:30 AM–5:30 PM, Saturday: Closed, Sunday: 9:30 AM–5:30 PM, Monday: 9:30 AM–5:30 PM, Tuesday: 9:30 AM–5:30 PM, Wednesday: 9:30 AM–5:30 PM, Thursday: 9:30 AM–5:30 PM",
+            "placeId": "ChIJj35UKeYZ6zkRLGuYz-nb9o0",
+            "priceRange": "",
+            "rating": 4.9,
+            "ratingCount": 1999,
+            "services": [
+              "Career guidance service",
+              "Educational consultant",
+              "English language school",
+              "Student career counseling office",
+              "Test preparation center"
+            ],
+            "snippet": "Educational consultant in Kathmandu, Bagmati Province 44600, Nepal. Phone: +977 985-1180403. Rating: 4.9 (1999 reviews)",
+            "thumbnailUrl": "https://lh3.googleusercontent.com/grass-cs/ACvplmOC-yUbcKmvtd-PDf_oj6fCs6Nz84JCvlybclOT0junMFIlbS7ckV_5y5a5TEf-4wXKIMxlZzF2aV-dCmj7K3Yiid6zsRPVKw1eLCqPsz5ZEuYg5ItPSFw_YqKr2U11J4Eu3xOjdA"
+          },
+          "phones": [
+            "+977-01-5332834"
+          ],
+          "placeId": "ChIJj35UKeYZ6zkRLGuYz-nb9o0",
+          "process": "Verified via Google Maps Places & Website extraction",
+          "rating": 4.9,
+          "ratingCount": 1999,
+          "socialLinks": {
+            "facebook": "https://facebook.com/ciceducationhub",
+            "instagram": "https://instagram.com/ciceducationhub_official",
+            "other": {
+              "linkedin": "https://linkedin.com/company/cic-education-hub",
+              "youtube": "https://youtube.com/@ciceducationhub4884"
+            },
+            "tiktok": "https://tiktok.com/@ciceducationhub"
+          },
+          "websites": [
+            "https://ciceducationhub.com/"
+          ]
+        }
+      }
+    ]
+  }
+}

@@ -2,11 +2,12 @@ import { Agent } from '@mastra/core/agent';
 import { Memory } from '@mastra/memory';
 import fs from 'fs';
 import path from 'path';
-import { createMemoryStorage, getProjectRootDir } from '../../../services/db.service';
+import { createMemoryStorage, getProjectRootDir } from '@/services/storage/db.service';
 
-// Import tools
-import { broadSearchTool } from '../../Tools/broad-search';
-import { googleMapsSearchTool } from '../../Tools/google-maps-search';
+import {
+  broadSearchTool,
+  googleMapsSearchTool,
+} from '@/mastra/tools';
 
 const instructionsPath = path.join(getProjectRootDir(), 'src/mastra/agents/search-worker/prompt.md');
 const instructions = fs.existsSync(instructionsPath)
