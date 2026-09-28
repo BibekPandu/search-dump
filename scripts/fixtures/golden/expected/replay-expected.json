@@ -1,13 +1,13 @@
 {
-  "capturedAt": "2026-09-26T13:22:16.651Z",
+  "capturedAt": "2026-09-28T10:48:59.701Z",
   "fixture": "scripts/fixtures/golden/input/replay-input.json",
-  "fixtureSha256": "7e1cc958edbe2ed2a9de60b1c5e2f4589aab1537362214cd27ab28b8e1f4247b",
+  "fixtureSha256": "b26c9085e003694b25c3e69b762475a094ebba96e7f5c0b10cc24b7331cd6ad2",
   "stageHashes": {
     "buildResearchCandidates": "ff426df43ec9c11168bc5e9ba389560eee190f9e672c15f0f0b8054c6c472c5d",
     "classifyNepalPhone": "f3246057a690414932f31f7b4d48fb16596eb175ade25923e3656aff64833483",
     "classifySocialProfile": "c3cf39cd7f6a72d4f5d33dea483f48512d3fc59b5433fca6a34bd32e207bfd01",
     "sanitizeListingWithEvidence": "02e77981785ae62c272b80052842622b676d2dfd7a08965fab83d07999294ed6",
-    "buildFallbackListing": "6c694c9a15dd43769fb1b3e2325bfd4a727926a6efe788d2aea1671e14becd59"
+    "buildFallbackListing": "f421f6b0f75caea5ca9bc058a501e6379419743c63446c585c4160574d191e69"
   },
   "stages": {
     "buildResearchCandidates": {
@@ -1517,7 +1517,7 @@
           ],
           "location": "Kathmandu, Bagmati Province 44600, Nepal",
           "metadata": {
-            "confidence": 0,
+            "confidence": 1,
             "source": "google_maps"
           },
           "mobiles": [
