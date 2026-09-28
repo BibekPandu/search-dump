@@ -7,7 +7,7 @@
     "dev": "mastra dev",
     "start": "mastra dev",
     "typecheck": "tsc -p tsconfig.json",
-    "spellcheck": "cspell lint \"src/**/*.{ts,md}\" \"scripts/**/*.ts\" \"README.md\" \"SYSTEM-REPORT.md\"",
+    "spellcheck": "cspell lint \"src/**/*.{ts,md}\" \"scripts/**/*.ts\" \"README.md\" \"ARCHITECTURE.md\"",
     "test": "tsx scripts/test-website-ranker.ts && tsx scripts/test-second-chance.ts && tsx scripts/test-website-discovery-gate.ts && tsx scripts/test-website-discovery-budget.ts && tsx scripts/test-satungal-sweep-defects.ts && tsx scripts/test-negative-directory-contamination.ts && tsx scripts/test-snippet-phone-attribution.ts && tsx scripts/test-ever-vision-discovery.ts && tsx scripts/test-mongo-service.ts && tsx scripts/test-m2a-locality-and-maps.ts && tsx scripts/test-m2b-candidate-preservation.ts && tsx scripts/test-m2c-cascade-semantics.ts && tsx scripts/test-m2c-social-extraction.ts && tsx scripts/test-m2c-structured-branch-attribution.ts && tsx scripts/test-phase8-geographic-contact-reconciliation.ts && tsx scripts/test-phase8a-geographic-evaluator.ts && tsx scripts/test-phase8b-contact-role-aggregation.ts && tsx scripts/test-multi-category-false-merge-guards.ts",
     "test:satungal": "tsx scripts/test-satungal-sweep-defects.ts",
     "db:seed": "tsx scripts/seed-mongo-from-output.ts",

@@ -1,4 +1,4 @@
-# SYSTEM REPORT — `searchDump` (Agentic Business Discovery & Extraction Engine)
+# ARCHITECTURE — `searchDump` (Agentic Business Discovery & Extraction Engine)
 
 > Complete system map: end-to-end flow, storage architecture, module inventory, quality gates.
 > Branch `refactor/code-2` · Regenerated 2026-09-28 · Post-refactor, post-fixture-refresh state.
@@ -452,9 +452,9 @@ is byte-identical after the service regrouping.
 |---|---|
 | `dev` / `start` | `mastra dev` (Studio UI + API) |
 | `typecheck` | `tsc -p tsconfig.json` |
-| `spellcheck` | `cspell lint "src/**/*.{ts,md}" "scripts/**/*.ts" "README.md" "SYSTEM-REPORT.md"` |
-| `test` | 17 core suites, chained `tsx` |
-| `test:full` | all 31 suites, chained `tsx` |
+| `spellcheck` | `cspell lint "src/**/*.{ts,md}" "scripts/**/*.ts" "README.md" "ARCHITECTURE.md"` |
+| `test` | 18 core suites, chained `tsx` |
+| `test:full` | all 32 suites, chained `tsx` |
 | `db:seed` | `tsx scripts/seed-mongo-from-output.ts` |
 | `test:mongo`, `test:m2a`, `test:m2b`, `test:m2c-*`, `test:phase8*`, `test:phase7c-defects`, `test:satungal` | individual suite runners |
 
@@ -477,7 +477,7 @@ is byte-identical after the service regrouping.
 
 **Tracked (146 files):** `src/**` (105 TS + 2 agent prompts), 18 core test suites,
 golden harness (`scripts/fixtures/golden/**`), 9 root files
-(`README.md`, `SYSTEM-REPORT.md`, `package.json`, `package-lock.json`, `tsconfig.json`,
+(`README.md`, `ARCHITECTURE.md`, `package.json`, `package-lock.json`, `tsconfig.json`,
 `cspell.json`, `.gitignore`, `.env.example`, `skills-lock.json`).
 
 **Local-only (gitignored):**
