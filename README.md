@@ -214,6 +214,9 @@ an unchanged `firstSeenAt`, and an incremented `runCount`.
 
 ## Repository Structure
 
+Current state: **105 TypeScript files** (19,579 lines) under `src/`, **146 tracked
+files** in git, **13 modules** in `src/services/resolution/`.
+
 ```
 searchDump/
 ├── .cache/                             # Local-only (gitignored)
@@ -255,7 +258,7 @@ searchDump/
 │           ├── research-workflow.ts    # Core 4-step workflow (incl. M1 cache guard)
 │           └── research-prompts.ts     # Supervisor prompt builders
 ├── scripts/
-│   ├── test-*.ts                       # 17 core suites tracked; 14 phase suites local-only
+│   ├── test-*.ts                       # 18 core suites tracked; 14 phase suites local-only
 │   ├── run-*.ts / seed-*.ts / probe-*.ts  # Benchmarks & utilities (local-only)
 │   └── fixtures/golden/                # Offline behavior-proof harness (tracked)
 ├── .env.example                        # Environment template (no secrets)
@@ -268,21 +271,21 @@ searchDump/
 
 ## Testing & Quality Gates
 
-Two test tiers — 17 core suites are tracked in git, 14 phase-specific suites exist
+Two test tiers — 18 core suites are tracked in git, 14 phase-specific suites exist
 locally only (run them with `test:full` or directly):
 
 | Command | Scope | Use when |
 |---|---|---|
-| `npm test` | **17 core suites** — ranker, discovery gate/budget, social/contact matching, geography, entity sweeps, MongoDB storage, M2 suites | Default fast loop |
-| `npm run test:full` | **All 31 suites** — core + phase 7c/8d-8o defect regression suites | Before every commit or push |
+| `npm test` | **18 core suites** — ranker, discovery gate/budget, social/contact matching, geography, entity sweeps, MongoDB storage, M2 suites, multi-category false-merge guards | Default fast loop |
+| `npm run test:full` | **All 32 suites** — core + phase 7c/8d-8o defect regression suites | Before every commit or push |
 
 Release gates (all must pass before merge):
 
 ```bash
 npm run typecheck                 # tsc strict, 0 errors
 npm run spellcheck                # cspell, 0 issues
-npm test                          # 17/17 core suites
-npm run test:full                 # 31/31 full regression (local suites)
+npm test                          # 18/18 core suites
+npm run test:full                 # 32/32 full regression (local suites)
 npx tsx scripts/fixtures/golden/replay-golden.ts       # offline replay, 0 drift
 npx tsx scripts/fixtures/golden/check-shim-exports.ts  # shim reference identity
 npx madge --circular --extensions ts --ts-config tsconfig.json src   # 0 cycles
