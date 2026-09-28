@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-09-26T13:22:16.649Z",
+  "capturedAt": "2026-09-28T10:48:59.699Z",
   "tables": [
     {
       "id": "NEPAL_COUNTRY_CODE",
@@ -32,23 +32,23 @@
     {
       "id": "DOCUMENT_PLATFORM_DOMAINS",
       "sourceFile": "src/config/directory-domains.config.ts",
-      "sourceSha256": "6458b367c14012d5a4f7013f67acb02058c9d32ea3bfe7031be815e8dd7eafa5",
+      "sourceSha256": "7f5f3d4927ae927f1277338a2e5ca8b2a576822bf657b72231d95189a1042cda",
       "tableSha256": "813aa0908ee32114861a6016f25cc7ef50996e97c5edd96e91bc9d6f859d8f50",
       "size": 9
     },
     {
       "id": "EXTRA_DIRECTORY_DOMAINS",
       "sourceFile": "src/config/directory-domains.config.ts",
-      "sourceSha256": "6458b367c14012d5a4f7013f67acb02058c9d32ea3bfe7031be815e8dd7eafa5",
+      "sourceSha256": "7f5f3d4927ae927f1277338a2e5ca8b2a576822bf657b72231d95189a1042cda",
       "tableSha256": "3bb6bf82dffdf6aa5311426d288353c6dea183d6b81b86d247c607c618523526",
       "size": 4
     },
     {
       "id": "SHARED_DIRECTORY_DOMAINS",
       "sourceFile": "src/config/directory-domains.config.ts",
-      "sourceSha256": "6458b367c14012d5a4f7013f67acb02058c9d32ea3bfe7031be815e8dd7eafa5",
-      "tableSha256": "5b3f9e883e9ab918a7832bee3279cc2de79eff4ff005271c23cbe7d923e35a9d",
-      "size": 92
+      "sourceSha256": "7f5f3d4927ae927f1277338a2e5ca8b2a576822bf657b72231d95189a1042cda",
+      "tableSha256": "65f0057ca885a750ff6e4ce951866724819358daed172c879a817709b46a065a",
+      "size": 104
     },
     {
       "id": "CATEGORY_EXPANSION_POLICIES",
@@ -74,28 +74,28 @@
     {
       "id": "UNIVERSAL_STOPWORDS",
       "sourceFile": "src/services/business-extractor.service.ts",
-      "sourceSha256": "89cacc4806d6b77ae06de1d56d5b0830a199a49607e8a9ffcd5115caa9c44dde",
+      "sourceSha256": "b5dd63993f1b111a0c4d3cf323a104b29c002345b37158ca6eb0a90a3cad7b8f",
       "tableSha256": "cb7e0aa132e8cd9912aa30028a0b03800ac14f017ea361353cd8cd6d919be577",
       "size": 24
     },
     {
       "id": "INDUSTRY_GENERIC_TOKENS",
       "sourceFile": "src/services/business-extractor.service.ts",
-      "sourceSha256": "89cacc4806d6b77ae06de1d56d5b0830a199a49607e8a9ffcd5115caa9c44dde",
+      "sourceSha256": "b5dd63993f1b111a0c4d3cf323a104b29c002345b37158ca6eb0a90a3cad7b8f",
       "tableSha256": "0cce001cf1cae18703164a3604c815a2750d7e738d1f4c99108150029f3d9e06",
       "size": 164
     },
     {
       "id": "NEPAL_LOCALITY_TOKENS",
       "sourceFile": "src/services/business-extractor.service.ts",
-      "sourceSha256": "89cacc4806d6b77ae06de1d56d5b0830a199a49607e8a9ffcd5115caa9c44dde",
+      "sourceSha256": "b5dd63993f1b111a0c4d3cf323a104b29c002345b37158ca6eb0a90a3cad7b8f",
       "tableSha256": "d981aeb39f9ecf3ab1cb5887aaf9620dc14eb01abc4a4a2254787978dfc10c82",
       "size": 30
     },
     {
       "id": "CATEGORY_GENERIC_TOKENS",
       "sourceFile": "src/services/business-extractor.service.ts",
-      "sourceSha256": "89cacc4806d6b77ae06de1d56d5b0830a199a49607e8a9ffcd5115caa9c44dde",
+      "sourceSha256": "b5dd63993f1b111a0c4d3cf323a104b29c002345b37158ca6eb0a90a3cad7b8f",
       "tableSha256": "450f68656d405742338f1c3fbfd554ca3175fdc83a125dd001dbe6695a61bc50",
       "size": 13
     }

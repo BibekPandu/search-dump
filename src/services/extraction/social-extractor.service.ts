@@ -17,6 +17,7 @@ import {
   FACEBOOK_NON_CANONICAL_SUBPATHS,
   FACEBOOK_RESERVED_PATHS,
   FB_NAMESPACE_PATHS,
+  FB_NAMESPACE_RESERVED_ACTIONS,
   TWITTER_RESERVED_PATHS,
   INSTAGRAM_RESERVED_PATHS,
 } from '@/config/token-vocabulary.config';
@@ -33,6 +34,18 @@ export function requiredSocialNameOverlap(distinctiveTokenCount: number): number
 export function brandSegmentFromBusinessName(name: string): string {
   const brand = name.split(/\s*[:|]\s*|\s+[-–—]\s+/)[0]?.trim() || '';
   return brand.length >= 2 ? brand : name;
+}
+
+/**
+ * True when a Facebook namespace path carries a reserved action word in the
+ * slot that would otherwise be read as a page slug, e.g.
+ * `facebook.com/pages/create` (the "Create a Page" form) or
+ * `facebook.com/people/login`. These are UI routes, never business pages.
+ */
+function isReservedNamespaceAction(pathSegments: string[]): boolean {
+  const action = pathSegments[1]?.toLowerCase();
+  if (!action) return false;
+  return FB_NAMESPACE_RESERVED_ACTIONS.has(action) || FACEBOOK_RESERVED_PATHS.has(action);
 }
 
 export function extractFacebookHandle(pathSegments: string[]): string | null {
@@ -147,6 +160,9 @@ export function isRealSocialProfile(url: string, platform?: string): boolean {
       }
       if (FACEBOOK_RESERVED_PATHS.has(firstSegment)) return false;
       const isNamespacePattern = FB_NAMESPACE_PATHS.has(firstSegment) && pathSegments.length > 1;
+      // A namespace route whose action segment is reserved (e.g. /pages/create)
+      // is a Facebook UI form, not a page profile.
+      if (isNamespacePattern && isReservedNamespaceAction(pathSegments)) return false;
       if (!isNamespacePattern && firstSegment.length < 3) return false;
       return true;
     }
@@ -287,7 +303,10 @@ export function classifySocialProfile(
         distinctiveTokensFound: [],
       };
     }
-    if (FACEBOOK_RESERVED_PATHS.has(firstSegment)) {
+    if (
+      FACEBOOK_RESERVED_PATHS.has(firstSegment) ||
+      (FB_NAMESPACE_PATHS.has(firstSegment) && isReservedNamespaceAction(pathSegments))
+    ) {
       return {
         url,
         platform: plat,
