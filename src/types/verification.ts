@@ -81,6 +81,9 @@ export const websiteEvidenceSchema = z.object({
     .default({ facebook: '', instagram: '', tiktok: '', other: {} }),
   extractedServices: z.array(z.string()).default([]),
   extractedHours: z.string().optional(),
+  extractedAddress: z.string().optional(),
+  extractedCoordinates: z.object({ lat: z.number(), lng: z.number() }).optional(),
+  extractedSchemaSameAs: z.array(z.string()).optional(),
   favicon: z.string().default(''),
   /** Tiny context-only summary of the raw content (capped). Never a data source. */
   rawContentSummary: z.string().optional(),

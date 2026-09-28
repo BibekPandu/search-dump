@@ -13,6 +13,7 @@ import {
   UNIVERSAL_STOPWORDS,
   CATEGORY_GENERIC_TOKENS,
 } from '@/services/business-extractor.service';
+import { GENERIC_DOMAIN_TOKENS, extractDistinctiveNameTokens } from '@/config/token-vocabulary.config';
 import {
   findRegisteredLocalityCluster,
   normalizeLocalityString,
@@ -177,6 +178,31 @@ export function normalizeNameKey(name: string): string {
     .replace(/\b(pvt|ltd|llc|inc|co|corp|p\s*ltd|the|and)\b/gi, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+/**
+ * Pure HTML entity decoder for names and titles.
+ */
+export function decodeHtmlEntities(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/&amp;/gi, '&')
+    .replace(/&#38;/g, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&nbsp;/gi, ' ');
+}
+
+/**
+ * Lenient name normalizer that decodes HTML entities before tokenizing.
+ * Used for candidate-to-evidence matching, subtitle tolerance, and fallback linkage.
+ * Note: normalizeNameKey remains byte-identical to preserve DB canonicalKey stability.
+ */
+export function normalizeNameKeyLenient(name: string): string {
+  if (!name) return '';
+  return normalizeNameKey(decodeHtmlEntities(name));
 }
 
 /**
@@ -509,16 +535,47 @@ export function isUsableOfficialWebsite(
       }
     }
 
-    // Category-conflict rejection (v1.1): a travel agency must never be matched
+    // Category-conflict rejection (v1.2): a travel agency must never be matched
     // to a hotel site, a restaurant to a hotel site, etc. This is a CONFLICT
     // signal, not exact-category enforcement — unknown/mixed categories pass.
+    // Distinctive overlap bypasses category rejection when domain matches business name's own distinctive tokens.
     const businessCategory = detectBusinessCategory(businessName, mapsCategory);
     const websiteCategory = detectWebsiteCategory(domain, pageTitle);
     if (hasCategoryConflict(businessCategory, websiteCategory)) {
-      console.log(
-        `[EntityResolution] Category mismatch rejected: ${trimmed} (${websiteCategory}) for "${businessName}" (${businessCategory})`
-      );
-      return false;
+      const domainTokens = domain
+        .toLowerCase()
+        .replace(/^www\./, '')
+        .split(/[-._\d]+/)
+        .filter((t) => t.length >= 3);
+      const nameTokensAll = normalizeNameKeyLenient(businessName)
+        .split(' ')
+        .filter((t) => t.length >= 3);
+      const overlappingTokens = domainTokens.filter((t) => nameTokensAll.includes(t));
+      const distinctiveOverlap = overlappingTokens.filter((t) => !GENERIC_DOMAIN_TOKENS.has(t));
+
+      // Check if page title/content aligns with business category or is generic
+      const pageCategory = pageTitle ? detectCategoryFromText(pageTitle, false) : null;
+      const pageMatchesOrGeneric = !pageCategory || pageCategory === businessCategory;
+
+      // Check if business name itself contains the keyword triggering the websiteCategory (self-collision)
+      const businessNameContainsCollidingKeyword =
+        Boolean(websiteCategory &&
+        BUSINESS_CATEGORY_KEYWORDS[websiteCategory]?.primary.some((kw) => nameTokensAll.includes(kw)));
+
+      const allowBypass =
+        distinctiveOverlap.length >= 2 ||
+        (distinctiveOverlap.length >= 1 && (pageMatchesOrGeneric || businessNameContainsCollidingKeyword));
+
+      if (allowBypass) {
+        console.log(
+          `[EntityResolution] Category mismatch bypassed via distinctive token overlap [${distinctiveOverlap.join(', ')}] for "${businessName}" (${businessCategory}) vs ${domain} (${websiteCategory})`
+        );
+      } else {
+        console.log(
+          `[EntityResolution] Category mismatch rejected: ${trimmed} (${websiteCategory}) for "${businessName}" (${businessCategory})`
+        );
+        return false;
+      }
     }
   }
 
@@ -1078,14 +1135,18 @@ export function mergeDuplicateEntities<T extends ConflictCheckListing>(
   }
 
   const { conflicts } = detectCrossListingConflicts(listings);
-  // Find pairs with shared first-party domain, phone, or social AND entity alignment
+  // Find pairs with shared first-party domain, phone, or social AND distinctive entity alignment
   const mergePairs = conflicts.filter((c) => {
+    const listingA = listings[c.listingIndexA];
+    const listingB = listings[c.listingIndexB];
+    if (!listingA || !listingB) return false;
+
     const isDomainShared =
       c.conflict.sharedContacts.domains.length > 0 &&
       c.conflict.sharedContacts.domains.some((d: string) => isUsableOfficialWebsite(`https://${d}`));
 
     const isPhoneShared =
-      c.conflict.sharedContacts.phones.length > 0 || (c.conflict.sharedContacts as any).mobiles?.length > 0;
+      c.conflict.sharedContacts.phones.length > 0 || ((c.conflict.sharedContacts as any).mobiles?.length || 0) > 0;
 
     const isSocialShared =
       c.conflict.sharedContacts.socials && c.conflict.sharedContacts.socials.length > 0;
@@ -1093,23 +1154,51 @@ export function mergeDuplicateEntities<T extends ConflictCheckListing>(
     const hasSharedContact = isDomainShared || isPhoneShared || isSocialShared;
     if (!hasSharedContact) return false;
 
-    if (
-      c.conflict.conflictType === 'POSSIBLY_SAME_ENTITY' ||
-      c.conflict.conflictType === 'DUPLICATE_MAPS_LISTING'
-    ) {
+    // Distinctive Name Analysis (Two-Gate Safety Architecture)
+    const distinctiveA = extractDistinctiveNameTokens(listingA.name || '');
+    const distinctiveB = extractDistinctiveNameTokens(listingB.name || '');
+    const sharedTokens = distinctiveA.filter((t) => distinctiveB.includes(t));
+    const unionTokens = new Set([...distinctiveA, ...distinctiveB]);
+    const nameJaccard =
+      distinctiveA.length > 0 && distinctiveB.length > 0 && unionTokens.size > 0
+        ? sharedTokens.length / unionTokens.size
+        : 0;
+
+    const domainA = listingA.websites?.[0] ? domainFromUrlOrHost(listingA.websites[0]) : '';
+    const domainB = listingB.websites?.[0] ? domainFromUrlOrHost(listingB.websites[0]) : '';
+    const hasConflictingDomains = Boolean(domainA && domainB && domainA !== domainB);
+
+    // Gate 1: Exact phone match (>= 7 digits) - strongest physical identity signal
+    const hasExactPhoneMatch = isPhoneShared && c.conflict.sharedContacts.phones.some((p) => {
+      const digits = normalizePhoneDigits(p);
+      return digits.length >= 7;
+    });
+    if (hasExactPhoneMatch) {
+      // Strong phone signal, but conflicting official domains -> require distinctive name confirmation
+      if (hasConflictingDomains) {
+        return nameJaccard >= 0.6;
+      }
       return true;
     }
 
-    if (c.conflict.conflictType === 'RELATED_BRAND') {
-      const nameA = listings[c.listingIndexA]?.name || '';
-      const nameB = listings[c.listingIndexB]?.name || '';
-      const normA = normalizeNameKey(nameA);
-      const normB = normalizeNameKey(nameB);
-      if (
-        normA &&
-        normB &&
-        (normA.includes(normB) || normB.includes(normA) || tokenJaccard(normA, normB) >= 0.5)
-      ) {
+    // Gate 2a: Exact first-party domain match AND distinctive name alignment (nameJaccard >= 0.4 or subset)
+    const isNameSubset =
+      distinctiveA.length > 0 &&
+      distinctiveB.length > 0 &&
+      (distinctiveA.every((t) => distinctiveB.includes(t)) || distinctiveB.every((t) => distinctiveA.includes(t)));
+
+    if (isDomainShared && (nameJaccard >= 0.4 || isNameSubset)) {
+      return true;
+    }
+
+    // Gate 2b: Very strong name similarity alone (nameJaccard >= 0.7) when contacts align
+    if (nameJaccard >= 0.7 && (isDomainShared || isSocialShared)) {
+      return true;
+    }
+
+    // Pure generic names fallback: if both have 0 distinctive tokens, require strict normalized name match
+    if (distinctiveA.length === 0 && distinctiveB.length === 0) {
+      if (normalizeNameKey(listingA.name) === normalizeNameKey(listingB.name)) {
         return true;
       }
     }
@@ -1155,6 +1244,37 @@ export function mergeDuplicateEntities<T extends ConflictCheckListing>(
 
     // Multiple listings in cluster — apply 4-tier deterministic tie-breaker
     const clusterItems = indices.map((idx) => listings[idx]);
+
+const MERGE_CLUSTER_SIZE_CAP = 3;
+const MERGE_DISTINCT_DOMAINS_CAP = 2;
+
+    const distinctDomains = new Set(
+      clusterItems.flatMap((c) => c.websites || []).map(domainFromUrlOrHost).filter(Boolean)
+    );
+
+    // Safety guard: Refuse auto-merging oversized clusters (>3) or clusters with multiple distinct domains (>=2)
+    if (clusterItems.length > MERGE_CLUSTER_SIZE_CAP || distinctDomains.size >= MERGE_DISTINCT_DOMAINS_CAP) {
+      console.warn(
+        `[MergeGuard] Refusing to auto-merge cluster of ${clusterItems.length} listings with ${distinctDomains.size} distinct domains (suspected false-merge cascade):`,
+        clusterItems.map((c) => ({
+          name: c.name,
+          websites: c.websites,
+          phones: c.phones,
+          mobiles: c.mobiles,
+          distinctiveTokens: extractDistinctiveNameTokens(c.name),
+        }))
+      );
+      for (const item of clusterItems) {
+        mergedListings.push({
+          ...item,
+          otherDetails: {
+            ...(item.otherDetails as any),
+            suspectedCluster: true,
+          },
+        });
+      }
+      continue;
+    }
 
     clusterItems.sort((a, b) => {
       // 1. Confidence score

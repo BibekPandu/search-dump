@@ -40,6 +40,17 @@ export const socialStatusEnum = z.enum([
 ]);
 export type SocialStatus = z.infer<typeof socialStatusEnum>;
 
+export const socialOriginEnum = z.enum([
+  'website_html',
+  'schema_org_sameAs',
+  'maps_booking_link',
+  'maps_owner',
+  'phase0_discovery',
+  'serp',
+  'website_evidence',
+]);
+export type SocialOrigin = z.infer<typeof socialOriginEnum>;
+
 export const classifiedSocialProfileSchema = z.object({
   url: z.string(),
   canonicalUrl: z.string().optional(),
@@ -51,5 +62,7 @@ export const classifiedSocialProfileSchema = z.object({
   confidence: z.number().default(1.0),
   rejectionReason: socialRejectionReasonEnum.default('NONE'),
   distinctiveTokensFound: z.array(z.string()).default([]),
+  origin: z.string().optional(),
 });
 export type ClassifiedSocialProfile = z.infer<typeof classifiedSocialProfileSchema>;
+

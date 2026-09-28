@@ -69,15 +69,15 @@ export const INTERNATIONAL_REGEX = /\+[\d\s()-]{7,15}/g;
 export const TEL_PROTECT_REGEX =
   /(?:href=["'](?:tel|callto):|wa\.me\/|api\.whatsapp\.com\/send\?phone=)(\+?[\d\s().-]{7,25})|(?:tel|callto):(\+?[\d\s().-]{7,25})/gi;
 
-export const FACEBOOK_REGEX = /https?:\/\/(?:www\.)?(?:m\.)?facebook\.com\/(?:profile\.php\?id=\d+|[a-zA-Z0-9._-]+)/i;
+export const FACEBOOK_REGEX = /https?:\/\/(?:www\.)?(?:m\.)?facebook\.com\/(?:profile\.php\?[^\s"'<>)]+|[a-zA-Z0-9._-]+(?:\/[a-zA-Z0-9._-]+)*\/?)/i;
 
-export const INSTAGRAM_REGEX = /https?:\/\/(?:www\.)?instagram\.com\/[a-zA-Z0-9._-]+/i;
+export const INSTAGRAM_REGEX = /https?:\/\/(?:www\.)?instagram\.com\/[a-zA-Z0-9._-]+(?:\/[a-zA-Z0-9._-]+)*\/?/i;
 
-export const TIKTOK_REGEX = /https?:\/\/(?:www\.)?tiktok\.com\/@[a-zA-Z0-9._-]+/i;
+export const TIKTOK_REGEX = /https?:\/\/(?:www\.)?tiktok\.com\/@[a-zA-Z0-9._-]+(?:\/[a-zA-Z0-9._-]+)*\/?/i;
 
 export const X_TWITTER_REGEX = /https?:\/\/(?:www\.)?(?:x|twitter)\.com\/[a-zA-Z0-9_]+/i;
 
-export const YOUTUBE_REGEX = /https?:\/\/(?:www\.)?(?:youtube\.com\/(?:channel\/|c\/|user\/|@)?|youtu\.be\/)[a-zA-Z0-9._-]+/i;
+export const YOUTUBE_REGEX = /https?:\/\/(?:www\.)?(?:youtube\.com\/(?:channel\/|c\/|user\/|@)?|youtu\.be\/)[a-zA-Z0-9._-]+(?:\/[a-zA-Z0-9._-]+)*\/?/i;
 
 export const LINKEDIN_COMPANY_REGEX = /https?:\/\/(?:www\.)?linkedin\.com\/company\/[\w-]+/i;
 

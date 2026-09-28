@@ -6,15 +6,28 @@
  */
 
 import type { ClassifiedSocialProfile } from '@/types/social.js';
-import { INDUSTRY_GENERIC_TOKENS, UNIVERSAL_STOPWORDS, NEPAL_LOCALITY_TOKENS, CATEGORY_GENERIC_TOKENS, CONFLICTING_VERTICAL_TOKENS, PLATFORM_OFFICIAL_HANDLES, KNOWN_VENDOR_SOCIAL_HANDLES, FACEBOOK_NON_CANONICAL_SUBPATHS, FACEBOOK_RESERVED_PATHS, TWITTER_RESERVED_PATHS, INSTAGRAM_RESERVED_PATHS } from '@/config/token-vocabulary.config';
+import {
+  INDUSTRY_GENERIC_TOKENS,
+  UNIVERSAL_STOPWORDS,
+  NEPAL_LOCALITY_TOKENS,
+  CATEGORY_GENERIC_TOKENS,
+  CONFLICTING_VERTICAL_TOKENS,
+  PLATFORM_OFFICIAL_HANDLES,
+  KNOWN_VENDOR_SOCIAL_HANDLES,
+  FACEBOOK_NON_CANONICAL_SUBPATHS,
+  FACEBOOK_RESERVED_PATHS,
+  FB_NAMESPACE_PATHS,
+  TWITTER_RESERVED_PATHS,
+  INSTAGRAM_RESERVED_PATHS,
+} from '@/config/token-vocabulary.config';
 import { resolveCategoryKey } from '@/services/extraction/category-token.service';
 import { LINKEDIN_REGEX, FACEBOOK_REGEX, INSTAGRAM_REGEX, TIKTOK_REGEX, X_TWITTER_REGEX, YOUTUBE_REGEX } from '@/services/extraction/extraction-regex';
-import { cleanTrailingPunctuation, extractUrlsFromMarkdown, liftBareHandles, extractUrlsFromHtml, extractStructuredSocialUrls, domainFromUrlOrHost } from '@/services/extraction/content-normalization.service';
+import { cleanTrailingPunctuation, extractUrlsFromMarkdown, liftBareHandles, extractUrlsFromHtml, extractStructuredSocialUrls, domainFromUrlOrHost, decodeHtmlEntities } from '@/services/extraction/content-normalization.service';
 
 export function requiredSocialNameOverlap(distinctiveTokenCount: number): number {
-  if (distinctiveTokenCount <= 0) return 0;
-  if (distinctiveTokenCount === 1) return 1;
-  return Math.max(2, Math.floor(distinctiveTokenCount / 2) + 1);
+  if (distinctiveTokenCount <= 1) return 1;
+  if (distinctiveTokenCount <= 3) return 1;
+  return Math.max(2, Math.ceil(distinctiveTokenCount * 0.5));
 }
 
 export function brandSegmentFromBusinessName(name: string): string {
@@ -22,13 +35,30 @@ export function brandSegmentFromBusinessName(name: string): string {
   return brand.length >= 2 ? brand : name;
 }
 
+export function extractFacebookHandle(pathSegments: string[]): string | null {
+  if (!pathSegments || pathSegments.length === 0) return null;
+  const first = pathSegments[0].toLowerCase().replace(/^@/, '');
+  if (!FB_NAMESPACE_PATHS.has(first)) {
+    if (first === 'profile.php') return 'profile.php';
+    return first;
+  }
+
+  // /people/<slug>/<id> -> slug
+  // /pages/<slug>/<id> -> slug
+  // /p/<slug>-<id> -> strip trailing -<digits>
+  const second = pathSegments[1];
+  if (!second) return null;
+  return second.replace(/-\d{6,}$/, '');
+}
+
 export function computeCanonicalSocialUrl(
   url: string,
   plat: ClassifiedSocialProfile['platform']
 ): string {
   if (!url) return '';
+  const decodedUrl = decodeHtmlEntities(url);
   try {
-    const parsed = new URL(url);
+    const parsed = new URL(decodedUrl);
     const pathSegments = parsed.pathname.split('/').filter(Boolean);
     if (pathSegments.length === 0) return url;
 
@@ -37,8 +67,13 @@ export function computeCanonicalSocialUrl(
       if (first === 'p' && pathSegments.length > 1) {
         return `https://facebook.com/p/${pathSegments[1]}`;
       }
-      if (first === 'pages' && pathSegments.length > 2) {
-        return `https://facebook.com/pages/${pathSegments[1]}/${pathSegments[2]}`;
+      if (first === 'people' && pathSegments.length > 1) {
+        const id = pathSegments[2] ? `/${pathSegments[2]}` : '';
+        return `https://facebook.com/people/${pathSegments[1]}${id}`;
+      }
+      if (first === 'pages' && pathSegments.length > 1) {
+        const id = pathSegments[2] ? `/${pathSegments[2]}` : '';
+        return `https://facebook.com/pages/${pathSegments[1]}${id}`;
       }
       if (first === 'profile.php') {
         const id = parsed.searchParams.get('id');
@@ -96,8 +131,9 @@ export function computeCanonicalSocialUrl(
 
 export function isRealSocialProfile(url: string, platform?: string): boolean {
   if (!url) return false;
+  const decodedUrl = decodeHtmlEntities(url);
   try {
-    const parsed = new URL(url);
+    const parsed = new URL(decodedUrl);
     const pathSegments = parsed.pathname.split('/').filter(Boolean);
     if (pathSegments.length === 0) return false; // Bare domain e.g. https://facebook.com/
 
@@ -110,9 +146,8 @@ export function isRealSocialProfile(url: string, platform?: string): boolean {
         return !!(id && /^\d+$/.test(id));
       }
       if (FACEBOOK_RESERVED_PATHS.has(firstSegment)) return false;
-      const isModernPagePattern = firstSegment === 'p' && pathSegments.length > 1;
-      const isPagesPattern = firstSegment === 'pages' && pathSegments.length > 2;
-      if (!isModernPagePattern && !isPagesPattern && firstSegment.length < 3) return false;
+      const isNamespacePattern = FB_NAMESPACE_PATHS.has(firstSegment) && pathSegments.length > 1;
+      if (!isNamespacePattern && firstSegment.length < 3) return false;
       return true;
     }
 
@@ -181,9 +216,10 @@ export function classifySocialProfile(
     };
   }
 
+  const decodedUrl = decodeHtmlEntities(url);
   let parsed: URL;
   try {
-    parsed = new URL(url);
+    parsed = new URL(decodedUrl);
   } catch {
     return {
       url,
@@ -267,15 +303,17 @@ export function classifySocialProfile(
     if (firstSegment === 'profile.php') {
       const id = parsed.searchParams.get('id');
       if (id && /^\d+$/.test(id)) {
+        const cleanUrl = `https://facebook.com/profile.php?id=${id}`;
         return {
-          url,
+          url: cleanUrl,
+          canonicalUrl: cleanUrl,
           platform: plat,
           handle: id,
-          profileType: 'unknown',
-          owner: 'unknown',
-          status: 'unknown',
-          confidence: 0.5,
-          rejectionReason: 'INSUFFICIENT_EVIDENCE',
+          profileType: 'business_page',
+          owner: origin === 'website_evidence' ? 'business' : 'unknown',
+          status: origin === 'website_evidence' ? 'accepted' : 'unknown',
+          confidence: origin === 'website_evidence' ? 0.95 : 0.6,
+          rejectionReason: origin === 'website_evidence' ? 'NONE' : 'INSUFFICIENT_EVIDENCE',
           distinctiveTokensFound: [],
         };
       }
@@ -291,10 +329,9 @@ export function classifySocialProfile(
         distinctiveTokensFound: [],
       };
     }
-    const isModernPagePattern = firstSegment === 'p' && pathSegments.length > 1;
-    const isPagesPattern = firstSegment === 'pages' && pathSegments.length > 2;
+    const isNamespacePattern = FB_NAMESPACE_PATHS.has(firstSegment) && pathSegments.length > 1;
 
-    if (!isModernPagePattern && !isPagesPattern && firstSegment.length < 3) {
+    if (!isNamespacePattern && firstSegment.length < 3) {
       return {
         url,
         platform: plat,
@@ -462,10 +499,11 @@ export function classifySocialProfile(
 
   // Extract handle
   let handle = firstSegment;
-  if (plat === 'facebook' && firstSegment === 'p' && pathSegments.length > 1) {
-    handle = (pathSegments[1] || '').replace(/-\d{8,}$/, '');
-  } else if (plat === 'facebook' && firstSegment === 'pages' && pathSegments.length > 2) {
-    handle = (pathSegments[2] || '').replace(/-\d+$/, '');
+  if (plat === 'facebook') {
+    const fbHandle = extractFacebookHandle(pathSegments);
+    if (fbHandle) {
+      handle = fbHandle;
+    }
   } else if (plat === 'linkedin' && firstSegment === 'company') {
     handle = (pathSegments[1] || '').toLowerCase();
     if (!handle || handle.length < 2 || ['sharearticle', 'share-offsite'].includes(handle)) {
@@ -562,7 +600,7 @@ export function classifySocialProfile(
   // words were merged here, meaning curated beauty-specific tokens like 'unisex', 'royal', 'studio'
   // were never added → treated as distinctive → wrong socials accepted.
   // Fix: resolve the category key (same as website ranker) and merge the full CATEGORY_GENERIC_TOKENS list.
-  const resolvedCategoryKey = resolveCategoryKey(categoryContext);
+  const resolvedCategoryKey = resolveCategoryKey(categoryContext, businessName);
   const resolvedCategoryTokens = CATEGORY_GENERIC_TOKENS[resolvedCategoryKey] ?? CATEGORY_GENERIC_TOKENS['services'];
 
   const categoryGenericTokens = new Set<string>([
@@ -649,22 +687,40 @@ export function classifySocialProfile(
   // Clarification 1: The acronym rule derives from full business-name tokens (pre-generic-filter)
   const businessAcronym = fullBusinessTokens.map((t) => t[0]).join('');
 
-  // Distinctive business tokens (generic terms filtered out)
+  // Generic + Locality + Descriptor tokens to filter out from distinctive brand set
+  const nonDistinctiveTokens = new Set<string>([
+    ...categoryGenericTokens,
+    ...NEPAL_LOCALITY_TOKENS,
+    'branch',
+    'pvt',
+    'ltd',
+    'private',
+    'limited',
+    'center',
+    'centre',
+    'speciality',
+    'multispeciality',
+    'department',
+    'dept',
+  ]);
+
+  // Distinctive business tokens (generic, locality, and descriptor terms filtered out)
   const distinctiveBusinessTokens: string[] = brandBusinessName
     .toLowerCase()
     .split(/[^a-z0-9]+/)
-    .filter((t) => t.length >= 2 && !categoryGenericTokens.has(t));
+    .filter((t) => t.length >= 2 && !nonDistinctiveTokens.has(t));
 
   if (websiteDomain) {
     let domainLabel = domainFromUrlOrHost(websiteDomain);
     domainLabel = domainLabel.split('.')[0]?.toLowerCase() || '';
-    if (domainLabel.length >= 2 && !categoryGenericTokens.has(domainLabel)) {
-      distinctiveBusinessTokens.push(domainLabel);
-    }
     const domainWords = domainLabel
       .split(/[^a-z0-9]+/)
-      .filter((w) => w.length >= 2 && !categoryGenericTokens.has(w));
-    distinctiveBusinessTokens.push(...domainWords);
+      .filter((w) => w.length >= 2 && !nonDistinctiveTokens.has(w));
+    for (const dw of domainWords) {
+      if (!distinctiveBusinessTokens.includes(dw)) {
+        distinctiveBusinessTokens.push(dw);
+      }
+    }
   }
 
   // Support initialisms at the start of business name (e.g. "J. B Machinery" -> "jb", "R S Dental" -> "rs", "D.I. Dental" -> "di")
@@ -746,10 +802,9 @@ export function classifySocialProfile(
   );
 
   if (matchingDistinctive.length >= 1) {
-    // Strict-majority overlap (mirrors website ranker requiredNameOverlap).
-    // Single distinctive token still needs exactly 1 match; multi-token names
-    // require a strict majority so partial generic-facade handles cannot attach.
-    const requiredOverlap = requiredSocialNameOverlap(uniqueDistinctiveBusinessTokens.length);
+    // Primary brand token (longest distinctive token in the brand name)
+    const sortedDistinctiveTokens = [...uniqueDistinctiveBusinessTokens].sort((a, b) => b.length - a.length);
+    const primaryBrandToken = sortedDistinctiveTokens[0];
 
     // Phase 8L Component 8 (D21 Initialism Corroboration Rule):
     // If the only matching distinctive tokens are short (<= 3 characters, e.g. "apf", "rs", "nk", "ab"),
@@ -799,6 +854,45 @@ export function classifySocialProfile(
       }
     }
 
+    // Qualitative Brand-Match Rule:
+    // Accept if:
+    // (a) Handle matches the primary brand token (length >= 4 or longest distinctive token)
+    // (b) Handle matches >= 2 distinctive tokens
+    // AND the handle does not contain conflicting distinctive tokens from an unrelated brand
+    const hasPrimaryOrLongMatch = matchingDistinctive.some(
+      (t) => (primaryBrandToken && t === primaryBrandToken && t.length >= 3) || t.length >= 4
+    );
+
+    const unmatchedDistinctiveHandleTokens = distinctiveHandleTokens.filter(
+      (dh) =>
+        !matchingDistinctive.includes(dh) &&
+        !nonDistinctiveTokens.has(dh) &&
+        !NEPAL_LOCALITY_TOKENS.has(dh) &&
+        !matchingDistinctive.some((md) => md.length >= 3 && dh.includes(md)) &&
+        !normalizedBusinessName.includes(dh) &&
+        !normalizedBrandName.includes(dh)
+    );
+
+    const hasConflictingBrandInHandle = unmatchedDistinctiveHandleTokens.some(
+      (tok) => tok.length >= 4 && !cleanHandle.startsWith(primaryBrandToken || '') && !allHandleWords.includes(primaryBrandToken || '')
+    );
+
+    if ((hasPrimaryOrLongMatch || matchingDistinctive.length >= 2) && !hasConflictingBrandInHandle) {
+      return {
+        url,
+        canonicalUrl,
+        platform: plat,
+        handle,
+        profileType: 'business_page',
+        owner: 'business',
+        status: 'accepted',
+        confidence: 1.0,
+        rejectionReason: 'NONE',
+        distinctiveTokensFound: matchingDistinctive,
+      };
+    }
+
+    const requiredOverlap = requiredSocialNameOverlap(uniqueDistinctiveBusinessTokens.length);
     if (matchingDistinctive.length < requiredOverlap) {
       if (distinctiveHandleTokens.length >= 1) {
         return {
@@ -966,7 +1060,7 @@ export function extractSocialLinks(
   const selectCanonicalSocial = (matches: string[], platform: ClassifiedSocialProfile['platform']) => {
     const accepted = matches
       .map(cleanTrailingPunctuation)
-      .find((u) => isBusinessOwnedSocialProfile(u, platform, bName, wDomain));
+      .find((u) => isBusinessOwnedSocialProfile(u, platform, bName, wDomain, undefined, 'website_evidence'));
     return accepted ? computeCanonicalSocialUrl(accepted, platform) : '';
   };
 

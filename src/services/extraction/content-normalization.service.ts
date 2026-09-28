@@ -22,6 +22,18 @@ export function domainFromUrlOrHost(value: string): string {
     .split(':')[0];
 }
 
+export function decodeHtmlEntities(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/&amp;/gi, '&')
+    .replace(/&#38;/g, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&nbsp;/gi, ' ');
+}
+
 export function cleanTrailingPunctuation(value: string): string {
   if (!value) return '';
   return value.replace(/[\s.)\]}'"`\\*;,!]+$/, '').trim();

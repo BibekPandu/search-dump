@@ -7,6 +7,12 @@
 
 
 
+export const FB_NAMESPACE_PATHS = new Set([
+  'people',
+  'pages',
+  'p',
+]);
+
 export const FACEBOOK_RESERVED_PATHS = new Set([
   'sharer',
   'sharer.php',
@@ -23,7 +29,6 @@ export const FACEBOOK_RESERVED_PATHS = new Set([
   'help',
   'events',
   'groups',
-  'pages',
   'watch',
   'photo',
   'video',
@@ -31,7 +36,6 @@ export const FACEBOOK_RESERVED_PATHS = new Set([
   'about',
   'terms',
   'privacy',
-  'people',
   'directory',
   'marketplace',
   'gaming',
@@ -100,6 +104,20 @@ export const INDUSTRY_GENERIC_TOKENS = new Set([
   'kumaripati', 'satdobato', 'gongabu', 'balaju',
   // Satungal sweep Class B: cross-category generic gym/venue words
   'active', 'station',
+]);
+
+export const GENERIC_DOMAIN_TOKENS = new Set([
+  'hotel', 'inn', 'resort', 'lodge', 'motel', 'hostel', 'stay', 'guest', 'house', 'palace',
+  'tower', 'garden', 'clinic', 'dental', 'dentist', 'dentistry', 'orthodontic', 'ortho',
+  'hospital', 'care', 'center', 'centre', 'health', 'healthcare', 'medical', 'med',
+  'pharma', 'pharmacy', 'diagnostic', 'pathology', 'lab', 'laboratory', 'shop', 'shops',
+  'store', 'stores', 'mart', 'marts', 'market', 'bazaar', 'plaza', 'mall', 'bank',
+  'cafe', 'restaurant', 'coffee', 'bakery', 'kitchen', 'food', 'foods', 'bar',
+  'nepal', 'ktm', 'kathmandu', 'pokhara', 'lalitpur', 'bhaktapur', 'thamel', 'patan',
+  'pvt', 'ltd', 'inc', 'co', 'corp', 'company', 'service', 'services', 'solutions',
+  'tech', 'technologies', 'group', 'hub', 'point', 'club', 'school', 'college',
+  'academy', 'institute', 'travel', 'travels', 'tours', 'trekking', 'online', 'official',
+  'site', 'website', 'app', 'link', 'portal', 'best', 'top', 'new'
 ]);
 
 export const UNIVERSAL_STOPWORDS = new Set<string>([
@@ -338,3 +356,85 @@ export const NEPAL_BRANCH_LOCALITIES = [
   'australia', 'sydney', 'melbourne', 'brisbane', 'perth', 'adelaide',
   'canada', 'toronto', 'vancouver', 'uk', 'london', 'usa', 'dallas', 'new york',
 ];
+
+/**
+ * Universal business name stopwords across all business verticals.
+ * Tokens in this set represent category generics, corporate entity types,
+ * geographic noise, or general non-distinctive descriptors.
+ */
+export const BUSINESS_NAME_STOP_WORDS = new Set([
+  // Industry & Category Generics
+  'dental', 'clinic', 'clinics', 'hospital', 'hospitals', 'care', 'healthcare',
+  'health', 'medical', 'pharma', 'pharmacy', 'hotel', 'hotels', 'resort', 'resorts',
+  'restaurant', 'restaurants', 'cafe', 'cafes', 'bar', 'bars', 'school', 'schools',
+  'college', 'colleges', 'academy', 'academies', 'law', 'legal', 'firm', 'firms',
+  'associates', 'chambers', 'advocate', 'advocates', 'attorney', 'attorneys',
+  'plumbing', 'plumber', 'plumbers', 'cleaning', 'cleaners', 'clean', 'salon',
+  'salons', 'saloon', 'saloons', 'barber', 'barbers', 'parlour', 'parlor',
+  'store', 'stores', 'shop', 'shops', 'mart', 'marts', 'auto', 'motors',
+  'service', 'services', 'solution', 'solutions', 'technologies', 'technology',
+  'consultancy', 'consulting', 'consultants', 'supplies', 'suppliers',
+  // Corporate Suffixes & Entity Types
+  'pvt', 'ltd', 'private', 'limited', 'inc', 'corp', 'corporation', 'llc', 'plc',
+  'group', 'center', 'centre', 'concern', 'hub', 'house', 'home', 'zone', 'station',
+  'enterprises', 'enterprise', 'intl', 'co', 'organization', 'organisation',
+  // Geographic & Regional Scale Noise
+  'nepal', 'nepali', 'kathmandu', 'ktm', 'pokhara', 'lalitpur', 'bhaktapur', 'thamel',
+  'national', 'international', 'global', 'universal', 'city', 'valley',
+  // Descriptors, Honorifics & Connectors
+  'best', 'top', 'multi', 'speciality', 'specialist', 'specialised', 'specialty',
+  'premier', 'prime', 'dr', 'doctor', 'the', 'and', 'new', 'shree', 'sri', 'om',
+]);
+
+/**
+ * Extracts distinctive name tokens from a business name.
+ * 1. Decodes HTML entities (e.g. &amp; -> &).
+ * 2. Normalizes text to lowercase alphanumeric space-separated words.
+ * 3. Filters out tokens with length < 3 and universal business stopwords.
+ * 4. Fallback guard: if all tokens were stopwords (e.g. "Care Dental Clinic"),
+ *    retains non-corporate tokens or the first token to prevent collapsing to [].
+ *    If the name is purely generic (e.g. "Dental Clinic"), returns [] so callers
+ *    know to require strict equality.
+ */
+export function extractDistinctiveNameTokens(name: string): string[] {
+  if (!name) return [];
+  const decoded = name
+    .replace(/&amp;/gi, '&')
+    .replace(/&#38;/g, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&nbsp;/gi, ' ');
+
+  const clean = decoded
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!clean) return [];
+
+  const rawTokens = clean.split(' ').filter((t) => t.length >= 3);
+  const distinctive = rawTokens.filter((t) => !BUSINESS_NAME_STOP_WORDS.has(t));
+
+  if (distinctive.length > 0) {
+    return distinctive;
+  }
+
+  // Purely generic names like "Dental Clinic", "The Restaurant", "Hotel & Cafe"
+  // should return [] to force exact raw name matching.
+  const pureGenericTerms = new Set([
+    'dental', 'clinic', 'clinics', 'hospital', 'hospitals', 'hotel', 'hotels',
+    'restaurant', 'restaurants', 'cafe', 'cafes', 'bar', 'bars', 'school', 'schools',
+    'college', 'colleges', 'law', 'firm', 'plumbing', 'cleaning', 'salon', 'barber',
+    'store', 'shop', 'mart', 'services', 'pvt', 'ltd', 'best', 'the', 'and', 'new',
+  ]);
+  const nonPureGeneric = rawTokens.filter((t) => !pureGenericTerms.has(t));
+  if (nonPureGeneric.length > 0) {
+    return [nonPureGeneric[0]];
+  }
+
+  return [];
+}
+

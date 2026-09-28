@@ -6,10 +6,11 @@ import type { VerifiedBusinessEvidence } from '@/types/verification';
 import type { BusinessListing } from '@/types/business-listing';
 import {
   domainFromUrlOrHost,
-  normalizeNameKey,
+  normalizeNameKeyLenient,
   normalizePhoneDigits,
   isUsableOfficialWebsite,
 } from '@/services/resolution/entity-resolution.service';
+import { extractDistinctiveNameTokens } from '@/config/token-vocabulary.config';
 import {
   extractEmails,
   extractPhones,
@@ -20,6 +21,57 @@ import {
   isRealSocialProfile,
   classifyAllSocialProfiles,
 } from '@/services/business-extractor.service';
+
+/**
+ * Checks whether candidate name and evidence name align using distinctive tokens.
+ * Requires Jaccard >= 0.5 or full subset match, with at least one shared token of length >= 4.
+ */
+export function namesAlign(candidateName: string, evidenceName: string): boolean {
+  if (!candidateName && !evidenceName) return true;
+  if (!candidateName || !evidenceName) return false;
+
+  const normA = normalizeNameKeyLenient(candidateName);
+  const normB = normalizeNameKeyLenient(evidenceName);
+  if (normA && normB && (normA === normB || normA.includes(normB) || normB.includes(normA))) {
+    // If one normalized string strictly contains the other (e.g. subtitle additions)
+    const cTokens = extractDistinctiveNameTokens(candidateName);
+    const evTokens = extractDistinctiveNameTokens(evidenceName);
+    if (cTokens.length === 0 && evTokens.length === 0) return true;
+    const shared = cTokens.filter((t) => evTokens.includes(t));
+    if (shared.length > 0) return true;
+  }
+
+  const cTokens = extractDistinctiveNameTokens(candidateName);
+  const evTokens = extractDistinctiveNameTokens(evidenceName);
+
+  // Both empty → require exact normalized equality
+  if (cTokens.length === 0 && evTokens.length === 0) {
+    return normA === normB;
+  }
+
+  // One empty, one not → cannot align a distinctive name to a generic one
+  if (cTokens.length === 0 || evTokens.length === 0) {
+    return false;
+  }
+
+  const shared = cTokens.filter((t) => evTokens.includes(t));
+  if (shared.length === 0) return false;
+
+  // Distinctive floor: require at least one shared token of length >= 4
+  // (or single-token exact match if both have exactly 1 token)
+  const hasDistinctiveShared =
+    shared.some((t) => t.length >= 4) ||
+    (cTokens.length === 1 && evTokens.length === 1 && cTokens[0] === evTokens[0]);
+  if (!hasDistinctiveShared) return false;
+
+  const union = new Set([...cTokens, ...evTokens]);
+  const jaccard = shared.length / union.size;
+
+  const isSubset =
+    cTokens.every((t) => evTokens.includes(t)) || evTokens.every((t) => cTokens.includes(t));
+
+  return jaccard >= 0.5 || isSubset;
+}
 
 export function buildFallbackListing(
   candidate: UnifiedSearchResult,
@@ -37,45 +89,70 @@ export function buildFallbackListing(
     const candidateDomain =
       candidate.domain && !candidate.domain.includes('google.com')
         ? domainFromUrlOrHost(candidate.url)
+        : candidate.url
+        ? domainFromUrlOrHost(candidate.url)
         : '';
-    const candidatePhone = (candidate.phoneNumber || (candidate as any).phone) ? normalizePhoneDigits(candidate.phoneNumber || (candidate as any).phone) : '';
-    const candidateNormName = normalizeNameKey(candidate.title || (candidate as any).name || '');
+    const candidatePhone =
+      candidate.phoneNumber || (candidate as any).phone
+        ? normalizePhoneDigits(candidate.phoneNumber || (candidate as any).phone)
+        : '';
+    const candidateRawName = candidate.title || (candidate as any).name || '';
 
     matchingEvidence = verifiedEvidence.find((ev) => {
       const c = ev.candidate;
+      // 1. Exact domain match
       if (candidateDomain && c.website && domainFromUrlOrHost(c.website) === candidateDomain) return true;
-      if (candidatePhone && c.phone && normalizePhoneDigits(c.phone) === candidatePhone) return true;
-      const evNormName = normalizeNameKey(c.name || '');
-      if (candidateNormName && evNormName && (candidateNormName.includes(evNormName) || evNormName.includes(candidateNormName))) {
+      // 2. Exact phone match (>= 7 digits)
+      if (
+        candidatePhone &&
+        candidatePhone.length >= 7 &&
+        c.phone &&
+        normalizePhoneDigits(c.phone) === candidatePhone
+      ) {
         return true;
+      }
+      // 3. Distinctive name alignment
+      if (candidateRawName && c.name) {
+        return namesAlign(candidateRawName, c.name);
       }
       return false;
     });
   }
 
   const relationship = matchingEvidence?.websiteRelationship || 'unverified';
-  const candidateNameKey = matchingEvidence ? normalizeNameKey(matchingEvidence.candidate.name || '') : '';
-  const fallbackTitleKey = normalizeNameKey(candidate.title || (candidate as any).name || '');
-  const namesAlign = Boolean(
+  const candidateDomain = candidate.url ? domainFromUrlOrHost(candidate.url) : '';
+  const evidenceDomain = matchingEvidence?.candidate.website
+    ? domainFromUrlOrHost(matchingEvidence.candidate.website)
+    : '';
+  const domainMatches = Boolean(candidateDomain && evidenceDomain && candidateDomain === evidenceDomain);
+
+  const candidateRawName = candidate.title || (candidate as any).name || '';
+  const evidenceRawName = matchingEvidence?.candidate.name || '';
+
+  const isNamesAligned = Boolean(
     !matchingEvidence ||
-      (candidateNameKey &&
-        fallbackTitleKey &&
-        (fallbackTitleKey.includes(candidateNameKey) || candidateNameKey.includes(fallbackTitleKey)))
+      domainMatches ||
+      namesAlign(candidateRawName, evidenceRawName)
   );
 
-  const isFirstParty = relationship === 'first_party' && namesAlign;
-  const isCorporateParent = relationship === 'corporate_parent' && namesAlign;
+  console.log(
+    `[Fallback] candidate: "${candidateRawName}" → evidenceMatch: ${
+      matchingEvidence ? `"${matchingEvidence.candidate.name}" (${matchingEvidence.websiteRelationship})` : 'NONE'
+    } → namesAlign: ${isNamesAligned}`
+  );
 
   const isConfirmedWrongSource =
     relationship === 'directory' ||
     relationship === 'marketplace' ||
     relationship === 'service_platform' ||
     relationship === 'unrelated';
+
+  const isFirstParty = (relationship === 'first_party' || domainMatches) && isNamesAligned && !isConfirmedWrongSource;
+  const isCorporateParent = relationship === 'corporate_parent' && isNamesAligned && !isConfirmedWrongSource;
   const sourceHealth = matchingEvidence?.sourceHealth;
   const isTransientFailure = sourceHealth === 'transient_failure' || sourceHealth === 'unverified';
-  const evidenceDomain = candidate.url ? domainFromUrlOrHost(candidate.url) : '';
   const officialDomain = candidate.domain || '';
-  const domainCorroborated = Boolean(evidenceDomain && officialDomain && evidenceDomain === officialDomain);
+  const domainCorroborated = Boolean(candidateDomain && officialDomain && candidateDomain === officialDomain);
   
   const mapsPhoneDigits = normalizePhoneDigits(candidate.phoneNumber || matchingEvidence?.candidate.phone || '');
   
@@ -88,14 +165,14 @@ export function buildFallbackListing(
   
   const isTransientButCorroborated = isTransientFailure && !isConfirmedWrongSource && (domainCorroborated || phoneCorroborated);
 
-  const webEvidence = isFirstParty ? matchingEvidence?.websiteEvidence : undefined;
+  const webEvidence = isFirstParty || domainMatches ? matchingEvidence?.websiteEvidence : undefined;
   const extraction = extractions.find((e) => e.url === candidate.url && e.success);
   const content = extraction?.content || '';
 
   // Emails: first_party ONLY (corporate_parent emails BLOCKED)
-  const emailCandidates = isFirstParty && webEvidence?.extractedEmails?.length
+  const emailCandidates = (isFirstParty || domainMatches) && webEvidence?.extractedEmails?.length
     ? webEvidence.extractedEmails
-    : isFirstParty
+    : (isFirstParty || !isConfirmedWrongSource)
     ? extractEmails(content)
     : [];
   const emails = [...new Set(emailCandidates.map(sanitizeEmailString).filter((e) => /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(e)))];
@@ -122,7 +199,7 @@ export function buildFallbackListing(
 
   if (candidate.phoneNumber) routePhone(candidate.phoneNumber);
   if (matchingEvidence?.candidate.phone) routePhone(matchingEvidence.candidate.phone);
-  if (isFirstParty || isTransientButCorroborated) {
+  if (isFirstParty || domainMatches || isTransientButCorroborated) {
     const evidenceToUse = matchingEvidence?.websiteEvidence || webEvidence;
     for (const m of evidenceToUse?.extractedMobiles || []) routePhone(m);
     for (const p of evidenceToUse?.extractedPhones || []) routePhone(p);
@@ -134,7 +211,7 @@ export function buildFallbackListing(
       if (normalizePhoneDigits(p) === mapsPhoneDigits) routePhone(p);
     }
   }
-  if (mergedPhones.length === 0 && mergedMobiles.length === 0 && (isFirstParty || isTransientButCorroborated)) {
+  if (mergedPhones.length === 0 && mergedMobiles.length === 0 && (isFirstParty || domainMatches || isTransientButCorroborated || (!isConfirmedWrongSource && content))) {
     for (const m of extractMobiles(content)) routePhone(m);
     for (const p of extractPhones(content)) routePhone(p);
   }
@@ -150,18 +227,18 @@ export function buildFallbackListing(
     ? extractSocialLinks(content, { businessName: candidate.title, websiteDomain: candidate.url })
     : { facebook: '', instagram: '', tiktok: '', other: {} };
 
-  let rawFb = (isFirstParty ? webEvidence?.extractedSocialLinks?.facebook : '') || fallbackSocials.facebook || '';
+  let rawFb = (isFirstParty || domainMatches ? webEvidence?.extractedSocialLinks?.facebook : '') || fallbackSocials.facebook || '';
   if (!rawFb && fallbackDiscoveredSocials?.facebook) rawFb = fallbackDiscoveredSocials.facebook;
 
-  let rawTt = (isFirstParty ? webEvidence?.extractedSocialLinks?.tiktok : '') || fallbackSocials.tiktok || '';
+  let rawTt = (isFirstParty || domainMatches ? webEvidence?.extractedSocialLinks?.tiktok : '') || fallbackSocials.tiktok || '';
   if (!rawTt && fallbackDiscoveredSocials?.tiktok) rawTt = fallbackDiscoveredSocials.tiktok;
 
-  let rawIg = (isFirstParty ? webEvidence?.extractedSocialLinks?.instagram : '') || fallbackSocials.instagram || '';
+  let rawIg = (isFirstParty || domainMatches ? webEvidence?.extractedSocialLinks?.instagram : '') || fallbackSocials.instagram || '';
   if (!rawIg && fallbackDiscoveredSocials?.instagram) rawIg = fallbackDiscoveredSocials.instagram;
 
   const otherSources: Record<string, unknown> = {
     ...(fallbackSocials.other || {}),
-    ...(isFirstParty ? webEvidence?.extractedSocialLinks?.other || {} : {}),
+    ...(isFirstParty || domainMatches ? webEvidence?.extractedSocialLinks?.other || {} : {}),
     ...(fallbackDiscoveredSocials?.other || {}),
     ...(fallbackDiscoveredSocials?.linkedin ? { linkedin: fallbackDiscoveredSocials.linkedin } : {}),
   };
@@ -182,6 +259,10 @@ export function buildFallbackListing(
   const finalLocation =
     candidate.address ||
     matchingEvidence?.candidate.location ||
+    (matchingEvidence?.candidate as any)?.sources?.googleMaps?.address ||
+    (matchingEvidence?.websiteEvidence as any)?.extractedAddress ||
+    (matchingEvidence?.websiteEvidence as any)?.extractedLocation ||
+    fallbackLocation ||
     '';
 
   const websites: string[] = [];
@@ -192,7 +273,7 @@ export function buildFallbackListing(
     (candidate.source !== 'google_maps' && candidate.url && !candidate.url.includes('google.com') ? candidate.url : '');
 
   if (candidateWebsite && !isConfirmedWrongSource) {
-    if (isFirstParty || isCorporateParent || candidate.source !== 'google_maps' || hasSite) {
+    if (isFirstParty || domainMatches || isCorporateParent || candidate.source !== 'google_maps' || hasSite) {
       if (isUsableOfficialWebsite(candidateWebsite, candidate.title)) {
         websites.push(candidateWebsite);
       }
@@ -200,7 +281,7 @@ export function buildFallbackListing(
   }
 
   const fallbackSocialProfiles = (webEvidence as any)?.extractedSocialProfiles ||
-    (isFirstParty ? classifyAllSocialProfiles(content, { businessName: candidate.title, websiteDomain: candidate.url }) : []);
+    (isFirstParty || domainMatches ? classifyAllSocialProfiles(content, { businessName: candidate.title, websiteDomain: candidate.url }) : []);
   const fallbackSocialsRejected = fallbackSocialProfiles.filter(
     (p: any) => p.status === 'rejected' || p.status === 'unknown'
   );
@@ -282,6 +363,11 @@ export function buildFallbackListing(
             latitude: matchingEvidence.candidate.coordinates.lat,
             longitude: matchingEvidence.candidate.coordinates.lng,
           }
+        : (matchingEvidence?.websiteEvidence as any)?.extractedCoordinates
+        ? {
+            latitude: (matchingEvidence?.websiteEvidence as any).extractedCoordinates.lat,
+            longitude: (matchingEvidence?.websiteEvidence as any).extractedCoordinates.lng,
+          }
         : undefined,
     rating: candidate.rating,
     ratingCount: candidate.ratingCount,
@@ -291,7 +377,7 @@ export function buildFallbackListing(
       source: isMap ? 'google_maps' : candidate.url,
       extractedAt: new Date().toISOString(),
       runStartedAt: runStartedAt ?? new Date().toISOString(),
-      confidence: 0,
+      confidence: matchingEvidence?.verification?.overallConfidence ?? (isMap ? 0.8 : 0.3),
     },
     process: webEvidence
       ? 'Verified via Google Maps Places & Website extraction'

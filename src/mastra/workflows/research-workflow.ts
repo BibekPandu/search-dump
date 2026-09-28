@@ -19,6 +19,7 @@ import { revalidateExtractedCandidateAddress } from '@/services/resolution/candi
 import { getLlmMultiBusinessCallCount } from '@/services/business-extractor.service';
 import { getTelemetry, incrementTelemetry } from '@/services/telemetry.service';
 import { mergeDuplicateEntities } from '@/services/resolution/entity-resolution.service';
+import { completeSocials } from '@/services/resolution/social-completion.service';
 import {
   researchReportSchema,
   researchCandidateSchema,
@@ -436,6 +437,7 @@ export const deepExtractionStep = createStep({
       );
 
       const extractionsByCandidate = new Map<string, WebsitePageEvidence[]>();
+      const retriedHashes = new Set<string>();
       const flattenedExtractions: Array<{
         url: string;
         content: string;
@@ -585,23 +587,52 @@ export const deepExtractionStep = createStep({
             } catch {}
           }
 
-          // 6) Secondary Recovery: Tavily Advanced Retry (v1.3 cost guard)
-          // Trigger ONLY if candidate STILL has zero contact signals across both markdown & raw HTML,
-          // and a key contact page or homepage was sparse or failed in Tavily basic.
+          // 6) Secondary Recovery: Tavily Advanced Retry (cost-guarded & framework-fingerprint / SPA recovery)
           const postRawEvidence = extractAllFromPages(pageEvidences);
-          const stillNeedsRecovery =
-            postRawEvidence.extractedEmails.length === 0 &&
-            postRawEvidence.extractedPhones.length === 0 &&
-            postRawEvidence.extractedMobiles.length === 0;
+          const hasContacts =
+            postRawEvidence.extractedEmails.length > 0 ||
+            postRawEvidence.extractedPhones.length > 0 ||
+            postRawEvidence.extractedMobiles.length > 0;
+          const hasSocials = Boolean(
+            postRawEvidence.extractedSocialLinks.facebook ||
+            postRawEvidence.extractedSocialLinks.instagram ||
+            postRawEvidence.extractedSocialLinks.tiktok ||
+            Object.keys(postRawEvidence.extractedSocialLinks.other || {}).length > 0 ||
+            (postRawEvidence.extractedSchemaSameAs && postRawEvidence.extractedSchemaSameAs.length > 0)
+          );
 
-          if (stillNeedsRecovery) {
-            const failedCandidatePages = pageEvidences.filter(
-              (p) => (!p.success || p.content.length < 100) && (p.pageType === 'contact' || p.pageType === 'home')
-            );
-            if (failedCandidatePages.length > 0) {
-              const retryUrl = failedCandidatePages[0].url;
+          const shouldEscalateToJs = (p: (typeof pageEvidences)[0]): boolean => {
+            if (hasSocials && hasContacts) return false;
+            if (!p.success || p.content.length < 100) return true;
+            const rawHtml = p.rawHtml || '';
+            if (rawHtml.length < 2000) return true; // tiny empty SPA shell
+
+            // Framework fingerprints:
+            const hasFrameworkFingerprint =
+              /__NEXT_DATA__|window\.__NUXT__|data-reactroot|data-svelte|window\.__remixContext/i.test(rawHtml);
+
+            // Social network names mentioned in text without social URLs:
+            const mentionsSocialNamesWithoutUrls =
+              /\b(facebook|instagram|tiktok|linkedin|youtube)\b/i.test(rawHtml) &&
+              !/https?:\/\/(www\.)?(facebook|instagram|tiktok|linkedin|youtube)\.com/i.test(rawHtml);
+
+            return !hasSocials && (hasFrameworkFingerprint || mentionsSocialNamesWithoutUrls);
+          };
+
+          const escalatePages = pageEvidences.filter(
+            (p) =>
+              (p.pageType === 'contact' || p.pageType === 'home') &&
+              shouldEscalateToJs(p)
+          );
+
+          if (escalatePages.length > 0) {
+            const retryPage = escalatePages[0];
+            const retryUrl = retryPage.url;
+            const contentHash = (retryPage.rawHtml || retryPage.content || retryUrl).slice(0, 32);
+            if (!retriedHashes.has(contentHash)) {
+              retriedHashes.add(contentHash);
               console.log(
-                `[Workflow:Step2] Secondary recovery: retrying "${retryUrl}" with Tavily advanced depth...`
+                `[Workflow:Step2] Secondary recovery: escalating "${retryUrl}" to Tavily advanced depth (framework/SPA fingerprint or sparse content)...`
               );
               try {
                 const advRes = await tavilyExtract([retryUrl], {
@@ -1212,6 +1243,21 @@ export const supervisorSynthesisStep = createStep({
         if (!ev) continue;
         const sanitized = sanitizeListingWithEvidence(listing, ev);
         Object.assign(listing, sanitized);
+
+        const completed = completeSocials({
+          name: listing.name,
+          websiteDomain: listing.websites?.[0] ? domainFromUrlOrHost(listing.websites[0]) : undefined,
+          existingSocials: listing.socialLinks,
+          bookingLinks: (listing.otherDetails as any)?.bookingLinks || (ev.candidate as any)?.bookingLinks,
+          schemaSameAs: ev.websiteEvidence?.extractedSchemaSameAs,
+          websiteRelationship: ev.websiteRelationship,
+          existingClassifiedProfiles: (listing.otherDetails as any)?.classifiedSocialProfiles,
+        });
+        listing.socialLinks = completed.socialLinks;
+        if ((listing.otherDetails as any)) {
+          (listing.otherDetails as any).classifiedSocialProfiles = completed.classifiedProfiles;
+        }
+
         sanitizedCount++;
         console.log(
           `[Workflow:Step3] Evidence-sanitized "${listing.name}" (status: ${ev.verification.status}, confidence: ${ev.verification.overallConfidence})`

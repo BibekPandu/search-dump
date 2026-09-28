@@ -27,6 +27,7 @@ import {
 } from '@/services/business-extractor.service';
 import { findRegisteredLocalityCluster } from '@/config/geo-localities.config';
 import { incrementTelemetry } from '@/services/telemetry.service';
+import { completeSocials } from '@/services/resolution/social-completion.service';
 
 export function matchListingToEvidence(
   listing: z.infer<typeof businessListingSchema>,
@@ -439,7 +440,7 @@ export function sanitizeListingWithEvidence(
       url,
       plat,
       candidate.name,
-      !isConfirmedWrongSource ? websiteDomain : undefined,
+      (!isConfirmedWrongSource && isFirstParty) ? websiteDomain : undefined,
       categoryCtx,
       origin
     );
@@ -618,16 +619,33 @@ export function sanitizeListingWithEvidence(
     }
   }
 
-  const socialLinks = {
+  const resolvedBookingLinks =
+    candidate.bookingLinks ||
+    listing.otherDetails?.bookingLinks ||
+    undefined;
+
+  const rawSocialLinks = {
     facebook: finalFb,
     tiktok: finalTt,
     instagram: finalIg,
     other: validatedOther,
   };
 
-  const socialsCascadeRejected = rejectedProfiles.length;
+  const completion = completeSocials({
+    name: candidate.name || listing.name,
+    websiteDomain: isFirstParty ? websiteDomain : undefined,
+    existingSocials: rawSocialLinks,
+    bookingLinks: resolvedBookingLinks,
+    schemaSameAs: web?.extractedSchemaSameAs,
+    discoveredSocials: discoveredSocials,
+    websiteRelationship: relationship,
+    existingClassifiedProfiles: (web as any)?.extractedSocialProfiles || listing.otherDetails?.classifiedSocialProfiles,
+  });
 
-  const classifiedSocialProfiles = (web as any)?.extractedSocialProfiles || listing.otherDetails?.classifiedSocialProfiles;
+  const socialLinks = completion.socialLinks;
+  const socialsCascadeRejected = rejectedProfiles.length;
+  const classifiedSocialProfiles = completion.classifiedProfiles;
+
   const originalRejectedSocials = classifiedSocialProfiles
     ? classifiedSocialProfiles.filter((p: any) => p.status === 'rejected' || p.status === 'unknown')
     : listing.otherDetails?.socialLinksRejected;
@@ -702,11 +720,6 @@ export function sanitizeListingWithEvidence(
   const resolvedThumbnail =
     candidate.thumbnailUrl ||
     listing.otherDetails?.thumbnailUrl ||
-    undefined;
-
-  const resolvedBookingLinks =
-    candidate.bookingLinks ||
-    listing.otherDetails?.bookingLinks ||
     undefined;
 
   const resolvedServices =

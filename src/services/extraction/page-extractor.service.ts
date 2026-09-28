@@ -9,7 +9,7 @@ import type { WebsitePageEvidence, WebsiteEvidence, PhoneEvidenceRecord } from '
 import type { ClassifiedContact } from '@/types/contact.js';
 import { incrementTelemetry } from '@/services/telemetry.service';
 import { EXCLUDED_LEGAL_AND_GOV_ENTITIES, QUESTION_STARTER_WORDS } from '@/config/token-vocabulary.config';
-import { stripVendorAttribution, isGenericName, domainFromUrlOrHost, extractContextAroundMatch } from '@/services/extraction/content-normalization.service';
+import { stripVendorAttribution, isGenericName, domainFromUrlOrHost, extractContextAroundMatch, decodeHtmlEntities } from '@/services/extraction/content-normalization.service';
 import { extractEmails, classifyEmailRole, deduplicateClassifiedContacts } from '@/services/extraction/contact-extractor.service';
 import { extractSocialLinks } from '@/services/extraction/social-extractor.service';
 import { formatPhoneDisplay, classifyNepalPhone, extractPhones, extractMobiles, extractLandlinesAndIntl, classifyPhoneRole } from '@/services/extraction/phone-extractor.service';
@@ -335,6 +335,86 @@ export async function detectMultiBusinessPageWithLlmFallback(
   return { isMulti: false, usedLlm: false, reason: 'DETERMINISTIC_SINGLE_PAGE' };
 }
 
+export function extractSchemaOrgMetadata(html: string): {
+  address?: string;
+  coordinates?: { lat: number; lng: number };
+  hours?: string;
+  sameAs?: string[];
+  telephone?: string[];
+  email?: string;
+} {
+  const result: {
+    address?: string;
+    coordinates?: { lat: number; lng: number };
+    hours?: string;
+    sameAs?: string[];
+    telephone?: string[];
+    email?: string;
+  } = {};
+
+  if (!html) return result;
+
+  const scriptMatches = html.matchAll(/<script\b[^>]*\btype=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+  for (const match of scriptMatches) {
+    const rawJson = match[1]?.trim();
+    if (!rawJson) continue;
+    try {
+      const parsed = JSON.parse(rawJson);
+      const items = Array.isArray(parsed) ? parsed : [parsed];
+      for (const item of items) {
+        if (!item || typeof item !== 'object') continue;
+
+        // Address extraction from PostalAddress
+        if (item.address && typeof item.address === 'object') {
+          const addr = item.address;
+          const parts = [
+            addr.streetAddress,
+            addr.addressLocality,
+            addr.addressRegion,
+            addr.addressCountry === 'NP' ? 'Nepal' : addr.addressCountry,
+          ].filter(Boolean);
+          if (parts.length > 0 && !result.address) {
+            result.address = parts.join(', ');
+          }
+        }
+
+        // GeoCoordinates extraction
+        if (item.geo && typeof item.geo === 'object') {
+          const lat = parseFloat(item.geo.latitude);
+          const lng = parseFloat(item.geo.longitude);
+          if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180 && !result.coordinates) {
+            result.coordinates = { lat, lng };
+          }
+        }
+
+        // sameAs extraction
+        if (Array.isArray(item.sameAs)) {
+          const valid = item.sameAs.filter((s: any) => typeof s === 'string').map((s: string) => decodeHtmlEntities(s));
+          result.sameAs = [...(result.sameAs || []), ...valid];
+        } else if (typeof item.sameAs === 'string') {
+          result.sameAs = [...(result.sameAs || []), decodeHtmlEntities(item.sameAs)];
+        }
+
+        // Telephone extraction
+        if (item.telephone) {
+          const tels = Array.isArray(item.telephone) ? item.telephone : [item.telephone];
+          const validTels = tels.filter((t: any) => typeof t === 'string').map((t: string) => decodeHtmlEntities(t));
+          result.telephone = [...(result.telephone || []), ...validTels];
+        }
+
+        // Email extraction
+        if (item.email && typeof item.email === 'string' && !result.email) {
+          result.email = item.email;
+        }
+      }
+    } catch {
+      // Ignore JSON parse errors in embedded scripts
+    }
+  }
+
+  return result;
+}
+
 export function extractAllFromPages(
   pages: WebsitePageEvidence[],
   businessName?: string,
@@ -493,10 +573,32 @@ export function extractAllFromPages(
     }
   }
 
-  // 3. Socials: extracted from markdown links + raw HTML href attributes
+  let schemaAddress: string | undefined;
+  let schemaCoordinates: { lat: number; lng: number } | undefined;
+  const schemaSameAsUrls: string[] = [];
+
+  for (const p of successful) {
+    if (p.rawHtml) {
+      const schemaMeta = extractSchemaOrgMetadata(p.rawHtml);
+      if (!schemaAddress && schemaMeta.address) schemaAddress = schemaMeta.address;
+      if (!schemaCoordinates && schemaMeta.coordinates) schemaCoordinates = schemaMeta.coordinates;
+      if (schemaMeta.email) emailSet.add(schemaMeta.email);
+      if (schemaMeta.sameAs && schemaMeta.sameAs.length > 0) {
+        schemaSameAsUrls.push(...schemaMeta.sameAs);
+      }
+      if (schemaMeta.telephone) {
+        for (const rawTel of schemaMeta.telephone) {
+          processCandidate(rawTel, 'rawHtml', p.url, p.rawHtml);
+        }
+      }
+    }
+  }
+
+  // 3. Socials: extracted from markdown links + raw HTML href attributes + Schema.org sameAs
   const allSocialSources = [
     combinedMarkdown,
     ...successful.map((p) => p.rawHtml).filter(Boolean) as string[],
+    ...schemaSameAsUrls,
   ].join('\n');
   const socialLinks = extractSocialLinks(allSocialSources, { businessName, websiteDomain });
 
@@ -535,6 +637,9 @@ export function extractAllFromPages(
     extractedSocialLinks: socialLinks,
     extractedServices: info.services,
     extractedHours: info.hours,
+    extractedAddress: schemaAddress,
+    extractedCoordinates: schemaCoordinates,
+    extractedSchemaSameAs: schemaSameAsUrls,
     favicon,
     rawContentSummary: rawContentSummary || undefined,
   };
