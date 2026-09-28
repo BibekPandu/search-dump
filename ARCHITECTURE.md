@@ -1,7 +1,7 @@
-# SYSTEM REPORT — `searchDump` (Agentic Business Discovery & Extraction Engine)
+# ARCHITECTURE — `searchDump` (Agentic Business Discovery & Extraction Engine)
 
 > Complete system map: end-to-end flow, storage architecture, module inventory, quality gates.
-> Branch `refactor/code-1` · Generated 2026-09-27 · Post-refactor, post-cleanup state.
+> Branch `refactor/code-2` · Regenerated 2026-09-28 · Post-refactor, post-fixture-refresh state.
 
 ---
 
@@ -19,7 +19,7 @@ listings — to disk (`output/latest/businesses.json`) and optionally to MongoDB
 | Schemas | Zod 4 everywhere (workflow I/O, agents, evidence, listings) |
 | External APIs | Serper.dev (Google Search + Maps) · DuckDuckGo (fallback) · Tavily Extract · OpenRouter (Gemma) · UnoRouter (Gemini free) · OSM Nominatim (geocoding) |
 | Persistence | MongoDB (`businesses` + `runs`, optional) · LibSQL `mastra.db` (agent memory) · `.cache/` (search + geocode) · `output/` (artifacts) |
-| Scale | `src/`: 104 TS files, 18,767 lines · `scripts/`: 31 test suites + benchmarks · 142 tracked files |
+| Scale | `src/`: 105 TS files, 19,579 lines · `scripts/`: 32 test suites + benchmarks · 146 tracked files |
 | LLM budget | 3 bounded calls/run: 30s ambiguous classification, 20s synthesis, 10-call extraction escape hatch — everything else deterministic |
 
 **Design principle:** *determinism first*. Ranking, extraction, contact taxonomy, geography,
@@ -76,7 +76,7 @@ zero-token fallbacks that always produce a well-formed result.
 
 ### 2.2 Workflow composition
 
-`src/mastra/workflows/research-workflow.ts` (1,696 lines) — a strictly linear chain,
+`src/mastra/workflows/research-workflow.ts` (1,742 lines) — a strictly linear chain,
 no `.branch()` / `.foreach()`; all branching is early returns keyed on `fromCache`:
 
 ```ts
@@ -229,21 +229,21 @@ output/
 ### 4.1 Layered tree with line counts
 
 ```
-src/  (104 TS files, 18,767 lines)
-├── types/          12 files     932 L   Contract schemas — zero runtime deps
-├── config/          8 files   1,320 L   Pure policy — no I/O
+src/  (105 TS files, 19,579 lines)
+├── types/          12 files     948 L   Contract schemas — zero runtime deps
+├── config/          8 files   1,449 L   Pure policy — no I/O
 ├── lib/             1 file       38 L   Pure utilities (geo-distance leaf)
 ├── services/       27 files     237 L   Backward-compat facades at root (re-exports)
 │   ├── external/    5 files     794 L   Network edge (Serper/Tavily/OpenRouter/UnoRouter)
-│   ├── discovery/   7 files   3,473 L   Maps/web search, gate, ranker, discovery engine
-│   ├── extraction/ 11 files   3,248 L   Phone/email/social/branch/page extractors
-│   ├── resolution/ 12 files   5,436 L   Identity, geography, verification, confidence
+│   ├── discovery/   7 files   3,480 L   Maps/web search, gate, ranker, discovery engine
+│   ├── extraction/ 11 files   3,478 L   Phone/email/social/branch/page extractors
+│   ├── resolution/ 13 files   5,821 L   Identity, geography, verification, confidence
 │   └── storage/     5 files   1,007 L   MongoDB, output, cache, ledger, LibSQL
-└── mastra/         16 files   2,282 L
-    ├── index.ts               43 L   Mastra app registration
+└── mastra/         16 files   2,327 L
+    ├── index.ts               42 L   Mastra app registration
     ├── agents/    9 files     222 L   3 agents + 4 schemas (+ 2 prompt.md)
     ├── tools/     4 files     186 L   broad-search, deep-extract, google-maps-search
-    └── workflows/ 2 files   1,831 L   research-workflow (1,696) + prompts (135)
+    └── workflows/ 2 files   1,877 L   research-workflow (1,742) + prompts (135)
 ```
 
 ### 4.2 Dependency rules & cycle hygiene
@@ -322,7 +322,7 @@ src/services/* (engine layer, cross-imports allowed within layer discipline)
 
 | File | L | Responsibility |
 |---|---|---|
-| `social-extractor.service.ts` | 991 | Social profile classification (accepted/rejected/unknown + forensic reason) |
+| `social-extractor.service.ts` | 1,104 | Social profile classification (accepted/rejected/unknown + forensic reason) |
 | `phone-extractor.service.ts` | 542 | NTA phone pools, mobile/landline classification, formatting |
 | `page-extractor.service.ts` | 541 | `extractAllFromPages` orchestrator |
 | `contact-extractor.service.ts` | 421 | Emails + **9-row contact-role matrix** (primary/branch/staff/…) |
@@ -337,17 +337,18 @@ src/services/* (engine layer, cross-imports allowed within layer discipline)
 
 | File | L | Responsibility |
 |---|---|---|
-| `entity-resolution.service.ts` | 1,560 | Normalizers + matching cascade (phone/domain vetoes, Jaccard) + union-find merge + cross-listing conflicts + Phase 8k branch attribution |
-| `listing-sanitizer.service.ts` | 766 | `sanitizeListingWithEvidence` — evidence-bound listing sanitation |
+| `entity-resolution.service.ts` | 1,680 | Normalizers + matching cascade (phone/domain vetoes, Jaccard) + union-find merge + cross-listing conflicts + Phase 8k branch attribution |
+| `listing-sanitizer.service.ts` | 779 | `sanitizeListingWithEvidence` — evidence-bound listing sanitation |
 | `website-relationship.service.ts` | 450 | URL↔business relationship (first_party … unrelated) + lifecycle |
 | `candidate-classifier.service.ts` | 402 | 0-LLM SERP classification + tri-state category gate |
+| `fallback-listing.service.ts` | 391 | Layer-3 zero-token listing constructor |
 | `geographic-evaluator.service.ts` | 367 | 5-layer locality decision, street-collision guard; re-exports haversine |
 | `research-candidate.service.ts` | 346 | Candidate building, GPS invariant (web-only ⇒ no GPS) |
-| `verification.service.ts` | 338 | Evidence cross-check → `verified\|partial\|weak\|failed` |
+| `verification.service.ts` | 337 | Evidence cross-check → `verified\|partial\|weak\|failed` |
 | `geocoding.service.ts` | 313 | Nominatim geocoder, two-level cache, radius formula |
-| `fallback-listing.service.ts` | 305 | Layer-3 zero-token listing constructor |
 | `confidence.service.ts` | 252 | Maps .30 / website .35 / contact .35 weights + integrity validator |
 | `candidate-validation.service.ts` | 251 | 5-stage validation gauntlet (name/country/geo/address/directory) |
+| `social-completion.service.ts` | 167 | Phase 0 social discovery ingestion + validation (added by `ef5ba21`) |
 | `cascade-policy.service.ts` | 86 | Rejection-cascade semantics (M2C) |
 
 **`src/services/storage/`** (file: lines)
@@ -364,7 +365,7 @@ src/services/* (engine layer, cross-imports allowed within layer discipline)
 
 | File | L | Role |
 |---|---|---|
-| `workflows/research-workflow.ts` | 1,696 | 4-step workflow + cache guard + synthesis/persistence |
+| `workflows/research-workflow.ts` | 1,742 | 4-step workflow + cache guard + synthesis/persistence |
 | `workflows/research-prompts.ts` | 135 | Supervisor prompt builders |
 | `agents/search-worker/config.ts` | 48 | Ambiguous-SERP classifier (6-class rubric), own `prompt.md` |
 | `agents/gemma-supervisor/config.ts` | 39 | Primary synthesis agent (OpenRouter Gemma), own `prompt.md` |
@@ -413,8 +414,8 @@ geo-excluded listings dropped, zero-actionable listings filtered.
 
 | Command | Suites | Scope |
 |---|---|---|
-| `npm test` | **17 (tracked in git)** | ranker, second-chance, discovery gate/budget, snippet-phone attribution, negative-directory contamination, ever-vision, satungal sweep defects, MongoDB service, M2a/b/c suites, phase8 geography/evaluator/reconciliation, phase8b aggregation |
-| `npm run test:full` | **31** | 17 core + 14 phase regression suites (7c, 8d–8o, w207/w208) — **local-only, gitignored** |
+| `npm test` | **18 (tracked in git)** | ranker, second-chance, discovery gate/budget, snippet-phone attribution, negative-directory contamination, ever-vision, satungal sweep defects, MongoDB service, M2a/b/c suites, phase8 geography/evaluator/reconciliation, phase8b aggregation, **multi-category false-merge guards** |
+| `npm run test:full` | **32** | 18 core + 14 phase regression suites (7c, 8d–8o, w207/w208) — **local-only, gitignored** |
 
 All suites are offline/deterministic (injected fetch, fixture data); `test-mongo-service` skips
 cleanly (exit 0) when MongoDB is unreachable.
@@ -424,8 +425,8 @@ cleanly (exit 0) when MongoDB is unreachable.
 ```bash
 npm run typecheck                                              # tsc strict → 0 errors
 npm run spellcheck                                             # cspell (930 words) → 0 issues
-npm test                                                       # 17/17
-npm run test:full                                              # 31/31
+npm test                                                       # 18/18
+npm run test:full                                              # 32/32
 npx tsx scripts/fixtures/golden/replay-golden.ts               # offline replay → 0 drift
 npx tsx scripts/fixtures/golden/check-shim-exports.ts          # shim reference identity → ALL PASSED
 npx madge --circular --extensions ts --ts-config tsconfig.json src   # → 0 cycles
@@ -451,9 +452,9 @@ is byte-identical after the service regrouping.
 |---|---|
 | `dev` / `start` | `mastra dev` (Studio UI + API) |
 | `typecheck` | `tsc -p tsconfig.json` |
-| `spellcheck` | `cspell lint "src/**/*.{ts,md}" "scripts/**/*.ts" "README.md" "SYSTEM-REPORT.md"` |
-| `test` | 17 core suites, chained `tsx` |
-| `test:full` | all 31 suites, chained `tsx` |
+| `spellcheck` | `cspell lint "src/**/*.{ts,md}" "scripts/**/*.ts" "README.md" "ARCHITECTURE.md"` |
+| `test` | 18 core suites, chained `tsx` |
+| `test:full` | all 32 suites, chained `tsx` |
 | `db:seed` | `tsx scripts/seed-mongo-from-output.ts` |
 | `test:mongo`, `test:m2a`, `test:m2b`, `test:m2c-*`, `test:phase8*`, `test:phase7c-defects`, `test:satungal` | individual suite runners |
 
@@ -474,9 +475,9 @@ is byte-identical after the service regrouping.
 
 ## 9. Repository hygiene (tracked vs local-only)
 
-**Tracked (141 files):** `src/**` (104 TS + 2 agent prompts), 17 core test suites,
+**Tracked (146 files):** `src/**` (105 TS + 2 agent prompts), 18 core test suites,
 golden harness (`scripts/fixtures/golden/**`), 9 root files
-(`README.md`, `SYSTEM-REPORT.md`, `package.json`, `package-lock.json`, `tsconfig.json`,
+(`README.md`, `ARCHITECTURE.md`, `package.json`, `package-lock.json`, `tsconfig.json`,
 `cspell.json`, `.gitignore`, `.env.example`, `skills-lock.json`).
 
 **Local-only (gitignored):**
@@ -496,9 +497,9 @@ import surface (`@/services/...` legacy paths, `@/types/...`, `@/lib/...`).
 
 ## 10. Known limitations / non-defects
 
-1. **`src/mastra/public/` contains 9 geocoding JSON files** — a cwd side effect of an old run
-   (`geocoding.service` resolves `.cache/` against `process.cwd()`); harmless, safe to delete,
-   regenerates in `.cache/geocoding/`.
+1. **`src/mastra/public/.cache/geocoding/` contains 1 stray file** (`kathmandu.json`) — a cwd
+   side effect of an old run (`geocoding.service` resolves `.cache/` against `process.cwd()`);
+   harmless, safe to delete, regenerates in `.cache/geocoding/`. Down from 9 files.
 2. **`uno-supervisor` shares `gemma-supervisor/prompt.md`** — no uno-specific prompt exists;
    intentional simplification, not a bug.
 3. **`scripts/run-*` / `probe-*` have no npm wiring** — executed manually via `tsx scripts/<file>`.
@@ -506,6 +507,6 @@ import surface (`@/services/...` legacy paths, `@/types/...`, `@/lib/...`).
    run completes; storage is an optimization (cache) + history, never a dependency.
 5. **LLM output is advisory** — a failed/invalid synthesis always falls through to Layer 3
    `buildFallbackListing`, so a run can never end empty-handed because of a provider outage.
-6. **Large-file watchlist:** `entity-resolution.service.ts` (1,560 L), `research-workflow.ts`
-   (1,696 L), `social-extractor.service.ts` (991 L) — well below the former 3,981-line workflow,
+6. **Large-file watchlist:** `entity-resolution.service.ts` (1,680 L), `research-workflow.ts`
+   (1,742 L), `social-extractor.service.ts` (1,104 L) — well below the former 3,981-line workflow,
    but the natural next split targets if growth continues.
