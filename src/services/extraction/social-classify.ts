@@ -549,18 +549,10 @@ export function classifySocialProfile(
   ]);
 
   // Distinctive business tokens (generic, locality, and descriptor terms filtered out)
-  let distinctiveBusinessTokens: string[] = brandBusinessName
+  const distinctiveBusinessTokens: string[] = brandBusinessName
     .toLowerCase()
     .split(/[^a-z0-9]+/)
     .filter((t) => t.length >= 2 && !nonDistinctiveTokens.has(t));
-
-  // Fallback: If stripping left no distinctive tokens, preserve full business tokens (minus stop words/geo)
-  if (distinctiveBusinessTokens.length === 0) {
-    distinctiveBusinessTokens = brandBusinessName
-      .toLowerCase()
-      .split(/[^a-z0-9]+/)
-      .filter((t) => t.length >= 2 && !NEPAL_LOCALITY_TOKENS.has(t) && !GEOGRAPHIC_MODIFIERS.has(t) && !UNIVERSAL_STOPWORDS.has(t));
-  }
 
   if (websiteDomain) {
     let domainLabel = domainFromUrlOrHost(websiteDomain);

@@ -96,10 +96,6 @@ export function sanitizeListingWithEvidence(
     relationship === 'marketplace' ||
     relationship === 'service_platform' ||
     relationship === 'unrelated';
-  const isTransientOrUnverified =
-    sourceHealth === 'transient_failure' ||
-    sourceHealth === 'unverified' ||
-    relationship === 'unverified';
 
   const candidateNameKey = normalizeNameKey(candidate.name || '');
   const listingNameKey = normalizeNameKey(listing.name || '');
@@ -109,9 +105,15 @@ export function sanitizeListingWithEvidence(
       (listingNameKey.includes(candidateNameKey) || candidateNameKey.includes(listingNameKey))
   );
 
-  const isFirstParty = relationship === 'first_party' && namesAlign;
+  const isFirstParty = (relationship === 'first_party' || evidence.verification?.status === 'verified') && namesAlign;
   const isCorporateParent = relationship === 'corporate_parent' && namesAlign;
   const isContactEnrichable = isFirstParty || isCorporateParent;
+  const isTransientOrUnverified =
+    !isFirstParty && (
+      sourceHealth === 'transient_failure' ||
+      sourceHealth === 'unverified' ||
+      relationship === 'unverified'
+    );
 
   const candidatePhoneDigits = normalizePhoneDigits(candidate.phone || '');
   const websiteUrl = candidate.website || web?.url || (listing.websites && listing.websites[0]) || '';
@@ -445,7 +447,7 @@ export function sanitizeListingWithEvidence(
       url,
       plat,
       candidate.name,
-      (!isConfirmedWrongSource && isFirstParty) ? websiteDomain : undefined,
+      websiteDomain,
       categoryCtx,
       origin
     );
@@ -568,6 +570,29 @@ export function sanitizeListingWithEvidence(
   if (!isConfirmedWrongSource && web?.extractedSocialLinks?.other) {
     for (const [k, u] of Object.entries(web.extractedSocialLinks.other)) {
       if (typeof u === 'string' && u) candidateOther[k] = { url: u, origin: 'website_evidence' };
+    }
+  }
+  // Check extractedSchemaSameAs as direct website evidence
+  if (!isConfirmedWrongSource && web?.extractedSchemaSameAs && web.extractedSchemaSameAs.length > 0) {
+    for (const sameAsUrl of web.extractedSchemaSameAs) {
+      if (!finalFb && /facebook\.com/i.test(sameAsUrl)) {
+        const valid = validateSocialCandidate(sameAsUrl, 'facebook', 'website_evidence');
+        if (valid) finalFb = valid;
+      }
+      if (!finalIg && /instagram\.com/i.test(sameAsUrl)) {
+        const valid = validateSocialCandidate(sameAsUrl, 'instagram', 'website_evidence');
+        if (valid) finalIg = valid;
+      }
+      if (!finalTt && /tiktok\.com/i.test(sameAsUrl)) {
+        const valid = validateSocialCandidate(sameAsUrl, 'tiktok', 'website_evidence');
+        if (valid) finalTt = valid;
+      }
+      if (/linkedin\.com/i.test(sameAsUrl) && !candidateOther['linkedin']) {
+        candidateOther['linkedin'] = { url: sameAsUrl, origin: 'website_evidence' };
+      }
+      if (/youtube\.com/i.test(sameAsUrl) && !candidateOther['youtube']) {
+        candidateOther['youtube'] = { url: sameAsUrl, origin: 'website_evidence' };
+      }
     }
   }
   if (listing.socialLinks?.other) {
