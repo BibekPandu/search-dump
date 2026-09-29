@@ -49,7 +49,8 @@ When synthesizing business data, you must return a JSON object with a `listings`
         "confidence": 0.95
       },
       "process": "Verified via official website contact page and Google search snippet",
-      "links": ["https://example.com", "https://facebook.com/example"]
+      "links": ["https://example.com", "https://facebook.com/example"],
+      "sourceCandidateId": "ChIJN1t_tDeuEmsRUsoyG83frY4"
     }
   ]
 }
@@ -59,11 +60,12 @@ When synthesizing business data, you must return a JSON object with a `listings`
 
 When the workflow provides a **VERIFIED EVIDENCE** block (deterministic extraction + verification):
 
-1. **Authoritative fields**: `emails`, `phones`, `mobiles`, `socialLinks`, and `websites` MUST be taken EXACTLY from the evidence block. Never invent, guess, or merge contact values from raw page context.
-2. **Raw page context** is for `otherDetails` (summary, description, amenities) ONLY — never a contact source.
-3. **Empty is always correct**: if evidence shows no email/socials, output empty values. An invented value is always wrong.
-4. **Maps identity fields are immutable**: address, Maps phone, GPS coordinates, rating, ratingCount, placeId come from the Maps identity line — never overwritten by website data.
-5. **No website evidence** → leave `emails` and `socialLinks` empty; the ONLY supported phone is the Maps phone.
+1. **Attribution Integrity & Candidate ID**: Always specify `"sourceCandidateId"` matching the `Candidate ID` from the candidate/evidence block. Never copy or attach phone numbers, websites, or contact info from one business onto a different business.
+2. **Authoritative fields**: `emails`, `phones`, `mobiles`, `socialLinks`, and `websites` MUST be taken EXACTLY from the evidence block. Never invent, guess, or merge contact values from raw page context.
+3. **Raw page context** is for `otherDetails` (summary, description, amenities) ONLY — never a contact source.
+4. **Empty is always correct**: if evidence shows no email/socials, output empty values. An invented value is always wrong.
+5. **Maps identity fields are immutable**: address, Maps phone, GPS coordinates, rating, ratingCount, placeId come from the Maps identity line — never overwritten by website data.
+6. **No website evidence** → leave `emails` and `socialLinks` empty; the ONLY supported phone is the Maps phone.
 
 The workflow post-processes your output and overwrites contact fields with evidence-backed values regardless — cooperating with the evidence keeps your otherDetails summaries intact.
 

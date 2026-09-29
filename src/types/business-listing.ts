@@ -62,6 +62,7 @@ export const businessListingSchema = z.object({
   ratingCount: z.number().optional(),
   businessType: z.string().optional(),
   placeId: z.string().optional(),
+  sourceCandidateId: z.string().optional(),
 });
 
 export type BusinessListing = z.infer<typeof businessListingSchema>;
