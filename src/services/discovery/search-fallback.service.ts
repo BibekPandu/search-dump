@@ -1,5 +1,6 @@
 import { searchSerper, type SerperResult } from '@/services/external/serper-search.service';
 import { getCached, setCache } from '@/services/storage/cache.service';
+import { API_CALL_KEYS, recordApiCall } from '@/services/observability/run-log.service';
 import { search } from 'duck-duck-scrape';
 import {
   CATEGORY_EXPANSION_POLICIES,
@@ -199,6 +200,7 @@ export async function searchWithFallback(
     attemptedProviders.push('duckduckgo');
     const tDdgStart = Date.now();
     try {
+      recordApiCall(API_CALL_KEYS.duckDuckGo);
       const res = await withTimeout(
         tryDuckDuckGo(cleanQuery, numResults, page),
         12000,

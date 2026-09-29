@@ -144,11 +144,28 @@ export function buildCacheKeys(query: string, location?: string): CacheKeys {
 /**
  * Deterministic business identity: name + run locality.
  * Returns '' when the name carries no usable identity signal (caller skips it).
+ *
+ * An absent locality falls back to `unknown-location`, which is a distinct
+ * identity from the same business recorded with a real locality. That is the
+ * silent-duplication hazard: a run without a location writes new documents
+ * instead of overwriting the existing ones, and the run still reports success.
+ * Warn here — the write is not blocked, because refusing it would turn a
+ * soft failure into a hard one for callers that legitimately have no locality.
  */
 export function canonicalKeyFor(listing: BusinessListing, locationKey: string): string {
   const name = typeof listing?.name === 'string' ? listing.name.trim() : '';
   const nameKey = normalizeNameKey(name);
   if (!nameKey) return '';
+  if (!locationKey) {
+    if (!warnedUnknownLocation) {
+      warnedUnknownLocation = true;
+      console.warn(
+        '[mongo] WARNING: writing an unknown-location canonical key — this creates a ' +
+          'duplicate identity rather than overwriting the existing record. Pass a ' +
+          'non-empty `location` to the workflow.'
+      );
+    }
+  }
   return `name:${nameKey}|${locationKey || 'unknown-location'}`;
 }
 
@@ -325,6 +342,8 @@ let db: Db | null = null;
 let connectionState: MongoConnectionState = 'unknown';
 let loggedDisabled = false;
 let loggedUnreachable = false;
+/** One-shot latch so a run writing many listings warns once, not per document. */
+let warnedUnknownLocation = false;
 
 export function isMongoConfigured(): boolean {
   return Boolean(process.env.MONGODB_URI?.trim());
@@ -366,15 +385,51 @@ export async function getMongo(): Promise<Db | null> {
     client = next;
     db = nextDb;
     connectionState = 'connected';
+    // A new outage after a recovery must warn again. Without this reset the
+    // flag latches for the life of the process, so only the first outage in a
+    // long-lived process was ever reported.
+    loggedUnreachable = false;
     return db;
   } catch (err) {
     connectionState = 'unreachable';
     if (!loggedUnreachable) {
       loggedUnreachable = true;
-      console.warn(`[mongo] unreachable — ${describeError(err)} (cache lookup skipped)`);
+      console.warn(
+        `[mongo] unreachable — ${describeError(err)} (cache lookup skipped, storage degraded)`
+      );
     }
     return null;
   }
+}
+
+/**
+ * Storage health for the run summary.
+ *
+ * Surfaces WHY storage was skipped, not merely that it was. `unreachable` is
+ * the case that matters: the run still completes, but the cache-first guard
+ * cannot run and nothing is stored, which is easy to mistake for a healthy
+ * cold cache unless it is stated.
+ */
+export function getMongoHealth(): {
+  state: MongoConnectionState;
+  healthy: boolean;
+  degraded: boolean;
+  reason: string;
+} {
+  const state = connectionState;
+  return {
+    state,
+    healthy: state === 'connected',
+    degraded: state === 'unreachable',
+    reason:
+      state === 'connected'
+        ? 'connected'
+        : state === 'disabled'
+          ? 'MONGODB_URI not set'
+          : state === 'unreachable'
+            ? 'server unreachable — cache lookup skipped, run records not stored'
+            : 'not connected yet',
+  };
 }
 
 export async function pingMongo(): Promise<boolean> {

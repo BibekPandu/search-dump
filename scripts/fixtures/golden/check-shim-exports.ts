@@ -25,6 +25,17 @@ import * as outputStorage from '@/services/storage/output-storage.service';
 import * as searchFallback from '@/services/discovery/search-fallback.service';
 import * as discoveryState from '@/types/discovery-state';
 import * as mongoService from '@/services/storage/mongo.service';
+import * as entityFacade from '@/services/resolution/entity-resolution.service';
+import * as entityNormalizers from '@/services/resolution/entity-normalizers';
+import * as entityMatching from '@/services/resolution/entity-matching';
+import * as entityConflicts from '@/services/resolution/entity-conflicts';
+import * as entityCompat from '@/services/entity-resolution.service';
+import * as socialFacade from '@/services/extraction/social-extractor.service';
+import * as socialUrl from '@/services/extraction/social-url';
+import * as socialValidation from '@/services/extraction/social-validation';
+import * as socialClassify from '@/services/extraction/social-classify';
+import * as socialOwnership from '@/services/extraction/social-ownership';
+import * as socialLinks from '@/services/extraction/social-links';
 import * as typesBusinessListing from '@/types/business-listing.js';
 import * as typesContact from '@/types/contact.js';
 import * as typesDiscovery from '@/types/discovery-state.js';
@@ -73,6 +84,11 @@ const runtimeExports: Array<[string, unknown]> = [
   ['search.searchResponseSchema', searchFallback.searchResponseSchema],
   ['mongo.buildCacheKeys', mongoService.buildCacheKeys],
   ['output-storage.RUN_SUMMARY_TYPE_IS_TYPE_ONLY', outputStorage.saveSummaryReport],
+  ['entity-resolution.normalizePhoneDigits', entityFacade.normalizePhoneDigits],
+  ['entity-resolution.resolveEntityPair', entityFacade.resolveEntityPair],
+  ['entity-resolution.detectCrossListingConflicts', entityFacade.detectCrossListingConflicts],
+  ['entity-resolution.mergeDuplicateDomainEntities', entityFacade.mergeDuplicateDomainEntities],
+  ['entity-resolution compat alias merges the same function', entityCompat.mergeDuplicateEntities],
 ];
 
 for (const [label, value] of runtimeExports) {
@@ -126,6 +142,18 @@ const identityChecks: Array<[string, unknown, unknown]> = [
   ['unifiedSearchResultSchema', searchFallback.unifiedSearchResultSchema, typesSearch.unifiedSearchResultSchema],
   ['searchMetadataSchema', searchFallback.searchMetadataSchema, typesSearch.searchMetadataSchema],
   ['searchResponseSchema', searchFallback.searchResponseSchema, typesSearch.searchResponseSchema],
+  ['entity facade -> normalizers.normalizePhoneDigits', entityFacade.normalizePhoneDigits, entityNormalizers.normalizePhoneDigits],
+  ['entity facade -> normalizers.domainFromUrlOrHost', entityFacade.domainFromUrlOrHost, entityNormalizers.domainFromUrlOrHost],
+  ['entity facade -> matching.resolveEntityPair', entityFacade.resolveEntityPair, entityMatching.resolveEntityPair],
+  ['entity facade -> matching.dedupeByEntity', entityFacade.dedupeByEntity, entityMatching.dedupeByEntity],
+  ['entity facade -> conflicts.detectCrossListingConflicts', entityFacade.detectCrossListingConflicts, entityConflicts.detectCrossListingConflicts],
+  ['entity facade -> conflicts.mergeDuplicateEntities', entityFacade.mergeDuplicateEntities, entityConflicts.mergeDuplicateEntities],
+  ['entity compat shim -> facade.mergeDuplicateEntities', entityCompat.mergeDuplicateEntities, entityFacade.mergeDuplicateEntities],
+  ['social facade -> url.computeCanonicalSocialUrl', socialFacade.computeCanonicalSocialUrl, socialUrl.computeCanonicalSocialUrl],
+  ['social facade -> validation.isRealSocialProfile', socialFacade.isRealSocialProfile, socialValidation.isRealSocialProfile],
+  ['social facade -> classify.classifySocialProfile', socialFacade.classifySocialProfile, socialClassify.classifySocialProfile],
+  ['social facade -> ownership.isBusinessOwnedSocialProfile', socialFacade.isBusinessOwnedSocialProfile, socialOwnership.isBusinessOwnedSocialProfile],
+  ['social facade -> links.extractSocialLinks', socialFacade.extractSocialLinks, socialLinks.extractSocialLinks],
 ];
 
 for (const [label, originVal, typesVal] of identityChecks) {

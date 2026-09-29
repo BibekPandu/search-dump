@@ -13,6 +13,19 @@ export const FB_NAMESPACE_PATHS = new Set([
   'p',
 ]);
 
+/**
+ * Facebook serves UI/action routes as the *second* segment of a namespace
+ * path. `facebook.com/pages/create` is the "Create a Page" form, not a page
+ * owned by a business. `FB_NAMESPACE_PATHS` names the namespace; this set names
+ * the action words that must never be read as a page slug by
+ * `extractFacebookHandle`, otherwise the route is classified as a real
+ * `business_page` and a reserved URL reports `BUSINESS_NAME_MISMATCH` instead
+ * of `RESERVED_PATH`.
+ */
+export const FB_NAMESPACE_RESERVED_ACTIONS = new Set([
+  'create',
+]);
+
 export const FACEBOOK_RESERVED_PATHS = new Set([
   'sharer',
   'sharer.php',
