@@ -14,6 +14,7 @@ import {
   isUsableOfficialWebsite,
   attributeMultiBranchContacts,
   isAllContactsUnattributed,
+  namesAlignForEvidence,
 } from '@/services/resolution/entity-resolution.service';
 import {
   sanitizeEmailString,
@@ -33,40 +34,44 @@ export function matchListingToEvidence(
   listing: z.infer<typeof businessListingSchema>,
   evidenceList: VerifiedBusinessEvidence[]
 ): VerifiedBusinessEvidence | undefined {
-  const listName = normalizeNameKey(listing.name || '');
+  const listingName = listing.name || '';
+  if (!listingName) return undefined;
 
-  // 1. Phone match (candidate authoritative phone ↔ listing phone/mobile)
+  // 1. Direct candidate ID / placeId match if available from synthesis
+  const targetPlaceId = listing.placeId || (listing as any).sourceCandidateId;
+  if (targetPlaceId) {
+    const directMatch = evidenceList.find((ev) => {
+      const pId = ev.candidate.sources?.googleMaps?.placeId || (ev.candidate as any).placeId;
+      return pId && pId === targetPlaceId;
+    });
+    if (directMatch && namesAlignForEvidence(listingName, directMatch.candidate.name)) {
+      return directMatch;
+    }
+  }
+
+  // 2. Candidate loop with MANDATORY namesAlignForEvidence gate
+  // Evidence is only bound when business names align via distinctive brand tokens,
+  // preventing blind phone/domain cross-candidate hijacking.
   for (const ev of evidenceList) {
     const candidate = ev.candidate;
-    if (candidate.phone) {
-      const candidateDigits = normalizePhoneDigits(candidate.phone);
-      if (candidateDigits.length >= 7) {
-        const hasPhone = [...(listing.phones || []), ...(listing.mobiles || [])].some((p) => {
-          const d = normalizePhoneDigits(p);
-          if (!d || d.length < 7) return false;
-          return d === candidateDigits || d.includes(candidateDigits) || candidateDigits.includes(d);
-        });
-        if (hasPhone) return ev;
-      }
-    }
-  }
+    const candidateDigits = candidate.phone ? normalizePhoneDigits(candidate.phone) : '';
+    const hasPhoneMatch = Boolean(
+      candidateDigits.length >= 7 &&
+      [...(listing.phones || []), ...(listing.mobiles || [])].some((p) => {
+        const d = normalizePhoneDigits(p);
+        if (!d || d.length < 7) return false;
+        return d === candidateDigits || d.includes(candidateDigits) || candidateDigits.includes(d);
+      })
+    );
 
-  // 2. Candidate Name Containment match (authoritative candidate identity)
-  for (const ev of evidenceList) {
-    const candidateName = normalizeNameKey(ev.candidate.name || '');
-    if (listName && candidateName && (listName.includes(candidateName) || candidateName.includes(listName))) {
+    const candidateDomain = candidate.website ? domainFromUrlOrHost(candidate.website) : '';
+    const hasDomainMatch = Boolean(
+      candidateDomain &&
+      (listing.websites || []).some((w) => extractDomain(w) === candidateDomain)
+    );
+
+    if (namesAlignForEvidence(listingName, candidate.name, { phoneMatches: hasPhoneMatch, domainMatches: hasDomainMatch })) {
       return ev;
-    }
-  }
-
-  // 3. Domain match (supporting signal ONLY if name key aligns or is unspecified)
-  for (const ev of evidenceList) {
-    const candidateDomain = ev.candidate.website ? domainFromUrlOrHost(ev.candidate.website) : '';
-    if (candidateDomain && (listing.websites || []).some((w) => extractDomain(w) === candidateDomain)) {
-      const candidateName = normalizeNameKey(ev.candidate.name || '');
-      if (!listName || !candidateName || listName.includes(candidateName) || candidateName.includes(listName)) {
-        return ev;
-      }
     }
   }
 
