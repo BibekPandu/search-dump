@@ -274,13 +274,18 @@ export function buildVerifiedEvidence(
     if (successfulPages.length > 0) {
       const evidence = buildWebsiteEvidence(candidate, pages);
       const verification = verifyCandidateWebsite(candidate, evidence);
-      const finalRel = verification.status === 'failed' ? 'unverified' : relClassification.relationship;
+      const isWrongSource = ['directory', 'marketplace', 'service_platform', 'unrelated'].includes(relClassification.relationship);
+      const finalRel =
+        verification.status === 'verified' && !isWrongSource
+          ? 'first_party'
+          : verification.status === 'failed'
+          ? 'unverified'
+          : relClassification.relationship;
       const lifecycle = determineWebsiteLifecycle(
         finalRel,
         verification.status,
         true
       );
-      const isWrongSource = ['directory', 'marketplace', 'service_platform', 'unrelated'].includes(relClassification.relationship);
       const sourceHealth = isWrongSource
         ? 'wrong_source'
         : (finalRel === 'first_party' && (verification.status === 'verified' || verification.status === 'partial'))
