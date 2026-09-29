@@ -451,3 +451,40 @@ export function extractDistinctiveNameTokens(name: string): string[] {
   return [];
 }
 
+/**
+ * Common surnames in Nepal / South Asia that frequently appear in business names
+ * (e.g. "Kandel Consultancy", "Sharma Medical", "Gupta & Associates").
+ * When disambiguating between two DIFFERENT businesses, a shared surname alone
+ * is insufficient without a second distinctive token or phone/domain corroboration.
+ */
+export const COMMON_SURNAMES = new Set([
+  'kandel', 'sharma', 'gupta', 'thapa', 'shrestha', 'maharjan', 'rai',
+  'limbu', 'tamang', 'gurung', 'magar', 'sherpa', 'bhattarai', 'adhikari',
+  'acharya', 'joshi', 'poudel', 'khanal', 'kc', 'bista', 'basnet', 'rana',
+  'rijal', 'dhakal', 'subedi', 'regmi', 'khadka', 'karki', 'shah', 'singh',
+  'pandey', 'tiwari', 'chhetri', 'sapkota', 'baral', 'aryal', 'neupane',
+  'bastola', 'parajuli', 'pokharel',
+]);
+
+/**
+ * Broad vertical & category terms that indicate industry type rather than distinctive brand identity.
+ */
+export const CATEGORY_VERTICALS = new Set([
+  'educational', 'education', 'consultancy', 'consulting', 'consultant', 'consultants',
+  'studyabroad', 'abroad', 'medical', 'legal', 'restaurant', 'hotel', 'salon',
+  'agency', 'services', 'service', 'solutions', 'technologies', 'technology',
+  'dental', 'clinic', 'hospital', 'health', 'healthcare', 'pharma', 'pharmacy',
+  'institute', 'academy', 'college', 'school', 'polyclinic', 'diagnostic',
+  'pathology', 'lab', 'laboratory', 'visa', 'migration', 'immigration',
+]);
+
+/**
+ * Geographic regions, cities, and localities in Nepal that indicate location rather than brand identity.
+ */
+export const GEOGRAPHIC_MODIFIERS = new Set([
+  'nepal', 'nepali', 'kathmandu', 'ktm', 'pokhara', 'lalitpur', 'bhaktapur',
+  'thamel', 'satungal', 'baneshwor', 'dillibazar', 'putalisadak', 'bagbazar',
+  'newroad', 'kalanki', 'koteshwor', 'kupondole', 'jawalakhel', 'biratnagar',
+  'butwal', 'dharan', 'chitwan', 'narayangarh', 'hetauda', 'nepalgunj',
+]);
+
