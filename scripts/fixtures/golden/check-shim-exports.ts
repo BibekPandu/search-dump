@@ -30,6 +30,12 @@ import * as entityNormalizers from '@/services/resolution/entity-normalizers';
 import * as entityMatching from '@/services/resolution/entity-matching';
 import * as entityConflicts from '@/services/resolution/entity-conflicts';
 import * as entityCompat from '@/services/entity-resolution.service';
+import * as socialFacade from '@/services/extraction/social-extractor.service';
+import * as socialUrl from '@/services/extraction/social-url';
+import * as socialValidation from '@/services/extraction/social-validation';
+import * as socialClassify from '@/services/extraction/social-classify';
+import * as socialOwnership from '@/services/extraction/social-ownership';
+import * as socialLinks from '@/services/extraction/social-links';
 import * as typesBusinessListing from '@/types/business-listing.js';
 import * as typesContact from '@/types/contact.js';
 import * as typesDiscovery from '@/types/discovery-state.js';
@@ -143,6 +149,11 @@ const identityChecks: Array<[string, unknown, unknown]> = [
   ['entity facade -> conflicts.detectCrossListingConflicts', entityFacade.detectCrossListingConflicts, entityConflicts.detectCrossListingConflicts],
   ['entity facade -> conflicts.mergeDuplicateEntities', entityFacade.mergeDuplicateEntities, entityConflicts.mergeDuplicateEntities],
   ['entity compat shim -> facade.mergeDuplicateEntities', entityCompat.mergeDuplicateEntities, entityFacade.mergeDuplicateEntities],
+  ['social facade -> url.computeCanonicalSocialUrl', socialFacade.computeCanonicalSocialUrl, socialUrl.computeCanonicalSocialUrl],
+  ['social facade -> validation.isRealSocialProfile', socialFacade.isRealSocialProfile, socialValidation.isRealSocialProfile],
+  ['social facade -> classify.classifySocialProfile', socialFacade.classifySocialProfile, socialClassify.classifySocialProfile],
+  ['social facade -> ownership.isBusinessOwnedSocialProfile', socialFacade.isBusinessOwnedSocialProfile, socialOwnership.isBusinessOwnedSocialProfile],
+  ['social facade -> links.extractSocialLinks', socialFacade.extractSocialLinks, socialLinks.extractSocialLinks],
 ];
 
 for (const [label, originVal, typesVal] of identityChecks) {
