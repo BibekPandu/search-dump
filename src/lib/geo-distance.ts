@@ -16,13 +16,17 @@
  * @param lon1 longitude of point 1 (degrees)
  * @param lat2 latitude of point 2 (degrees)
  * @param lon2 longitude of point 2 (degrees)
- * @returns distance in kilometers, rounded to 2 decimal places
+ * @param round round to 2 decimal places (default). Pass false when the caller
+ *   compares the result against sub-100m thresholds: rounding to 2dp moves a
+ *   distance of 0.045km up to 0.05km, which would flip a `< 0.05` test.
+ * @returns distance in kilometers, rounded to 2 decimal places unless `round` is false
  */
 export function calculateHaversineDistanceKm(
   lat1: number,
   lon1: number,
   lat2: number,
-  lon2: number
+  lon2: number,
+  round = true
 ): number {
   const R = 6371; // Earth radius in km
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -34,5 +38,6 @@ export function calculateHaversineDistanceKm(
       Math.sin(dLon / 2) *
       Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return Math.round(R * c * 100) / 100;
+  const distanceKm = R * c;
+  return round ? Math.round(distanceKm * 100) / 100 : distanceKm;
 }
