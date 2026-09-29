@@ -18,6 +18,13 @@ import { geocodeLocality } from '@/services/resolution/geocoding.service';
 import { revalidateExtractedCandidateAddress } from '@/services/resolution/candidate-validation.service';
 import { getLlmMultiBusinessCallCount } from '@/services/business-extractor.service';
 import { getTelemetry, incrementTelemetry } from '@/services/telemetry.service';
+import {
+  beginRun,
+  getCurrentRunId,
+  logRunStep,
+  startTimer,
+  getApiCallCounters,
+} from '@/services/observability/run-log.service';
 import { mergeDuplicateEntities } from '@/services/resolution/entity-resolution.service';
 import { completeSocials } from '@/services/resolution/social-completion.service';
 import {
@@ -43,6 +50,7 @@ import {
   buildCacheKeys,
   canonicalKeyFor,
   getLastMongoState,
+  getMongoHealth,
   lookupFreshRun,
   saveRunRecord,
   upsertBusinesses,
@@ -165,7 +173,13 @@ export const researchAgentStep = createStep({
   id: 'research-agent-step',
   inputSchema: z.object({
     query: z.string(),
-    location: z.string().optional(),
+    /**
+     * Run locality. REQUIRED in practice: the canonical identity is
+     * `name:<nameKey>|<locationKey>`, and an empty location yields the
+     * `unknown-location` suffix, which creates duplicate identities instead
+     * of overwriting existing records. Non-empty after trim.
+     */
+    location: z.string().min(1, 'location must be a non-empty locality').trim(),
     autoApprove: z.boolean().default(true),
     agentId: z.string().optional(),
     targetCandidates: z.number().optional(),
@@ -191,6 +205,8 @@ export const researchAgentStep = createStep({
     ...cachePassthroughSchema,
   }),
   execute: async ({ inputData, mastra }) => {
+    const runId = beginRun();
+    const elapsed = startTimer();
     // ------------------------------------------------------------------
     // M1 cache-first guard (Step 1).
     // Same (query, location) inside the freshness window → serve the stored
@@ -213,6 +229,12 @@ export const researchAgentStep = createStep({
       );
       const hit = await lookupFreshRun(inputData.query, inputData.location, maxCacheAgeDays);
       if (hit) {
+        logRunStep(runId, 1, 'ok', elapsed(), {
+          cache: 'hit',
+          candidates: 0,
+          listings: hit.listings.length,
+          sourceRunId: hit.runId,
+        });
         return {
           candidates: [],
           researchCandidates: [],
@@ -241,16 +263,23 @@ export const researchAgentStep = createStep({
     }
 
     const result = await runResearchDiscovery(inputData, mastra);
+    const cacheStatus =
+      refreshRequested || getLastMongoState() === 'connected'
+        ? ('miss' as const)
+        : ('skipped_mongo_down' as const);
+    logRunStep(runId, 1, 'ok', elapsed(), {
+      cache: cacheStatus,
+      candidates: result.candidates?.length ?? 0,
+      researchCandidates: result.researchCandidates?.length ?? 0,
+      mongo: getLastMongoState(),
+    });
     return {
       ...result,
       maxDeepVerifyCandidates: inputData.maxDeepVerifyCandidates,
       fromCache: false,
       // FIX-3: a miss because the store was unreachable is NOT the same as a
       // miss because nothing fresh was stored — never conflate them.
-      cacheLookupStatus:
-        refreshRequested || getLastMongoState() === 'connected'
-          ? ('miss' as const)
-          : ('skipped_mongo_down' as const),
+      cacheLookupStatus: cacheStatus,
       cachePolicyDays: maxCacheAgeDays,
       refreshRequested,
       runConfig: {
@@ -293,9 +322,12 @@ export const humanReviewStep = createStep({
     ...cachePassthroughSchema,
   }),
   execute: async ({ inputData, suspend, resumeData }) => {
+    const runId = getCurrentRunId();
+    const elapsed = startTimer();
     // M1: a cache hit carries no candidates to review — never suspend for one.
     if (inputData.fromCache) {
       console.log('[Workflow:HITL] Cache hit — skipping human review step (no discovery happened)');
+      logRunStep(runId, 2, 'skipped', elapsed(), { reason: 'cache_hit', candidates: 0 });
       return {
         candidates: inputData.candidates,
         researchCandidates: inputData.researchCandidates,
@@ -311,6 +343,10 @@ export const humanReviewStep = createStep({
 
     if (inputData.autoApprove) {
       console.log(`[Workflow:HITL] Auto-approved ${inputData.candidates.length} candidates (headless mode)`);
+      logRunStep(runId, 2, 'ok', elapsed(), {
+        mode: 'auto_approved',
+        candidates: inputData.candidates.length,
+      });
       return {
         candidates: inputData.candidates,
         researchCandidates: inputData.researchCandidates,
@@ -349,6 +385,11 @@ export const humanReviewStep = createStep({
     }
 
     console.log(`[Workflow:HITL] Resumed with ${approvedCandidates.length} approved candidates`);
+    logRunStep(runId, 2, 'ok', elapsed(), {
+      mode: 'resumed',
+      candidates: approvedCandidates.length,
+      filtered: inputData.candidates.length - approvedCandidates.length,
+    });
 
     return {
       candidates: approvedCandidates,
@@ -392,11 +433,14 @@ export const deepExtractionStep = createStep({
     ...cachePassthroughSchema,
   }),
   execute: async ({ inputData }) => {
+    const runId = getCurrentRunId();
+    const elapsed = startTimer();
     // M1: a cache hit must not call Tavily at all. `extractions` is REQUIRED by the
     // next step's input schema (z.array(extractionSchema) carries no default), so it
     // must be supplied explicitly as [] — omitting it would fail Zod validation.
     if (inputData.fromCache) {
       console.log('[Workflow:Step2] Cache hit — skipping deep extraction (0 Tavily calls)');
+      logRunStep(runId, 3, 'skipped', elapsed(), { reason: 'cache_hit', extractions: 0 });
       return {
         candidates: inputData.candidates,
         researchCandidates: inputData.researchCandidates,
@@ -776,6 +820,12 @@ export const deepExtractionStep = createStep({
         `[Workflow:Step2] Verified evidence complete: ${verifiedEvidence.length} records, statuses: ${JSON.stringify(statusCounts)}`
       );
 
+      logRunStep(runId, 3, 'ok', elapsed(), {
+        extractions: flattenedExtractions.length,
+        evidence: verifiedEvidence.length,
+        statuses: JSON.stringify(statusCounts),
+      });
+
       return {
         candidates,
         researchCandidates,
@@ -886,6 +936,11 @@ async function finalizeCacheHit(params: {
     status: listings.length > 0 ? 'success' : 'empty',
     synthesisMethod: 'Cache hit — served from stored runs snapshot (no synthesis executed)',
     cacheLookupStatus: 'hit',
+    telemetry: {
+      /** Cache-hit runs must show zero outbound spend — this is the proof. */
+      apiCallCounters: getApiCallCounters(),
+      mongoHealth: getMongoHealth(),
+    },
     notes: [
       sourceRunId ? `Served from run ${sourceRunId}` : 'Served from stored snapshot',
       `Freshness window: ${params.cachePolicyDays ?? 'default'}d`,
@@ -938,6 +993,11 @@ export const supervisorSynthesisStep = createStep({
     verifiedEvidence: z.array(verifiedBusinessEvidenceSchema).optional(),
   }),
   execute: async ({ inputData, mastra }) => {
+    // NOTE: the pre-existing `runId` in this step is the run SESSION id used for
+    // output/history paths. `logRunId` is the observability run id and must not
+    // shadow it.
+    const logRunId = getCurrentRunId();
+    const elapsed = startTimer();
     const { candidates, extractions, verifiedEvidence, query, location, agentId, researchReport } = inputData;
     const runStartedAt = new Date().toISOString();
 
@@ -948,7 +1008,7 @@ export const supervisorSynthesisStep = createStep({
     // this path). `businesses` is never touched here: nothing was re-verified.
     // ------------------------------------------------------------------
     if (inputData.fromCache) {
-      return await finalizeCacheHit({
+      const finalized = await finalizeCacheHit({
         listings: inputData.cachedListings ?? [],
         query,
         location,
@@ -959,6 +1019,12 @@ export const supervisorSynthesisStep = createStep({
         researchReport,
         verifiedEvidence,
       });
+      logRunStep(logRunId, 4, 'skipped', elapsed(), {
+        reason: 'cache_hit',
+        listings: finalized.listings?.length ?? 0,
+        sourceRunId: inputData.cacheSourceRunId,
+      });
+      return finalized;
     }
 
     console.log(
@@ -1638,6 +1704,10 @@ export const supervisorSynthesisStep = createStep({
         directorySubdomainPenalties: getTelemetry().directorySubdomainPenalties,
         templateFingerprintMatches: getTelemetry().templateFingerprintMatches,
         socialUrlsCanonicalized: getTelemetry().socialUrlsCanonicalized,
+        /** Outbound dependency spend: calls made vs. served from cache. */
+        apiCallCounters: getApiCallCounters(),
+        /** WHY storage was skipped when it was — never conflated with cacheLookupStatus. */
+        mongoHealth: getMongoHealth(),
       },
       status: listings.length > 0 ? 'success' : 'empty',
       synthesisMethod: 'OpenRouter Supervisor Agent / Deterministic Fallback',
@@ -1665,6 +1735,12 @@ export const supervisorSynthesisStep = createStep({
     );
 
     endRunSession();
+
+    logRunStep(logRunId, 4, 'ok', elapsed(), {
+      listings: listings.length,
+      requested: inputData.runConfig?.targetCandidates,
+      evidence: verifiedEvidence?.length ?? 0,
+    });
 
     console.log('\n================ FINAL VERIFIED LISTINGS ================');
     console.log(JSON.stringify(listings, null, 2));
@@ -1702,7 +1778,11 @@ export const researchWorkflow = createWorkflow({
   id: 'research-workflow',
   inputSchema: z.object({
     query: z.string().describe('The search query (e.g. "hotels in Kathmandu")'),
-    location: z.string().optional().describe('Optional location constraint'),
+    location: z
+      .string()
+      .min(1, 'location must be a non-empty locality')
+      .trim()
+      .describe('Run locality. Required: an empty value writes unknown-location identity keys.'),
     autoApprove: z.boolean().default(true).describe('Skip human review step for headless execution'),
     agentId: z.string().optional().default('gemma-supervisor-agent').describe('Agent to use for synthesis'),
     targetCandidates: z.number().optional().describe('Target number of usable candidates'),
