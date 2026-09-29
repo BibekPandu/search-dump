@@ -13,6 +13,8 @@ import {
   UNIVERSAL_STOPWORDS,
   NEPAL_LOCALITY_TOKENS,
   CATEGORY_GENERIC_TOKENS,
+  CATEGORY_VERTICALS,
+  GEOGRAPHIC_MODIFIERS,
   CONFLICTING_VERTICAL_TOKENS,
   PLATFORM_OFFICIAL_HANDLES,
   KNOWN_VENDOR_SOCIAL_HANDLES,
@@ -530,7 +532,9 @@ export function classifySocialProfile(
   // Generic + Locality + Descriptor tokens to filter out from distinctive brand set
   const nonDistinctiveTokens = new Set<string>([
     ...categoryGenericTokens,
+    ...CATEGORY_VERTICALS,
     ...NEPAL_LOCALITY_TOKENS,
+    ...GEOGRAPHIC_MODIFIERS,
     'branch',
     'pvt',
     'ltd',
@@ -545,10 +549,18 @@ export function classifySocialProfile(
   ]);
 
   // Distinctive business tokens (generic, locality, and descriptor terms filtered out)
-  const distinctiveBusinessTokens: string[] = brandBusinessName
+  let distinctiveBusinessTokens: string[] = brandBusinessName
     .toLowerCase()
     .split(/[^a-z0-9]+/)
     .filter((t) => t.length >= 2 && !nonDistinctiveTokens.has(t));
+
+  // Fallback: If stripping left no distinctive tokens, preserve full business tokens (minus stop words/geo)
+  if (distinctiveBusinessTokens.length === 0) {
+    distinctiveBusinessTokens = brandBusinessName
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter((t) => t.length >= 2 && !NEPAL_LOCALITY_TOKENS.has(t) && !GEOGRAPHIC_MODIFIERS.has(t) && !UNIVERSAL_STOPWORDS.has(t));
+  }
 
   if (websiteDomain) {
     let domainLabel = domainFromUrlOrHost(websiteDomain);
@@ -649,21 +661,37 @@ export function classifySocialProfile(
     // Phase 8L Component 8 (D21 Initialism Corroboration Rule):
     // If the only matching distinctive tokens are short (<= 3 characters, e.g. "apf", "rs", "nk", "ab"),
     // an initialism alone is ambiguous. Require at least one corroborating signal:
-    //  1. A category token from the vertical (e.g. "dental", "clinic" for dental; "salon", "parlour", "nail", "beauty" for beauty)
-    //  2. Another distinctive business token with length >= 4
+    //  1. Brand-root match: handle starts with the business's distinctive brand token (e.g. "idpstudyabroad.nepal", "idpnepal")
+    //  2. A category token from the vertical or CATEGORY_VERTICALS
+    //  3. A locality/country token from NEPAL_LOCALITY_TOKENS or GEOGRAPHIC_MODIFIERS
+    //  4. Another distinctive business token with length >= 4
     const onlyShortTokens = matchingDistinctive.every((t) => t.length <= 3);
     if (onlyShortTokens) {
-      const hasCategoryCorroboration = resolvedCategoryTokens.some((catToken) =>
-        catToken.length >= 3 && (cleanHandle.includes(catToken) || allHandleWords.includes(catToken))
+      // Brand-root fast path: If handle starts with the business's distinctive brand token,
+      // it is an authentic brand handle (e.g. "idp" in "idpstudyabroad.nepal"), not an ambiguous mid-string coincidence (e.g. "somewhere.idp.nested").
+      const startsWithBrandToken = uniqueDistinctiveBusinessTokens.some(
+        (t) => t.length >= 2 && (cleanHandle.startsWith(t) || allHandleWords[0] === t)
       );
-      const hasLocationCorroboration = Array.from(NEPAL_LOCALITY_TOKENS).some((locToken) =>
-        locToken.length >= 3 && (cleanHandle.includes(locToken) || allHandleWords.includes(locToken))
-      );
+
+      const hasCategoryCorroboration =
+        resolvedCategoryTokens.some((catToken) =>
+          catToken.length >= 3 && (cleanHandle.includes(catToken) || allHandleWords.includes(catToken))
+        ) ||
+        Array.from(CATEGORY_VERTICALS).some((vertToken) =>
+          vertToken.length >= 3 && (cleanHandle.includes(vertToken) || allHandleWords.includes(vertToken))
+        );
+      const hasLocationCorroboration =
+        Array.from(NEPAL_LOCALITY_TOKENS).some((locToken) =>
+          locToken.length >= 3 && (cleanHandle.includes(locToken) || allHandleWords.includes(locToken))
+        ) ||
+        Array.from(GEOGRAPHIC_MODIFIERS).some((geoToken) =>
+          geoToken.length >= 3 && (cleanHandle.includes(geoToken) || allHandleWords.includes(geoToken))
+        );
       const hasLongDistinctiveOverlap = uniqueDistinctiveBusinessTokens.some(
         (bt) => bt.length >= 4 && (cleanHandle.includes(bt) || allHandleWords.includes(bt))
       );
 
-      if (!hasCategoryCorroboration && !hasLocationCorroboration && !hasLongDistinctiveOverlap) {
+      if (!startsWithBrandToken && !hasCategoryCorroboration && !hasLocationCorroboration && !hasLongDistinctiveOverlap) {
         // Handle only has a short initialism without vertical or brand corroboration (e.g. "nepalapfhospital" for "Apf satugal" in Nail salon)
         if (distinctiveHandleTokens.length >= 1) {
           return {
@@ -708,6 +736,8 @@ export function classifySocialProfile(
         !matchingDistinctive.includes(dh) &&
         !nonDistinctiveTokens.has(dh) &&
         !NEPAL_LOCALITY_TOKENS.has(dh) &&
+        !GEOGRAPHIC_MODIFIERS.has(dh) &&
+        !CATEGORY_VERTICALS.has(dh) &&
         !matchingDistinctive.some((md) => md.length >= 3 && dh.includes(md)) &&
         !normalizedBusinessName.includes(dh) &&
         !normalizedBrandName.includes(dh)
