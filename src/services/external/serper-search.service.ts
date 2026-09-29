@@ -1,3 +1,5 @@
+import { API_CALL_KEYS, recordApiCall } from '@/services/observability/run-log.service';
+
 export interface SerperResult {
   title: string;
   url: string;
@@ -37,6 +39,7 @@ export async function searchSerper(
 
   console.log(`[Serper] Searching Google for: "${query}" (page ${page}, ${numResults} results)`);
 
+  recordApiCall(API_CALL_KEYS.serperSearch);
   const response = await fetch('https://google.serper.dev/search', {
     method: 'POST',
     headers: {

@@ -1,4 +1,5 @@
 import { getCached, setCache } from '@/services/storage/cache.service';
+import { API_CALL_KEYS, recordApiCacheHit, recordApiCall, recordApiFailure } from '@/services/observability/run-log.service';
 
 export interface TavilyExtraction {
   url: string;
@@ -45,6 +46,7 @@ export async function tavilyExtract(
     const cached = getCached<TavilyExtraction>(url, CACHE_PROVIDER);
     if (cached && cached.success && cached.content && cached.content.trim().length > 100) {
       console.log(`[Tavily Extract] Cache hit for ${url}`);
+      recordApiCacheHit(API_CALL_KEYS.tavilyExtract);
       cachedExtractions.push(cached);
     } else {
       uncachedUrls.push(url);
@@ -62,6 +64,7 @@ export async function tavilyExtract(
 
     let response: Response;
     try {
+      recordApiCall(API_CALL_KEYS.tavilyExtract);
       response = await fetch('https://api.tavily.com/extract', {
         method: 'POST',
         headers: {
@@ -153,7 +156,9 @@ export async function tavilyExtract(
         console.log(
           `[Tavily Extract] Retrying ${failedOrSparseUrls.length} failed/sparse URLs with 'advanced' depth...`
         );
+        recordApiFailure(API_CALL_KEYS.tavilyExtract);
         try {
+          recordApiCall(API_CALL_KEYS.tavilyExtract);
           const retryResponse = await fetch('https://api.tavily.com/extract', {
             method: 'POST',
             headers: {

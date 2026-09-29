@@ -23,6 +23,7 @@ import {
   getCurrentRunId,
   logRunStep,
   startTimer,
+  getApiCallCounters,
 } from '@/services/observability/run-log.service';
 import { mergeDuplicateEntities } from '@/services/resolution/entity-resolution.service';
 import { completeSocials } from '@/services/resolution/social-completion.service';
@@ -49,6 +50,7 @@ import {
   buildCacheKeys,
   canonicalKeyFor,
   getLastMongoState,
+  getMongoHealth,
   lookupFreshRun,
   saveRunRecord,
   upsertBusinesses,
@@ -171,7 +173,13 @@ export const researchAgentStep = createStep({
   id: 'research-agent-step',
   inputSchema: z.object({
     query: z.string(),
-    location: z.string().optional(),
+    /**
+     * Run locality. REQUIRED in practice: the canonical identity is
+     * `name:<nameKey>|<locationKey>`, and an empty location yields the
+     * `unknown-location` suffix, which creates duplicate identities instead
+     * of overwriting existing records. Non-empty after trim.
+     */
+    location: z.string().min(1, 'location must be a non-empty locality').trim(),
     autoApprove: z.boolean().default(true),
     agentId: z.string().optional(),
     targetCandidates: z.number().optional(),
@@ -928,6 +936,11 @@ async function finalizeCacheHit(params: {
     status: listings.length > 0 ? 'success' : 'empty',
     synthesisMethod: 'Cache hit — served from stored runs snapshot (no synthesis executed)',
     cacheLookupStatus: 'hit',
+    telemetry: {
+      /** Cache-hit runs must show zero outbound spend — this is the proof. */
+      apiCallCounters: getApiCallCounters(),
+      mongoHealth: getMongoHealth(),
+    },
     notes: [
       sourceRunId ? `Served from run ${sourceRunId}` : 'Served from stored snapshot',
       `Freshness window: ${params.cachePolicyDays ?? 'default'}d`,
@@ -1691,6 +1704,10 @@ export const supervisorSynthesisStep = createStep({
         directorySubdomainPenalties: getTelemetry().directorySubdomainPenalties,
         templateFingerprintMatches: getTelemetry().templateFingerprintMatches,
         socialUrlsCanonicalized: getTelemetry().socialUrlsCanonicalized,
+        /** Outbound dependency spend: calls made vs. served from cache. */
+        apiCallCounters: getApiCallCounters(),
+        /** WHY storage was skipped when it was — never conflated with cacheLookupStatus. */
+        mongoHealth: getMongoHealth(),
       },
       status: listings.length > 0 ? 'success' : 'empty',
       synthesisMethod: 'OpenRouter Supervisor Agent / Deterministic Fallback',
@@ -1761,7 +1778,11 @@ export const researchWorkflow = createWorkflow({
   id: 'research-workflow',
   inputSchema: z.object({
     query: z.string().describe('The search query (e.g. "hotels in Kathmandu")'),
-    location: z.string().optional().describe('Optional location constraint'),
+    location: z
+      .string()
+      .min(1, 'location must be a non-empty locality')
+      .trim()
+      .describe('Run locality. Required: an empty value writes unknown-location identity keys.'),
     autoApprove: z.boolean().default(true).describe('Skip human review step for headless execution'),
     agentId: z.string().optional().default('gemma-supervisor-agent').describe('Agent to use for synthesis'),
     targetCandidates: z.number().optional().describe('Target number of usable candidates'),

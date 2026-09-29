@@ -1,4 +1,5 @@
 import { getCached, setCache } from '@/services/storage/cache.service';
+import { API_CALL_KEYS, recordApiCall } from '@/services/observability/run-log.service';
 import type { DiscoveryState, DiscoveryProvenance } from '@/types/discovery-state';
 
 export interface SerperPlaceResult {
@@ -62,6 +63,7 @@ export async function searchSerperPlaces(
 
   try {
     // Primary: Google Maps direct scraper endpoint (/maps) with full phone and detail support
+    recordApiCall(API_CALL_KEYS.serperPlaces);
     let response = await fetch('https://google.serper.dev/maps', {
       method: 'POST',
       headers: {

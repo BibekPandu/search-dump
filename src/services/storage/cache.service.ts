@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { getProjectRootDir } from '@/services/storage/db.service';
+import { API_CALL_KEYS, recordApiCacheHit } from '@/services/observability/run-log.service';
 
 const CACHE_DIR = path.join(getProjectRootDir(), '.cache');
 const CACHE_FILE = path.join(CACHE_DIR, 'search-results.json');
@@ -64,6 +65,7 @@ export function getCached<T>(query: string, provider: string): T | null {
     writeCache(cache);
     return null;
   }
+  recordApiCacheHit(API_CALL_KEYS.searchCache);
   return entry.data as T;
 }
 

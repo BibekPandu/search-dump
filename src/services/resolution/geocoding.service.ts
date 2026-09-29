@@ -7,6 +7,7 @@ import {
 } from '@/config/geo-localities.config.js';
 import { calculateHaversineDistanceKm } from '@/lib/geo-distance';
 import { getProjectRootDir } from '@/services/storage/db.service';
+import { API_CALL_KEYS, recordApiCacheHit } from '@/services/observability/run-log.service';
 
 export interface NominatimGeocodeResult {
   place_id: number;
@@ -214,12 +215,14 @@ export async function geocodeLocality(
 
   // 1. Check in-memory cache
   if (memoryGeocodeCache.has(normalized)) {
+    recordApiCacheHit(API_CALL_KEYS.geocodeCache);
     return memoryGeocodeCache.get(normalized)!;
   }
 
   // 2. Check disk cache
   const cached = loadFromDiskCache(normalized);
   if (cached) {
+    recordApiCacheHit(API_CALL_KEYS.geocodeCache);
     return cached;
   }
 
