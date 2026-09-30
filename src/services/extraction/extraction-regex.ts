@@ -60,7 +60,7 @@ export const MOBILE_REGEX = /(?<!\d)(?:\+977[-.\s]?)?9[78]\d[-.\s]?\d{7}(?!\d)/g
 
 export const NEPAL_LANDLINE_REGEX = /(?<!\d)(?:\+977[-.\s]?)?0?(?:1[-.\s]?\d{6,7}|[2-9]\d[-.\s]?\d{6})(?!\d)/g;
 
-export const INTERNATIONAL_REGEX = /\+[\d\s()-]{7,15}/g;
+export const INTERNATIONAL_REGEX = /\+[\d\s()-]{7,25}/g;
 
 // Phone numbers hidden in hrefs that must survive URL/noise stripping:
 //   tel:+977-1-4522833 / callto:+977... (HTML attributes & markdown links)

@@ -7,7 +7,7 @@
 
 import { NEPAL_BRANCH_LOCALITIES } from '@/config/token-vocabulary.config';
 import { extractEmails } from '@/services/extraction/contact-extractor.service';
-import { classifyNepalPhone, extractPhones, extractMobiles } from '@/services/extraction/phone-extractor.service';
+import { classifyNepalPhone, extractPhones, extractMobiles, extractLandlinesAndIntl } from '@/services/extraction/phone-extractor.service';
 
 export function cleanBranchAddress(
   rawContextOrAddress: string,
@@ -83,13 +83,13 @@ export function extractStructuredBranchBlocks(
   if (!htmlOrContent) return [];
 
   const blocks: StructuredBranchBlock[] = [];
-  const sectionSplitPattern = /(?:<h[1-6][^>]*>([^<]{1,200})<\/h[1-6]>|<(?:strong|b)[^>]*>([^<]{1,200})<\/(?:strong|b)>|(?:^|\n)#{1,6}\s+([^\n]{1,200})|(?:^|\n)\*\*([^*\n]{1,200})\*\*)/gi;
+  const sectionSplitPattern = /(?:<h[1-6][^>]*>([^<]{1,200})<\/h[1-6]>|<(?:strong|b)[^>]*>([^<]{1,200})<\/(?:strong|b)>|(?:\r?\n|^)\s*#{1,6}\s+([^\r\n#]{1,200})|(?:\r?\n|^)\s*\*\*([^*\r\n]{1,200})\*\*)/gi;
 
   const matches: Array<{ heading: string; index: number; length: number }> = [];
   let m: RegExpExecArray | null;
 
   while ((m = sectionSplitPattern.exec(htmlOrContent)) !== null) {
-    const rawHeading = m[1] || m[2] || m[3] || m[4] || '';
+    const rawHeading = (m[1] || m[2] || m[3] || m[4] || '').split(/\r?\n/)[0];
     const cleanHeading = rawHeading.replace(/<[^>]*>/g, '').replace(/[*#]/g, '').replace(/\s+/g, ' ').trim();
     if (!cleanHeading || cleanHeading.length < 2 || cleanHeading.length > 150) continue;
 
@@ -135,7 +135,7 @@ export function extractStructuredBranchBlocks(
 
     const cleanAddr = cleanBranchAddress(current.heading + '\n' + blockContent.slice(0, 300), businessName);
 
-    const blockPhones = extractPhones(blockContent);
+    const blockPhones = extractLandlinesAndIntl(blockContent);
     const blockMobiles = extractMobiles(blockContent);
     const blockEmails = extractEmails(blockContent);
 
@@ -145,7 +145,7 @@ export function extractStructuredBranchBlocks(
       const classified = classifyNepalPhone(p);
       if (classified.type === 'mobile') {
         if (!mobiles.includes(p)) mobiles.push(p);
-      } else if (classified.type === 'landline' || classified.type === 'international') {
+      } else {
         if (!landlines.includes(p)) landlines.push(p);
       }
     }

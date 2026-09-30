@@ -313,7 +313,12 @@ export function deduplicateClassifiedContacts(contacts: ClassifiedContact[]): Cl
 
     if (!staffSignal) {
       for (const t of STAFF_TITLES) {
-        if (new RegExp(`\\b${t}\\b`, 'i').test(ctx)) {
+        if (t === 'head') {
+          if (/\bhead\b(?![\s-]*(?:office|quarter|quarters|branch|dept|department|division|building))/i.test(ctx)) {
+            staffSignal = true;
+            break;
+          }
+        } else if (new RegExp(`\\b${t}\\b`, 'i').test(ctx)) {
           staffSignal = true;
           break;
         }

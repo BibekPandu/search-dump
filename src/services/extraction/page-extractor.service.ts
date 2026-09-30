@@ -461,6 +461,21 @@ export function extractAllFromPages(
     return undefined;
   };
 
+  function isHeadOfficeBlock(block: StructuredBranchBlock): boolean {
+    const text = `${block.heading} ${block.branchLabel} ${block.address || ''} ${block.rawContent || ''}`.toLowerCase();
+    const isHeadTerm = /\b(head|corporate|main|central|hq)\s*(office|quarter|quarters|branch|dept|department|division|building)?\b/i.test(text);
+    if (!isHeadTerm) return false;
+    
+    // Reject foreign branches (e.g. Sydney Australia, London UK, India, etc.)
+    const isForeign = /\b(australia|sydney|melbourne|brisbane|perth|uk|london|usa|america|india|pune|delhi|singapore|canada)\b/i.test(text) ||
+      [...block.phones, ...block.mobiles].some((p) => /^\+?(?!977)\d{1,4}/.test(p) && !p.startsWith('+977') && !p.startsWith('977') && !p.startsWith('01') && !p.startsWith('98'));
+    if (isForeign) return false;
+
+    const hasLocalSignal = /\b(kathmandu|lalitpur|bhaktapur|baneshwor|dillibazar|putalisadak|nepal)\b/i.test(text) ||
+      [...block.phones, ...block.mobiles].some((p) => p.includes('+977') || p.startsWith('01') || p.startsWith('98'));
+    return hasLocalSignal || !isForeign;
+  }
+
   // Classify extracted emails with context
   for (const page of successful) {
     const pageUrl = page.url;
@@ -478,11 +493,12 @@ export function extractAllFromPages(
         ? `${matchingBlock.branchLabel}: ${matchingBlock.address || matchingBlock.heading}`
         : extractContextAroundMatch(pageText, email);
       const role = classifyEmailRole(email, ctx, businessName, websiteDomain);
+      const isHead = matchingBlock ? isHeadOfficeBlock(matchingBlock) : false;
       allClassifiedContacts.push({
         value: email,
         type: 'email',
-        role: role.role,
-        owner: matchingBlock ? 'branch' : role.owner,
+        role: matchingBlock ? (isHead ? 'primary_business' : 'branch_contact') : role.role,
+        owner: matchingBlock ? (isHead ? 'business' : 'branch') : role.owner,
         channels: [],
         context: ctx || undefined,
         blockId: matchingBlock?.blockId,
@@ -522,6 +538,7 @@ export function extractAllFromPages(
     }
 
     const phoneRole = classifyPhoneRole(raw, context, businessName, classified, pageUrl);
+    const isHead = matchingBlock ? isHeadOfficeBlock(matchingBlock) : false;
 
     if (classified.type !== 'invalid') {
       allClassifiedContacts.push({
@@ -529,8 +546,8 @@ export function extractAllFromPages(
         canonicalDigits: classified.digits,
         type: 'phone',
         phoneType: classified.type,
-        role: phoneRole.role,
-        owner: matchingBlock ? 'branch' : phoneRole.owner,
+        role: matchingBlock ? (isHead ? 'primary_business' : 'branch_contact') : phoneRole.role,
+        owner: matchingBlock ? (isHead ? 'business' : 'branch') : phoneRole.owner,
         channels: phoneRole.channels,
         associatedPerson: phoneRole.associatedPerson,
         associatedJobTitle: phoneRole.associatedJobTitle,

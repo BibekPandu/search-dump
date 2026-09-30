@@ -366,6 +366,18 @@ export function sanitizeListingWithEvidence(
     }
   }
 
+  // Head Office Mobile Promotion: If top-level mobiles is empty, promote primary business / Head Office mobile
+  if (mergedMobiles.length === 0 && isFirstParty) {
+    for (const c of allClassifiedContacts) {
+      if (c.type === 'phone' && c.phoneType === 'mobile' && c.canonicalDigits && !seenDigits.has(c.canonicalDigits)) {
+        if (c.owner === 'business' || c.role === 'primary_business') {
+          seenDigits.add(c.canonicalDigits);
+          mergedMobiles.push(c.value);
+        }
+      }
+    }
+  }
+
   // 3. Fallback: only if both are empty (no phones found anywhere in evidence) AND website is enrichable
   if (mergedPhones.length === 0 && mergedMobiles.length === 0 && isContactEnrichable) {
     for (const m of listing.mobiles || []) routePhone(m);
@@ -410,6 +422,15 @@ export function sanitizeListingWithEvidence(
         if (classified.owner === 'business' && classified.role === 'primary_business') {
           rawEmails.push(e);
         }
+      }
+    }
+    // Sole-Candidate Fallback Promotion (Fix 3b):
+    // If top-level rawEmails is still empty AND exactly one email was extracted from the first-party site,
+    // promote that sole email candidate.
+    if (rawEmails.length === 0 && (web?.extractedEmails || []).length === 1) {
+      const soleEmail = web!.extractedEmails[0];
+      if (/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(soleEmail)) {
+        rawEmails.push(soleEmail);
       }
     }
   }
@@ -706,8 +727,10 @@ export function sanitizeListingWithEvidence(
         c.role = 'branch_contact';
         c.owner = 'branch';
       } else if (attr.attribution === 'unattributed') {
-        c.role = 'unknown';
-        c.owner = 'unknown';
+        if (c.role !== 'staff_person' && c.owner !== 'person') {
+          c.role = 'unknown';
+          c.owner = 'unknown';
+        }
       } else if (attr.attribution === 'target_branch' || attr.attribution === 'general_business') {
         c.role = 'primary_business';
         c.owner = 'business';

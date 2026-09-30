@@ -54,7 +54,7 @@ export function stripVendorAttribution(content: string): string {
   cleaned = cleaned.replace(/\b[Bb]uilt\s+with\s+[A-Z][A-Za-z0-9\s.&'-]{1,40}(?=\.|\n|$|<)/g, ' ');
   cleaned = cleaned.replace(/\b[Cc]reated\s+with\s+[A-Z][A-Za-z0-9\s.&'-]{1,40}(?=\.|\n|$|<)/g, ' ');
 
-  return cleaned.replace(/\s+/g, ' ').replace(/\s+\./g, '.').trim();
+  return cleaned.replace(/[^\S\r\n]+/g, ' ').replace(/\n\s*\n/g, '\n\n').trim();
 }
 
 export function stripHtmlTags(content: string): string {
@@ -130,20 +130,8 @@ export function extractContextAroundMatch(content: string, matchStr: string): st
   const idx = content.indexOf(matchStr);
   if (idx === -1) return '';
 
-  // Find enclosing line boundaries
-  const prevNewline = content.lastIndexOf('\n', idx);
-  const nextNewline = content.indexOf('\n', idx + matchStr.length);
-
-  const lineStart = prevNewline === -1 ? 0 : prevNewline + 1;
-  const lineEnd = nextNewline === -1 ? content.length : nextNewline;
-  const line = content.slice(lineStart, lineEnd).trim();
-
-  if (line.length >= matchStr.length + 10 && line.length <= 300) {
-    return stripHtmlTags(line).replace(/\s+/g, ' ').trim();
-  }
-
-  const start = Math.max(0, idx - 100);
-  const end = Math.min(content.length, idx + matchStr.length + 100);
+  const start = Math.max(0, idx - 150);
+  const end = Math.min(content.length, idx + matchStr.length + 150);
   const snippet = content.slice(start, end);
 
   return stripHtmlTags(snippet).replace(/\s+/g, ' ').trim();
