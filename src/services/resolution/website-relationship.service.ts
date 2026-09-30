@@ -335,8 +335,18 @@ export function classifyWebsiteRelationship(
   // STEP 2: Name token match
   const tokens = extractBusinessNameTokens(businessName);
   const domainTokens = domainLower.replace(/\.[^/.]+$/, '').split(/[.-]/);
+
+  // Extract uppercase acronyms (e.g. "NEC", "IDP", "BMW", "DAB") from original business name
+  const originalAcronyms = businessName
+    .split(/\s+/)
+    .filter((t) => /^[A-Z]{2,4}$/.test(t.replace(/[^\w]/g, '')))
+    .map((t) => t.toLowerCase());
+
   const hasTokenMatch = tokens.some(
-    (t) => domainTokens.includes(t) || (t.length >= 4 && domainLower.includes(t))
+    (t) =>
+      domainTokens.includes(t) ||
+      (t.length >= 4 && domainLower.includes(t)) ||
+      (t.length >= 3 && originalAcronyms.includes(t) && domainLower.includes(t))
   );
 
   // Check for corporate family / sister entity signals for related_entity

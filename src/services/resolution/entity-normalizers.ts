@@ -11,6 +11,12 @@ import { extractDomain } from '@/services/discovery/search-fallback.service';
 import { 
   classifySocialProfile
  } from '@/services/business-extractor.service';
+import {
+  extractDistinctiveNameTokens,
+  COMMON_SURNAMES,
+  CATEGORY_VERTICALS,
+  GEOGRAPHIC_MODIFIERS,
+} from '@/config/token-vocabulary.config';
 
 
 // ============================================================================
@@ -201,5 +207,136 @@ export function isIdentifyingSocialProfile(url: string): boolean {
   if (!url) return false;
   const classified = classifySocialProfile(url);
   if (classified.profileType === 'personal_profile') return true;
+  return false;
+}
+
+/**
+ * Checks whether candidate name and evidence name align using distinctive tokens.
+ * Requires Jaccard >= 0.5 or full subset match, with at least one shared token of length >= 4.
+ */
+export function namesAlign(candidateName: string, evidenceName: string): boolean {
+  if (!candidateName && !evidenceName) return true;
+  if (!candidateName || !evidenceName) return false;
+
+  const normA = normalizeNameKeyLenient(candidateName);
+  const normB = normalizeNameKeyLenient(evidenceName);
+  if (normA && normB && (normA === normB || normA.includes(normB) || normB.includes(normA))) {
+    // If one normalized string strictly contains the other (e.g. subtitle additions)
+    const cTokens = extractDistinctiveNameTokens(candidateName);
+    const evTokens = extractDistinctiveNameTokens(evidenceName);
+    if (cTokens.length === 0 && evTokens.length === 0) return true;
+    const shared = cTokens.filter((t) => evTokens.includes(t));
+    if (shared.length > 0) return true;
+  }
+
+  const cTokens = extractDistinctiveNameTokens(candidateName);
+  const evTokens = extractDistinctiveNameTokens(evidenceName);
+
+  // Both empty → require exact normalized equality
+  if (cTokens.length === 0 && evTokens.length === 0) {
+    return normA === normB;
+  }
+
+  // One empty, one not → cannot align a distinctive name to a generic one
+  if (cTokens.length === 0 || evTokens.length === 0) {
+    return false;
+  }
+
+  const shared = cTokens.filter((t) => evTokens.includes(t));
+  if (shared.length === 0) return false;
+
+  // Distinctive floor: require at least one shared token of length >= 4
+  // (or single-token exact match if both have exactly 1 token)
+  const hasDistinctiveShared =
+    shared.some((t) => t.length >= 4) ||
+    (cTokens.length === 1 && evTokens.length === 1 && cTokens[0] === evTokens[0]);
+  if (!hasDistinctiveShared) return false;
+
+  const union = new Set([...cTokens, ...evTokens]);
+  const jaccard = shared.length / union.size;
+
+  const isSubset =
+    cTokens.every((t) => evTokens.includes(t)) || evTokens.every((t) => cTokens.includes(t));
+
+  return jaccard >= 0.5 || isSubset;
+}
+
+export interface EvidenceAlignmentOptions {
+  phoneMatches?: boolean;
+  domainMatches?: boolean;
+}
+
+/**
+ * Enhanced name alignment guard specifically for evidence binding & candidate re-injection.
+ * Enforces that:
+ * 1. Base namesAlign() check passes.
+ * 2. Distinctive brand token overlap passes:
+ *    - Strips common surnames, geographic modifiers, and vertical modifiers.
+ *    - Empty-set fallback: if either name's pure distinctive set becomes empty (e.g. "Kandel Consultancy"),
+ *      falls back to the full distinctive set so legitimate single-token surname businesses can match.
+ * 3. Match criteria:
+ *    - >= 2 shared distinctive brand tokens (e.g. "Om Samaj Dental", "Big Smile Dental") -> MATCH
+ *    - >= 1 shared distinctive brand token AND phone matches -> MATCH
+ *    - >= 1 shared distinctive brand token AND domain matches -> MATCH
+ *    - >= 1 shared distinctive brand token AND normalized names are identical or one strictly contains the other -> MATCH
+ *    - Otherwise -> REJECT (prevents cross-industry single-token collisions like "Apex Law" vs "Apex Dental")
+ */
+export function namesAlignForEvidence(
+  listingName: string,
+  candidateName: string,
+  options?: EvidenceAlignmentOptions
+): boolean {
+  if (!listingName || !candidateName) return false;
+
+  // Base distinctive containment & Jaccard check
+  if (!namesAlign(listingName, candidateName)) {
+    return false;
+  }
+
+  const cTokens = extractDistinctiveNameTokens(listingName);
+  const evTokens = extractDistinctiveNameTokens(candidateName);
+
+  if (cTokens.length === 0 || evTokens.length === 0) {
+    const normA = normalizeNameKey(listingName);
+    const normB = normalizeNameKey(candidateName);
+    return Boolean(normA && normB && normA === normB);
+  }
+
+  const isNonBrandModifier = (t: string) =>
+    COMMON_SURNAMES.has(t) ||
+    GEOGRAPHIC_MODIFIERS.has(t) ||
+    CATEGORY_VERTICALS.has(t);
+
+  const pureCTokens = cTokens.filter((t) => !isNonBrandModifier(t));
+  const pureEvTokens = evTokens.filter((t) => !isNonBrandModifier(t));
+
+  // Fallback: If stripping non-brand modifiers leaves either set empty,
+  // fall back to the full distinctive set so single-token surname businesses
+  // (e.g. "Kandel Consultancy") do not lose their only distinctive token.
+  const effectiveCTokens = pureCTokens.length > 0 ? pureCTokens : cTokens;
+  const effectiveEvTokens = pureEvTokens.length > 0 ? pureEvTokens : evTokens;
+
+  const shared = effectiveCTokens.filter((t) => effectiveEvTokens.includes(t));
+  if (shared.length === 0) {
+    return false;
+  }
+
+  // 1. Strong brand match: >= 2 shared distinctive brand tokens
+  if (shared.length >= 2) {
+    return true;
+  }
+
+  // 2. Corroborated match: 1 shared brand token + matching phone or domain
+  if (options?.phoneMatches || options?.domainMatches) {
+    return true;
+  }
+
+  // 3. Name identity match: 1 shared brand token + exact normalized equality or strict containment
+  const normA = normalizeNameKey(listingName);
+  const normB = normalizeNameKey(candidateName);
+  if (normA && normB && (normA === normB || normA.includes(normB) || normB.includes(normA))) {
+    return true;
+  }
+
   return false;
 }

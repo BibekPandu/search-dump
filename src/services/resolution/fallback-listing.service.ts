@@ -6,11 +6,11 @@ import type { VerifiedBusinessEvidence } from '@/types/verification';
 import type { BusinessListing } from '@/types/business-listing';
 import {
   domainFromUrlOrHost,
-  normalizeNameKeyLenient,
   normalizePhoneDigits,
   isUsableOfficialWebsite,
+  namesAlign,
+  namesAlignForEvidence,
 } from '@/services/resolution/entity-resolution.service';
-import { extractDistinctiveNameTokens } from '@/config/token-vocabulary.config';
 import {
   extractEmails,
   extractPhones,
@@ -22,56 +22,7 @@ import {
   classifyAllSocialProfiles,
 } from '@/services/business-extractor.service';
 
-/**
- * Checks whether candidate name and evidence name align using distinctive tokens.
- * Requires Jaccard >= 0.5 or full subset match, with at least one shared token of length >= 4.
- */
-export function namesAlign(candidateName: string, evidenceName: string): boolean {
-  if (!candidateName && !evidenceName) return true;
-  if (!candidateName || !evidenceName) return false;
-
-  const normA = normalizeNameKeyLenient(candidateName);
-  const normB = normalizeNameKeyLenient(evidenceName);
-  if (normA && normB && (normA === normB || normA.includes(normB) || normB.includes(normA))) {
-    // If one normalized string strictly contains the other (e.g. subtitle additions)
-    const cTokens = extractDistinctiveNameTokens(candidateName);
-    const evTokens = extractDistinctiveNameTokens(evidenceName);
-    if (cTokens.length === 0 && evTokens.length === 0) return true;
-    const shared = cTokens.filter((t) => evTokens.includes(t));
-    if (shared.length > 0) return true;
-  }
-
-  const cTokens = extractDistinctiveNameTokens(candidateName);
-  const evTokens = extractDistinctiveNameTokens(evidenceName);
-
-  // Both empty → require exact normalized equality
-  if (cTokens.length === 0 && evTokens.length === 0) {
-    return normA === normB;
-  }
-
-  // One empty, one not → cannot align a distinctive name to a generic one
-  if (cTokens.length === 0 || evTokens.length === 0) {
-    return false;
-  }
-
-  const shared = cTokens.filter((t) => evTokens.includes(t));
-  if (shared.length === 0) return false;
-
-  // Distinctive floor: require at least one shared token of length >= 4
-  // (or single-token exact match if both have exactly 1 token)
-  const hasDistinctiveShared =
-    shared.some((t) => t.length >= 4) ||
-    (cTokens.length === 1 && evTokens.length === 1 && cTokens[0] === evTokens[0]);
-  if (!hasDistinctiveShared) return false;
-
-  const union = new Set([...cTokens, ...evTokens]);
-  const jaccard = shared.length / union.size;
-
-  const isSubset =
-    cTokens.every((t) => evTokens.includes(t)) || evTokens.every((t) => cTokens.includes(t));
-
-  return jaccard >= 0.5 || isSubset;
-}
+export { namesAlign, namesAlignForEvidence };
 
 export function buildFallbackListing(
   candidate: UnifiedSearchResult,

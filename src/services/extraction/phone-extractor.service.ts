@@ -286,7 +286,13 @@ export function classifyPhoneRole(
   }
 
   for (const title of STAFF_TITLES) {
-    if (new RegExp(`\\b${title}\\b`, 'i').test(lowerContext)) {
+    if (title === 'head') {
+      if (/\bhead\b(?![\s-]*(?:office|quarter|quarters|branch|dept|department|division|building))/i.test(lowerContext)) {
+        hasStaffSignal = true;
+        if (!associatedJobTitle) associatedJobTitle = title;
+        break;
+      }
+    } else if (new RegExp(`\\b${title}\\b`, 'i').test(lowerContext)) {
       hasStaffSignal = true;
       if (!associatedJobTitle) associatedJobTitle = title;
       break;

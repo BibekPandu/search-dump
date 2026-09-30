@@ -139,12 +139,36 @@ export const deepExtractionStep = createStep({
           continue;
         }
         try {
+          let website = candidate.website;
           // 1) Homepage first (1 Tavily call, 1 URL) — basic depth (cost-controlled).
-          const homepageResponse = await tavilyExtract([website], {
+          let homepageResponse = await tavilyExtract([website], {
             extractDepth: 'basic',
             retryWithAdvancedOnFailure: false,
           });
-          const homepageExtraction = homepageResponse.extractions[0];
+          let homepageExtraction = homepageResponse.extractions[0];
+
+          // Fix 3c: Root Domain Recovery for Deep Paths
+          // If website has a subpath (e.g. klc.edu.np/our-team) and fails, attempt root domain (klc.edu.np/)
+          if ((!homepageExtraction || !homepageExtraction.success) && website) {
+            try {
+              const urlObj = new URL(website);
+              if (urlObj.pathname && urlObj.pathname !== '/' && urlObj.pathname !== '') {
+                const rootUrl = `${urlObj.protocol}//${urlObj.host}/`;
+                console.log(`[Workflow:Step2] Subpath failed for ${website}. Retrying root domain: ${rootUrl}`);
+                const rootResponse = await tavilyExtract([rootUrl], {
+                  extractDepth: 'basic',
+                  retryWithAdvancedOnFailure: false,
+                });
+                if (rootResponse.extractions[0]?.success) {
+                  website = rootUrl;
+                  homepageExtraction = rootResponse.extractions[0];
+                }
+              }
+            } catch (e) {
+              // Ignore invalid URL
+            }
+          }
+
           if (homepageExtraction) flattenedExtractions.push(homepageExtraction);
 
           // 2) Discover the best same-domain internal pages using the homepage

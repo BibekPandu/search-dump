@@ -14,6 +14,7 @@ import {
   isUsableOfficialWebsite,
   attributeMultiBranchContacts,
   isAllContactsUnattributed,
+  namesAlignForEvidence,
 } from '@/services/resolution/entity-resolution.service';
 import {
   sanitizeEmailString,
@@ -33,40 +34,44 @@ export function matchListingToEvidence(
   listing: z.infer<typeof businessListingSchema>,
   evidenceList: VerifiedBusinessEvidence[]
 ): VerifiedBusinessEvidence | undefined {
-  const listName = normalizeNameKey(listing.name || '');
+  const listingName = listing.name || '';
+  if (!listingName) return undefined;
 
-  // 1. Phone match (candidate authoritative phone ↔ listing phone/mobile)
+  // 1. Direct candidate ID / placeId match if available from synthesis
+  const targetPlaceId = listing.placeId || (listing as any).sourceCandidateId;
+  if (targetPlaceId) {
+    const directMatch = evidenceList.find((ev) => {
+      const pId = ev.candidate.sources?.googleMaps?.placeId || (ev.candidate as any).placeId;
+      return pId && pId === targetPlaceId;
+    });
+    if (directMatch && namesAlignForEvidence(listingName, directMatch.candidate.name)) {
+      return directMatch;
+    }
+  }
+
+  // 2. Candidate loop with MANDATORY namesAlignForEvidence gate
+  // Evidence is only bound when business names align via distinctive brand tokens,
+  // preventing blind phone/domain cross-candidate hijacking.
   for (const ev of evidenceList) {
     const candidate = ev.candidate;
-    if (candidate.phone) {
-      const candidateDigits = normalizePhoneDigits(candidate.phone);
-      if (candidateDigits.length >= 7) {
-        const hasPhone = [...(listing.phones || []), ...(listing.mobiles || [])].some((p) => {
-          const d = normalizePhoneDigits(p);
-          if (!d || d.length < 7) return false;
-          return d === candidateDigits || d.includes(candidateDigits) || candidateDigits.includes(d);
-        });
-        if (hasPhone) return ev;
-      }
-    }
-  }
+    const candidateDigits = candidate.phone ? normalizePhoneDigits(candidate.phone) : '';
+    const hasPhoneMatch = Boolean(
+      candidateDigits.length >= 7 &&
+      [...(listing.phones || []), ...(listing.mobiles || [])].some((p) => {
+        const d = normalizePhoneDigits(p);
+        if (!d || d.length < 7) return false;
+        return d === candidateDigits || d.includes(candidateDigits) || candidateDigits.includes(d);
+      })
+    );
 
-  // 2. Candidate Name Containment match (authoritative candidate identity)
-  for (const ev of evidenceList) {
-    const candidateName = normalizeNameKey(ev.candidate.name || '');
-    if (listName && candidateName && (listName.includes(candidateName) || candidateName.includes(listName))) {
+    const candidateDomain = candidate.website ? domainFromUrlOrHost(candidate.website) : '';
+    const hasDomainMatch = Boolean(
+      candidateDomain &&
+      (listing.websites || []).some((w) => extractDomain(w) === candidateDomain)
+    );
+
+    if (namesAlignForEvidence(listingName, candidate.name, { phoneMatches: hasPhoneMatch, domainMatches: hasDomainMatch })) {
       return ev;
-    }
-  }
-
-  // 3. Domain match (supporting signal ONLY if name key aligns or is unspecified)
-  for (const ev of evidenceList) {
-    const candidateDomain = ev.candidate.website ? domainFromUrlOrHost(ev.candidate.website) : '';
-    if (candidateDomain && (listing.websites || []).some((w) => extractDomain(w) === candidateDomain)) {
-      const candidateName = normalizeNameKey(ev.candidate.name || '');
-      if (!listName || !candidateName || listName.includes(candidateName) || candidateName.includes(listName)) {
-        return ev;
-      }
     }
   }
 
@@ -91,10 +96,6 @@ export function sanitizeListingWithEvidence(
     relationship === 'marketplace' ||
     relationship === 'service_platform' ||
     relationship === 'unrelated';
-  const isTransientOrUnverified =
-    sourceHealth === 'transient_failure' ||
-    sourceHealth === 'unverified' ||
-    relationship === 'unverified';
 
   const candidateNameKey = normalizeNameKey(candidate.name || '');
   const listingNameKey = normalizeNameKey(listing.name || '');
@@ -104,9 +105,15 @@ export function sanitizeListingWithEvidence(
       (listingNameKey.includes(candidateNameKey) || candidateNameKey.includes(listingNameKey))
   );
 
-  const isFirstParty = relationship === 'first_party' && namesAlign;
+  const isFirstParty = (relationship === 'first_party' || evidence.verification?.status === 'verified') && namesAlign;
   const isCorporateParent = relationship === 'corporate_parent' && namesAlign;
   const isContactEnrichable = isFirstParty || isCorporateParent;
+  const isTransientOrUnverified =
+    !isFirstParty && (
+      sourceHealth === 'transient_failure' ||
+      sourceHealth === 'unverified' ||
+      relationship === 'unverified'
+    );
 
   const candidatePhoneDigits = normalizePhoneDigits(candidate.phone || '');
   const websiteUrl = candidate.website || web?.url || (listing.websites && listing.websites[0]) || '';
@@ -359,6 +366,18 @@ export function sanitizeListingWithEvidence(
     }
   }
 
+  // Head Office Mobile Promotion: If top-level mobiles is empty, promote primary business / Head Office mobile
+  if (mergedMobiles.length === 0 && isFirstParty) {
+    for (const c of allClassifiedContacts) {
+      if (c.type === 'phone' && c.phoneType === 'mobile' && c.canonicalDigits && !seenDigits.has(c.canonicalDigits)) {
+        if (c.owner === 'business' || c.role === 'primary_business') {
+          seenDigits.add(c.canonicalDigits);
+          mergedMobiles.push(c.value);
+        }
+      }
+    }
+  }
+
   // 3. Fallback: only if both are empty (no phones found anywhere in evidence) AND website is enrichable
   if (mergedPhones.length === 0 && mergedMobiles.length === 0 && isContactEnrichable) {
     for (const m of listing.mobiles || []) routePhone(m);
@@ -405,6 +424,15 @@ export function sanitizeListingWithEvidence(
         }
       }
     }
+    // Sole-Candidate Fallback Promotion (Fix 3b):
+    // If top-level rawEmails is still empty AND exactly one email was extracted from the first-party site,
+    // promote that sole email candidate.
+    if (rawEmails.length === 0 && (web?.extractedEmails || []).length === 1) {
+      const soleEmail = web!.extractedEmails[0];
+      if (/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(soleEmail)) {
+        rawEmails.push(soleEmail);
+      }
+    }
   }
 
   const emails = [...new Set(rawEmails.map(sanitizeEmailString).filter((e) => /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(e)))];
@@ -440,7 +468,7 @@ export function sanitizeListingWithEvidence(
       url,
       plat,
       candidate.name,
-      (!isConfirmedWrongSource && isFirstParty) ? websiteDomain : undefined,
+      websiteDomain,
       categoryCtx,
       origin
     );
@@ -565,6 +593,29 @@ export function sanitizeListingWithEvidence(
       if (typeof u === 'string' && u) candidateOther[k] = { url: u, origin: 'website_evidence' };
     }
   }
+  // Check extractedSchemaSameAs as direct website evidence
+  if (!isConfirmedWrongSource && web?.extractedSchemaSameAs && web.extractedSchemaSameAs.length > 0) {
+    for (const sameAsUrl of web.extractedSchemaSameAs) {
+      if (!finalFb && /facebook\.com/i.test(sameAsUrl)) {
+        const valid = validateSocialCandidate(sameAsUrl, 'facebook', 'website_evidence');
+        if (valid) finalFb = valid;
+      }
+      if (!finalIg && /instagram\.com/i.test(sameAsUrl)) {
+        const valid = validateSocialCandidate(sameAsUrl, 'instagram', 'website_evidence');
+        if (valid) finalIg = valid;
+      }
+      if (!finalTt && /tiktok\.com/i.test(sameAsUrl)) {
+        const valid = validateSocialCandidate(sameAsUrl, 'tiktok', 'website_evidence');
+        if (valid) finalTt = valid;
+      }
+      if (/linkedin\.com/i.test(sameAsUrl) && !candidateOther['linkedin']) {
+        candidateOther['linkedin'] = { url: sameAsUrl, origin: 'website_evidence' };
+      }
+      if (/youtube\.com/i.test(sameAsUrl) && !candidateOther['youtube']) {
+        candidateOther['youtube'] = { url: sameAsUrl, origin: 'website_evidence' };
+      }
+    }
+  }
   if (listing.socialLinks?.other) {
     for (const [k, u] of Object.entries(listing.socialLinks.other)) {
       if (typeof u === 'string' && u && !candidateOther[k]) {
@@ -676,8 +727,10 @@ export function sanitizeListingWithEvidence(
         c.role = 'branch_contact';
         c.owner = 'branch';
       } else if (attr.attribution === 'unattributed') {
-        c.role = 'unknown';
-        c.owner = 'unknown';
+        if (c.role !== 'staff_person' && c.owner !== 'person') {
+          c.role = 'unknown';
+          c.owner = 'unknown';
+        }
       } else if (attr.attribution === 'target_branch' || attr.attribution === 'general_business') {
         c.role = 'primary_business';
         c.owner = 'business';

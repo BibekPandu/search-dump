@@ -31,7 +31,8 @@ import {
   normalizePhoneDigits,
   normalizeNameKey,
   domainFromUrlOrHost,
-  detectCrossListingConflicts
+  detectCrossListingConflicts,
+  namesAlignForEvidence,
 } from '@/services/resolution/entity-resolution.service';
 import { classifyNepalPhone } from '@/services/business-extractor.service';
 import {
@@ -258,30 +259,35 @@ export const supervisorSynthesisStep = createStep({
       const match = preservableCandidates.find((m) => {
         if (matchedCandidateUrls.has(m.url)) return false;
 
-        // 1. Domain match
-        if (listing.websites && listing.websites.length > 0 && m.domain && !m.domain.includes('google.com')) {
-          if (listing.websites.some((w) => extractDomain(w) === m.domain)) return true;
-        }
-
-        // 2. Phone match
-        if (m.phoneNumber) {
-          const cleanMapPhone = m.phoneNumber.replace(/\D/g, '');
-          if (cleanMapPhone.length >= 7) {
-            const hasPhone = [...listing.phones, ...listing.mobiles].some((p) =>
-              p.replace(/\D/g, '').includes(cleanMapPhone) || cleanMapPhone.includes(p.replace(/\D/g, ''))
-            );
-            if (hasPhone) return true;
+        // 1. Direct LLM-supplied candidate attribution match
+        const targetId = listing.placeId || (listing as any).sourceCandidateId;
+        if (targetId && (m.placeId === targetId || m.url === targetId)) {
+          if (namesAlignForEvidence(listing.name, m.title)) {
+            return true;
           }
         }
 
-        // 3. Name similarity match
-        const listName = listing.name.toLowerCase().trim();
-        const mapName = m.title.toLowerCase().trim();
-        if (listName && mapName && (listName.includes(mapName) || mapName.includes(listName))) {
-          return true;
+        // 2. Corroborated candidate match (requires namesAlignForEvidence)
+        const hasDomainMatch = Boolean(
+          listing.websites && listing.websites.length > 0 && m.domain && !m.domain.includes('google.com') &&
+          listing.websites.some((w) => extractDomain(w) === m.domain)
+        );
+
+        let hasPhoneMatch = false;
+        if (m.phoneNumber) {
+          const cleanMapPhone = m.phoneNumber.replace(/\D/g, '');
+          if (cleanMapPhone.length >= 7) {
+            hasPhoneMatch = [...listing.phones, ...listing.mobiles].some((p) => {
+              const cleanP = p.replace(/\D/g, '');
+              return cleanP.length >= 7 && (cleanP.includes(cleanMapPhone) || cleanMapPhone.includes(cleanP));
+            });
+          }
         }
 
-        return false;
+        return namesAlignForEvidence(listing.name, m.title, {
+          phoneMatches: hasPhoneMatch,
+          domainMatches: hasDomainMatch,
+        });
       });
 
       if (match) {
