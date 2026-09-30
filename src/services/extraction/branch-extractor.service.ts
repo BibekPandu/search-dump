@@ -7,7 +7,7 @@
 
 import { NEPAL_BRANCH_LOCALITIES } from '@/config/token-vocabulary.config';
 import { extractEmails } from '@/services/extraction/contact-extractor.service';
-import { classifyNepalPhone, extractPhones, extractMobiles, extractLandlinesAndIntl } from '@/services/extraction/phone-extractor.service';
+import { classifyNepalPhone, extractMobiles, extractLandlinesAndIntl } from '@/services/extraction/phone-extractor.service';
 
 export function cleanBranchAddress(
   rawContextOrAddress: string,
